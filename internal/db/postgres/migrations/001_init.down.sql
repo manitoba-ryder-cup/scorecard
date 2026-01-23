@@ -1,0 +1,3 @@
+-- Add your rollback logic here
+-- Example:
+-- DROP TABLE IF EXISTS users;

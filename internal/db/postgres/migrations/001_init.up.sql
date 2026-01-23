@@ -1,0 +1,8 @@
+-- Add your initial schema here
+-- Example:
+-- CREATE TABLE users (
+--     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+--     tenant_id UUID NOT NULL,
+--     email TEXT NOT NULL,
+--     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- );
