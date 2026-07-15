@@ -5,12 +5,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/travisbale/knowhere/identity"
-	"github.com/travisbale/knowhere/jwt"
 	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
+	"github.com/travisbale/knowhere/identity"
+	"github.com/travisbale/knowhere/jwt"
 )
 
 type Config struct {
@@ -30,53 +28,68 @@ type Server struct {
 }
 
 func NewServer(config *Config) *Server {
-	router := chi.NewRouter()
-
-	// Global middleware
-	router.Use(middleware.Recoverer)
-	router.Use(identity.RequestID)
-	router.Use(identity.ClientIP(config.TrustedProxyMode))
-	router.Use(identity.UserAgent)
-
-	// Health check endpoint (public, no auth required)
-	router.Get("/healthz", HandleHealth)
-
-	// Create JWT middleware
 	jwtMiddleware := jwt.NewHTTPMiddleware(config.JWTValidator)
 
-	// Create handlers
 	playersHandler := NewPlayersHandler(config.PlayerService)
 	matchesHandler := NewMatchesHandler(config.MatchService)
 	tournamentsHandler := NewTournamentsHandler(config.TournamentService)
 
-	// API v1 routes (protected with JWT authentication)
-	router.Group(func(protected chi.Router) {
-		protected.Use(jwtMiddleware.Authenticate)
+	mux := http.NewServeMux()
 
-		// Player routes
-		protected.Get("/v1/players", playersHandler.ListPlayers)
-		protected.Get("/v1/players/{id}", playersHandler.GetPlayer)
+	// Health check (public, no auth)
+	mux.HandleFunc("GET /healthz", HandleHealth)
 
-		// Match routes
-		protected.Get("/v1/matches/{id}/scores", matchesHandler.GetMatchScores)
-		protected.Get("/v1/matches/{id}/winner", matchesHandler.GetMatchWinner)
-		protected.Get("/v1/matches/{id}/status", matchesHandler.GetMatchStatus)
+	// auth wraps a handler with JWT authentication. knowhere's Authenticate is
+	// func(http.HandlerFunc) http.HandlerFunc — the std-lib shape used directly
+	// with ServeMux (chi's Handler-based Use rejected this signature).
+	auth := func(method, route string, handler http.HandlerFunc) {
+		mux.HandleFunc(method+" "+route, jwtMiddleware.Authenticate(handler))
+	}
 
-		// Tournament routes
-		protected.Get("/v1/tournaments", tournamentsHandler.ListTournaments)
-		protected.Get("/v1/tournaments/{id}", tournamentsHandler.GetTournament)
-		protected.Get("/v1/tournaments/{id}/teams", tournamentsHandler.GetTournamentTeams)
-		protected.Get("/v1/tournaments/{id}/winner", tournamentsHandler.GetTournamentWinner)
-		protected.Get("/v1/tournaments/{id}/status", tournamentsHandler.GetTournamentStatus)
-	})
+	// Player routes
+	auth("GET", "/v1/players", playersHandler.ListPlayers)
+	auth("GET", "/v1/players/{id}", playersHandler.GetPlayer)
+
+	// Match routes
+	auth("GET", "/v1/matches/{id}/scores", matchesHandler.GetMatchScores)
+	auth("GET", "/v1/matches/{id}/winner", matchesHandler.GetMatchWinner)
+	auth("GET", "/v1/matches/{id}/status", matchesHandler.GetMatchStatus)
+
+	// Tournament routes
+	auth("GET", "/v1/tournaments", tournamentsHandler.ListTournaments)
+	auth("GET", "/v1/tournaments/{id}", tournamentsHandler.GetTournament)
+	auth("GET", "/v1/tournaments/{id}/teams", tournamentsHandler.GetTournamentTeams)
+	auth("GET", "/v1/tournaments/{id}/winner", tournamentsHandler.GetTournamentWinner)
+	auth("GET", "/v1/tournaments/{id}/status", tournamentsHandler.GetTournamentStatus)
+
+	// Global middleware chain. Assembled inner-to-outer, so recoverMiddleware is
+	// outermost (wraps everything) and RequestID runs before ClientIP/UserAgent.
+	var handler http.Handler = mux
+	handler = identity.UserAgent(handler)
+	handler = identity.ClientIP(config.TrustedProxyMode)(handler)
+	handler = identity.RequestID(handler)
+	handler = recoverMiddleware(handler)
 
 	return &Server{
 		&http.Server{
 			Addr:              config.Address,
-			Handler:           router,
+			Handler:           handler,
 			ReadHeaderTimeout: 5 * time.Second,
 		},
 	}
+}
+
+// recoverMiddleware turns a panic in a downstream handler into a 500 instead of
+// crashing the server. knowhere provides no recoverer; this mirrors heimdall.
+func recoverMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
 }
 
 // Shutdown gracefully shuts down the HTTP server

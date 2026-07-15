@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 )
 
@@ -38,7 +37,7 @@ func (h *TournamentsHandler) ListTournaments(w http.ResponseWriter, r *http.Requ
 
 // GET /v1/tournaments/{id}
 func (h *TournamentsHandler) GetTournament(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
+	idStr := r.PathValue("id")
 	id, err := strconv.ParseInt(idStr, 10, 32)
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid tournament ID", err)
@@ -57,7 +56,7 @@ func (h *TournamentsHandler) GetTournament(w http.ResponseWriter, r *http.Reques
 // GET /v1/tournaments/{id}/teams
 // Returns teams with captain and points
 func (h *TournamentsHandler) GetTournamentTeams(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
+	idStr := r.PathValue("id")
 	id, err := strconv.ParseInt(idStr, 10, 32)
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid tournament ID", err)
@@ -76,7 +75,7 @@ func (h *TournamentsHandler) GetTournamentTeams(w http.ResponseWriter, r *http.R
 // GET /v1/tournaments/{id}/winner
 // Returns the winning team name
 func (h *TournamentsHandler) GetTournamentWinner(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
+	idStr := r.PathValue("id")
 	id, err := strconv.ParseInt(idStr, 10, 32)
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid tournament ID", err)
@@ -95,7 +94,7 @@ func (h *TournamentsHandler) GetTournamentWinner(w http.ResponseWriter, r *http.
 // GET /v1/tournaments/{id}/status
 // Returns whether the tournament is finished
 func (h *TournamentsHandler) GetTournamentStatus(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
+	idStr := r.PathValue("id")
 	id, err := strconv.ParseInt(idStr, 10, 32)
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid tournament ID", err)

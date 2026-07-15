@@ -3,8 +3,8 @@ package postgres
 import (
 	"context"
 
-	"github.com/travisbale/knowhere/db/postgres"
 	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres/internal/sqlc"
+	"github.com/travisbale/knowhere/db/postgres"
 )
 
 // DB is the database instance for scorecard using knowhere's generic wrapper

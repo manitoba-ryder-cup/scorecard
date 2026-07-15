@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 )
 
@@ -35,7 +34,7 @@ func (h *PlayersHandler) ListPlayers(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/players/{id}
 func (h *PlayersHandler) GetPlayer(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
+	idStr := r.PathValue("id")
 	id, err := strconv.ParseInt(idStr, 10, 32)
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid player ID", err)

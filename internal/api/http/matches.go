@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 )
 
@@ -26,7 +25,7 @@ func NewMatchesHandler(matchService MatchService) *MatchesHandler {
 // GET /v1/matches/{id}/scores
 // Returns hole-by-hole match progression
 func (h *MatchesHandler) GetMatchScores(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
+	idStr := r.PathValue("id")
 	id, err := strconv.ParseInt(idStr, 10, 32)
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid match ID", err)
@@ -45,7 +44,7 @@ func (h *MatchesHandler) GetMatchScores(w http.ResponseWriter, r *http.Request) 
 // GET /v1/matches/{id}/winner
 // Returns the winning team name
 func (h *MatchesHandler) GetMatchWinner(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
+	idStr := r.PathValue("id")
 	id, err := strconv.ParseInt(idStr, 10, 32)
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid match ID", err)
@@ -64,7 +63,7 @@ func (h *MatchesHandler) GetMatchWinner(w http.ResponseWriter, r *http.Request) 
 // GET /v1/matches/{id}/status
 // Returns whether the match is finished
 func (h *MatchesHandler) GetMatchStatus(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
+	idStr := r.PathValue("id")
 	id, err := strconv.ParseInt(idStr, 10, 32)
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid match ID", err)

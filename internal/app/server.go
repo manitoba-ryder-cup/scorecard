@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/travisbale/knowhere/jwt"
 	"github.com/manitoba-ryder-cup/scorecard/internal/api/http"
 	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
+	"github.com/travisbale/knowhere/jwt"
 )
 
 type logger interface {
