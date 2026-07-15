@@ -5,7 +5,7 @@ go 1.25
 require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.6
-	github.com/travisbale/knowhere v0.0.0-00010101000000-000000000000
+	github.com/travisbale/knowhere v0.0.0-20260715205303-40d1823ecf70
 	github.com/urfave/cli/v2 v2.27.7
 	golang.org/x/sync v0.17.0
 )
@@ -26,7 +26,3 @@ require (
 	golang.org/x/crypto v0.41.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
 )
-
-replace github.com/travisbale/knowhere => ../../travisbale/knowhere
-
-replace github.com/travisbale/heimdall => ../../travisbale/heimdall
