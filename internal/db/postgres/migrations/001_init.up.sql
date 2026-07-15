@@ -48,35 +48,32 @@ CREATE TABLE holes (
         ON DELETE CASCADE
 );
 
--- Create players table
+-- Players hold stable identity and career totals only. Per-tournament attributes
+-- (tier, biography, handicap) live on team_members, since they change year to year.
+-- user_id links to a heimdall account when one exists; it is a distinct identifier
+-- from players.id on purpose — the two services must not share an ID space, and
+-- roster-only players (no login) simply leave it NULL.
 CREATE TABLE players (
     id SERIAL,
     tenant_id UUID NOT NULL,
-    email VARCHAR(255) NOT NULL,
+    user_id UUID,                        -- heimdall user; NULL for roster-only players
+    email VARCHAR(255),                  -- optional contact; identity lives in heimdall
     first_name VARCHAR(32) NOT NULL,
     last_name VARCHAR(32) NOT NULL,
-    hdcp REAL NOT NULL DEFAULT 0,
-    photo_path VARCHAR DEFAULT '',
-    biography TEXT DEFAULT '',
-    tier VARCHAR(32) NOT NULL DEFAULT 'white',
+    photo_path VARCHAR NOT NULL DEFAULT '',
+    -- Career totals, materialized from match results (not recomputed on read).
     cups INTEGER NOT NULL DEFAULT 0,
     wins INTEGER NOT NULL DEFAULT 0,
     ties INTEGER NOT NULL DEFAULT 0,
     losses INTEGER NOT NULL DEFAULT 0,
     CONSTRAINT pk__players PRIMARY KEY (id),
-    CONSTRAINT uq__players__tenant_id__email UNIQUE (tenant_id, email)
+    -- Nullable uniqueness: Postgres treats NULLs as distinct, so roster-only
+    -- players (NULL email/user_id) don't collide.
+    CONSTRAINT uq__players__tenant_id__email UNIQUE (tenant_id, email),
+    CONSTRAINT uq__players__tenant_id__user_id UNIQUE (tenant_id, user_id)
 );
 
--- Create teams table
-CREATE TABLE teams (
-    id SERIAL,
-    tenant_id UUID NOT NULL,
-    name VARCHAR(32) NOT NULL,
-    CONSTRAINT pk__teams PRIMARY KEY (id),
-    CONSTRAINT uq__teams__tenant_id__name UNIQUE (tenant_id, name)
-);
-
--- Create tournaments table
+-- Create tournaments table (before teams, which reference it)
 CREATE TABLE tournaments (
     id SERIAL,
     tenant_id UUID NOT NULL,
@@ -89,26 +86,49 @@ CREATE TABLE tournaments (
         UNIQUE (tenant_id, name, start_date, end_date)
 );
 
--- Create team_members table (composite PK)
-CREATE TABLE team_members (
-    tournament_id INTEGER NOT NULL,
-    player_id INTEGER NOT NULL,
-    team_id INTEGER NOT NULL,
+-- Teams are per-tournament first-class entities. A Ryder Cup has exactly two
+-- sides: the color CHECK + UNIQUE(tournament_id, color) caps a tournament at one
+-- Red and one Blue. captain_id is a first-class nullable FK to a player (the app
+-- additionally requires the captain to be a member of the team).
+CREATE TABLE teams (
+    id SERIAL,
     tenant_id UUID NOT NULL,
-    is_captain BOOLEAN NOT NULL DEFAULT FALSE,
-    CONSTRAINT pk__team_members PRIMARY KEY (tournament_id, player_id),
-    CONSTRAINT fk__team_members__tournament_id__tournaments
-        FOREIGN KEY (tournament_id)
-        REFERENCES tournaments(id)
+    tournament_id INTEGER NOT NULL,
+    name VARCHAR(64) NOT NULL,
+    color VARCHAR(16) NOT NULL,
+    captain_id INTEGER,
+    CONSTRAINT pk__teams PRIMARY KEY (id),
+    CONSTRAINT fk__teams__tournament_id__tournaments
+        FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
+    CONSTRAINT fk__teams__captain_id__players
+        FOREIGN KEY (captain_id) REFERENCES players(id) ON DELETE SET NULL,
+    CONSTRAINT ck__teams__color CHECK (color IN ('Red', 'Blue')),
+    CONSTRAINT uq__teams__tournament_id__color UNIQUE (tournament_id, color),
+    CONSTRAINT uq__teams__tournament_id__name UNIQUE (tournament_id, name),
+    -- Lets match_participants prove a team belongs to the participant's tournament.
+    CONSTRAINT uq__teams__id__tournament_id UNIQUE (id, tournament_id)
+);
+
+-- Team membership for a tournament, plus the player's per-tournament attributes.
+-- The composite FK (team_id, tournament_id) -> teams keeps tournament_id honest
+-- (it must match the team's tournament); UNIQUE(tournament_id, player_id) enforces
+-- one side per player per tournament.
+CREATE TABLE team_members (
+    team_id INTEGER NOT NULL,
+    player_id INTEGER NOT NULL,
+    tournament_id INTEGER NOT NULL,
+    tenant_id UUID NOT NULL,
+    tier VARCHAR(32) NOT NULL DEFAULT 'white',
+    biography TEXT NOT NULL DEFAULT '',
+    hdcp REAL NOT NULL DEFAULT 0,
+    CONSTRAINT pk__team_members PRIMARY KEY (team_id, player_id),
+    CONSTRAINT fk__team_members__team_id_tournament_id__teams
+        FOREIGN KEY (team_id, tournament_id)
+        REFERENCES teams(id, tournament_id)
         ON DELETE CASCADE,
     CONSTRAINT fk__team_members__player_id__players
-        FOREIGN KEY (player_id)
-        REFERENCES players(id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk__team_members__team_id__teams
-        FOREIGN KEY (team_id)
-        REFERENCES teams(id)
-        ON DELETE CASCADE
+        FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE,
+    CONSTRAINT uq__team_members__tournament_id__player_id UNIQUE (tournament_id, player_id)
 );
 
 -- Create match_formats table
@@ -151,28 +171,28 @@ CREATE TABLE matches (
     CONSTRAINT uq__matches__id__course_id__tee_color_id UNIQUE (id, course_id, tee_color_id)
 );
 
--- Create match_participants table (composite PK)
+-- Match participants carry their team_id, so a match's two sides are explicit
+-- rather than derived. The composite FKs enforce integrity: the player is a member
+-- of the team (team_id, player_id -> team_members), and the team belongs to the
+-- match's tournament (team_id, tournament_id -> teams).
 CREATE TABLE match_participants (
     tournament_id INTEGER NOT NULL,
     match_id INTEGER NOT NULL,
     player_id INTEGER NOT NULL,
+    team_id INTEGER NOT NULL,
     tenant_id UUID NOT NULL,
     CONSTRAINT pk__match_participants PRIMARY KEY (match_id, player_id),
-    CONSTRAINT fk__match_participants__tournament_id__tournaments
-        FOREIGN KEY (tournament_id)
-        REFERENCES tournaments(id)
-        ON DELETE CASCADE,
     CONSTRAINT fk__match_participants__tournament_id_match_id__matches
         FOREIGN KEY (tournament_id, match_id)
         REFERENCES matches(tournament_id, id)
         ON DELETE CASCADE,
-    CONSTRAINT fk__match_participants__player_id__players
-        FOREIGN KEY (player_id)
-        REFERENCES players(id),
-    CONSTRAINT fk__match_participants__tournament_id_player_id__team_members
-        FOREIGN KEY (tournament_id, player_id)
-        REFERENCES team_members(tournament_id, player_id)
-        ON DELETE CASCADE
+    CONSTRAINT fk__match_participants__team_id_player_id__team_members
+        FOREIGN KEY (team_id, player_id)
+        REFERENCES team_members(team_id, player_id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk__match_participants__team_id_tournament_id__teams
+        FOREIGN KEY (team_id, tournament_id)
+        REFERENCES teams(id, tournament_id)
 );
 
 -- Create scores table (composite PK with match_id, player_id, hole_number)
@@ -218,8 +238,8 @@ ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tee_sets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE holes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE players ENABLE ROW LEVEL SECURITY;
-ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tournaments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE match_formats ENABLE ROW LEVEL SECURITY;
 ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
@@ -247,11 +267,11 @@ CREATE POLICY tenant_isolation_policy ON players
     FOR ALL TO PUBLIC
     USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
-CREATE POLICY tenant_isolation_policy ON teams
+CREATE POLICY tenant_isolation_policy ON tournaments
     FOR ALL TO PUBLIC
     USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
-CREATE POLICY tenant_isolation_policy ON tournaments
+CREATE POLICY tenant_isolation_policy ON teams
     FOR ALL TO PUBLIC
     USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
@@ -278,7 +298,9 @@ CREATE POLICY tenant_isolation_policy ON scores
 -- Create indexes for common query patterns
 CREATE INDEX ix__players__tenant_id__email ON players(tenant_id, email);
 CREATE INDEX ix__tournaments__tenant_id__start_date__end_date ON tournaments(tenant_id, start_date, end_date);
+CREATE INDEX ix__teams__tenant_id__tournament_id ON teams(tenant_id, tournament_id);
 CREATE INDEX ix__matches__tenant_id__tournament_id__tee_time ON matches(tenant_id, tournament_id, tee_time);
 CREATE INDEX ix__scores__tenant_id__match_id__hole_number ON scores(tenant_id, match_id, hole_number);
 CREATE INDEX ix__team_members__tenant_id__tournament_id ON team_members(tenant_id, tournament_id);
+CREATE INDEX ix__team_members__tenant_id__team_id ON team_members(tenant_id, team_id);
 CREATE INDEX ix__match_participants__tenant_id__match_id ON match_participants(tenant_id, match_id);
