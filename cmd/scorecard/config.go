@@ -22,6 +22,9 @@ type Config struct {
 
 	// Environment
 	Environment string
+
+	// Proxy configuration
+	TrustedProxyMode bool
 }
 
 // config is the global configuration populated by CLI flags
@@ -34,6 +37,7 @@ func (c *Config) ToAppConfig() *app.Config {
 		HTTPAddress:      c.HTTPAddress,
 		JWTPublicKeyPath: c.JWTPublicKeyPath,
 		Environment:      c.Environment,
+		TrustedProxyMode: c.TrustedProxyMode,
 		Logger:           slog.Default(),
 	}
 }

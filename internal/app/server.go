@@ -7,6 +7,7 @@ import (
 	"github.com/travisbale/knowhere/jwt"
 	"github.com/travisbale/scorecard/internal/api/http"
 	"github.com/travisbale/scorecard/internal/db/postgres"
+	"github.com/travisbale/scorecard/internal/golf"
 )
 
 type logger interface {
@@ -20,6 +21,7 @@ type Config struct {
 	DatabaseURL      string
 	JWTPublicKeyPath string
 	Environment      string
+	TrustedProxyMode bool
 	Logger           logger
 }
 
@@ -51,15 +53,53 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 	}
 
 	// Create database adapters
+	playersDB := postgres.NewPlayersDB(db)
+	matchesDB := postgres.NewMatchesDB(db)
+	participantsDB := postgres.NewParticipantsDB(db)
+	scoresDB := postgres.NewScoresDB(db)
+	teamsDB := postgres.NewTeamsDB(db)
+	teamMembersDB := postgres.NewTeamMembersDB(db)
+	tournamentsDB := postgres.NewTournamentsDB(db)
 
-	// Create application services
+	// Create domain services
+	playerService := &golf.PlayerService{
+		PlayerDB: playersDB,
+		Logger:   config.Logger,
+	}
+
+	matchService := &golf.MatchService{
+		MatchDB:       matchesDB,
+		ParticipantDB: participantsDB,
+		ScoreDB:       scoresDB,
+		PlayerDB:      playersDB,
+		Logger:        config.Logger,
+	}
+
+	teamService := &golf.TeamService{
+		TeamDB:       teamsDB,
+		TeamMemberDB: teamMembersDB,
+		MatchService: matchService,
+		Logger:       config.Logger,
+	}
+
+	tournamentService := &golf.TournamentService{
+		TournamentDB: tournamentsDB,
+		MatchService: matchService,
+		TeamService:  teamService,
+		Logger:       config.Logger,
+	}
 
 	// Create HTTP server
 	httpServer := http.NewServer(&http.Config{
-		Address:      config.HTTPAddress,
-		JWTValidator: jwtValidator,
-		DB:           db,
-		Environment:  config.Environment,
+		Address:           config.HTTPAddress,
+		JWTValidator:      jwtValidator,
+		DB:                db,
+		Environment:       config.Environment,
+		TrustedProxyMode:  config.TrustedProxyMode,
+		PlayerService:     playerService,
+		MatchService:      matchService,
+		TeamService:       teamService,
+		TournamentService: tournamentService,
 	})
 
 	return &Server{

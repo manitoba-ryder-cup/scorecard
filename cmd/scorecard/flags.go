@@ -53,4 +53,12 @@ var (
 		EnvVars:     []string{"ENVIRONMENT"},
 		Destination: &config.Environment,
 	}
+
+	// TrustedProxyModeFlag enables X-Forwarded-For header trust
+	TrustedProxyModeFlag = &cli.BoolFlag{
+		Name:        "trusted-proxy-mode",
+		Usage:       "Trust X-Forwarded-For headers from reverse proxy",
+		EnvVars:     []string{"TRUSTED_PROXY_MODE"},
+		Destination: &config.TrustedProxyMode,
+	}
 )

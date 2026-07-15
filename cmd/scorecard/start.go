@@ -20,6 +20,7 @@ var startCmd = &cli.Command{
 		HTTPAddressFlag,
 		JWTPublicKeyFlag,
 		EnvironmentFlag,
+		TrustedProxyModeFlag,
 	},
 	Action: func(c *cli.Context) error {
 		// Convert CLI config to app config
