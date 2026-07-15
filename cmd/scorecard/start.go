@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/travisbale/scorecard/internal/app"
+	"github.com/manitoba-ryder-cup/scorecard/internal/app"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/sync/errgroup"
 )

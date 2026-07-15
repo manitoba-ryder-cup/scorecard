@@ -3,7 +3,7 @@ package http
 import (
 	"net/http"
 
-	"github.com/travisbale/scorecard/sdk"
+	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
 // HandleHealth returns the service health status

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/travisbale/knowhere/db/postgres"
-	"github.com/travisbale/scorecard/internal/db/postgres/internal/sqlc"
+	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres/internal/sqlc"
 )
 
 // DB is the database instance for scorecard using knowhere's generic wrapper

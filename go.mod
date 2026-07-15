@@ -1,4 +1,4 @@
-module github.com/travisbale/scorecard
+module github.com/manitoba-ryder-cup/scorecard
 
 go 1.25
 
@@ -28,6 +28,6 @@ require (
 	golang.org/x/text v0.29.0 // indirect
 )
 
-replace github.com/travisbale/knowhere => ../knowhere
+replace github.com/travisbale/knowhere => ../../travisbale/knowhere
 
-replace github.com/travisbale/heimdall => ../heimdall
+replace github.com/travisbale/heimdall => ../../travisbale/heimdall

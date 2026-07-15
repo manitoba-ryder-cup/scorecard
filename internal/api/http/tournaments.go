@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/travisbale/scorecard/internal/golf"
+	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 )
 
 type TournamentService interface {

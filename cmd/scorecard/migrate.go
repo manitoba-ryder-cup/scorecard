@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/travisbale/scorecard/internal/db/postgres"
+	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres"
 	"github.com/urfave/cli/v2"
 )
 

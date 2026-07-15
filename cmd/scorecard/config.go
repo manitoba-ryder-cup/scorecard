@@ -3,7 +3,7 @@ package main
 import (
 	"log/slog"
 
-	"github.com/travisbale/scorecard/internal/app"
+	"github.com/manitoba-ryder-cup/scorecard/internal/app"
 )
 
 // Config holds all configuration for the application

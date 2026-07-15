@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/travisbale/knowhere/identity"
-	"github.com/travisbale/scorecard/internal/db/postgres/internal/sqlc"
-	"github.com/travisbale/scorecard/internal/golf"
+	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres/internal/sqlc"
+	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 )
 
 type ScoresDB struct {
