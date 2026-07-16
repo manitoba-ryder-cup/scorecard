@@ -9,8 +9,8 @@ package golf
 // at the hole where the match is decided.
 //
 // The result is pure, color-free state: per-hole TeamScores tagged by ID, the
-// LeaderTeamID (nil = all square), and the Lead margin. Rendering it as text is a
-// separate concern (FormatHoleStatus).
+// LeaderTeamID (nil = all square), and the Lead margin. Rendering it as text is
+// the frontend's concern.
 func ComputeMatchProgress(scores []Score, teamAID, teamBID int32) []HoleResult {
 	a := minStrokesByHole(scores, teamAID)
 	b := minStrokesByHole(scores, teamBID)

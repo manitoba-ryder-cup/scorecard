@@ -145,8 +145,8 @@ type TeamHoleScore struct {
 // sides by team ID — color ("Red"/"Blue") is a display attribute of the team, not
 // scoring state. LeaderTeamID identifies who is ahead (nil = all square); Lead is
 // the margin in holes (>= 0). Decided means the lead exceeds the holes remaining,
-// so the match is closed out at this hole. Rendering ("AS"/"2 UP"/"3 & 2") is a
-// separate concern (FormatHoleStatus).
+// so the match is closed out at this hole. Rendering this as text ("AS"/"2 UP"/
+// "3 & 2") is the frontend's concern.
 type HoleResult struct {
 	HoleNumber     int32
 	TeamScores     []TeamHoleScore // the two teams, in the order passed to ComputeMatchProgress
