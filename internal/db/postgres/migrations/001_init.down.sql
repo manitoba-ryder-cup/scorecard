@@ -1,4 +1,5 @@
 -- Drop tables in reverse dependency order
+DROP TABLE IF EXISTS match_results CASCADE;
 DROP TABLE IF EXISTS scores CASCADE;
 DROP TABLE IF EXISTS match_participants CASCADE;
 DROP TABLE IF EXISTS matches CASCADE;

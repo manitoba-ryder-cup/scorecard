@@ -53,7 +53,8 @@ CREATE TABLE holes (
     CONSTRAINT uq__holes__course_id__tee_color_id__hdcp UNIQUE (course_id, tee_color_id, hdcp)
 );
 
--- Players hold stable identity and career totals only. Per-tournament attributes
+-- Players hold stable identity only; win/loss/tie records are derived on read from
+-- match_results (never stored, so they can't go stale). Per-tournament attributes
 -- (tier, biography, handicap) live on team_members, since they change year to year.
 -- user_id links to a heimdall account when one exists; it is a distinct identifier
 -- from players.id on purpose — the two services must not share an ID space, and
@@ -66,11 +67,6 @@ CREATE TABLE players (
     first_name VARCHAR(32) NOT NULL,
     last_name VARCHAR(32) NOT NULL,
     photo_path VARCHAR NOT NULL DEFAULT '',
-    -- Career totals, materialized from match results (not recomputed on read).
-    cups INTEGER NOT NULL DEFAULT 0,
-    wins INTEGER NOT NULL DEFAULT 0,
-    ties INTEGER NOT NULL DEFAULT 0,
-    losses INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT pk__players PRIMARY KEY (id),
@@ -253,6 +249,29 @@ CREATE TABLE scores (
     CONSTRAINT ck__scores__strokes CHECK (strokes > 0)
 );
 
+-- Materialized per-match outcome, recomputed and upserted whenever a score for the
+-- match changes. Team points, tournament standings, and player records all derive
+-- from this small table rather than re-scanning the scores table on every read.
+-- leader_team_id is the current leader (NULL = all square); the winner is
+-- leader_team_id once finished.
+CREATE TABLE match_results (
+    match_id INTEGER NOT NULL,
+    tournament_id INTEGER NOT NULL,
+    tenant_id UUID NOT NULL,
+    finished BOOLEAN NOT NULL DEFAULT FALSE,
+    leader_team_id INTEGER,
+    lead INTEGER NOT NULL DEFAULT 0,
+    holes_remaining INTEGER NOT NULL DEFAULT 0,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT pk__match_results PRIMARY KEY (match_id),
+    CONSTRAINT fk__match_results__match_id__matches
+        FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE,
+    CONSTRAINT fk__match_results__tournament_id__tournaments
+        FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
+    CONSTRAINT fk__match_results__leader_team_id__teams
+        FOREIGN KEY (leader_team_id) REFERENCES teams(id) ON DELETE SET NULL
+);
+
 -- Enable Row Level Security on all tables
 ALTER TABLE tee_colors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
@@ -266,6 +285,7 @@ ALTER TABLE match_formats ENABLE ROW LEVEL SECURITY;
 ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE match_participants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE scores ENABLE ROW LEVEL SECURITY;
+ALTER TABLE match_results ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies for tenant isolation
 CREATE POLICY tenant_isolation_policy ON tee_colors
@@ -316,6 +336,10 @@ CREATE POLICY tenant_isolation_policy ON scores
     FOR ALL TO PUBLIC
     USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
+CREATE POLICY tenant_isolation_policy ON match_results
+    FOR ALL TO PUBLIC
+    USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
 -- Create indexes for common query patterns
 CREATE INDEX ix__players__tenant_id__email ON players(tenant_id, email);
 CREATE INDEX ix__tournaments__tenant_id__start_date__end_date ON tournaments(tenant_id, start_date, end_date);
@@ -325,6 +349,7 @@ CREATE INDEX ix__scores__tenant_id__match_id__hole_number ON scores(tenant_id, m
 CREATE INDEX ix__team_members__tenant_id__tournament_id ON team_members(tenant_id, tournament_id);
 CREATE INDEX ix__team_members__tenant_id__team_id ON team_members(tenant_id, team_id);
 CREATE INDEX ix__match_participants__tenant_id__match_id ON match_participants(tenant_id, match_id);
+CREATE INDEX ix__match_results__tenant_id__tournament_id ON match_results(tenant_id, tournament_id);
 
 -- Score uniqueness has two grains: one row per player per hole (per-player formats)
 -- and one row per team per hole (one-ball formats, player_id NULL).
