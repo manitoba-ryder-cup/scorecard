@@ -1,48 +1,59 @@
 package golf
 
 // ComputeMatchProgress computes the hole-by-hole match-play state from the
-// recorded scores. A team's gross score on a hole is the minimum strokes recorded
-// for that team on that hole, which uniformly covers singles (the one score),
-// fourball (best of two), and one-ball formats (the single team score). Only holes
-// scored by both teams contribute, in hole order, and the sequence ends at the
-// hole where the match is decided (closed out).
+// recorded scores for a match between teamA and teamB (identified by ID; the
+// caller chooses the order). A team's gross score on a hole is the minimum strokes
+// recorded for that team on that hole, which uniformly covers singles (the one
+// score), fourball (best of two), and one-ball formats (the single team score).
+// Only holes scored by both teams contribute, in hole order, and the sequence ends
+// at the hole where the match is decided.
 //
-// The result is pure state — Lead (+ Red, - Blue, 0 square) and Decided. Rendering
-// it as text ("AS"/"2 UP"/"3 & 2") is a separate concern (FormatHoleStatus).
-func ComputeMatchProgress(scores []Score, redTeamID, blueTeamID int32) []HoleResult {
-	red := minStrokesByHole(scores, redTeamID)
-	blue := minStrokesByHole(scores, blueTeamID)
+// The result is pure, color-free state: per-hole TeamScores tagged by ID, the
+// LeaderTeamID (nil = all square), and the Lead margin. Rendering it as text is a
+// separate concern (FormatHoleStatus).
+func ComputeMatchProgress(scores []Score, teamAID, teamBID int32) []HoleResult {
+	a := minStrokesByHole(scores, teamAID)
+	b := minStrokesByHole(scores, teamBID)
 
 	// Holes scored by both teams, in order.
 	var holes []int32
 	for h := int32(1); h <= 18; h++ {
-		if _, okR := red[h]; okR {
-			if _, okB := blue[h]; okB {
+		if _, okA := a[h]; okA {
+			if _, okB := b[h]; okB {
 				holes = append(holes, h)
 			}
 		}
 	}
 
 	var result []HoleResult
-	var lead int
+	var signed int // relative to teamA: + teamA ahead, - teamB ahead
 	for i, h := range holes {
-		r, b := red[h], blue[h]
+		sa, sb := a[h], b[h]
 		switch {
-		case b > r:
-			lead++ // Red wins the hole (lower score)
-		case r > b:
-			lead-- // Blue wins the hole
+		case sb > sa:
+			signed++ // teamA wins the hole (lower score)
+		case sa > sb:
+			signed-- // teamB wins the hole
 		}
 
 		n := i + 1 // scored holes counted so far
 		holesRemaining := 18 - n
-		// Decided when the lead can no longer be caught (and not on the 18th).
-		decided := abs(lead) > holesRemaining && n != 18
+		lead := abs(signed)
+		decided := lead > holesRemaining && n != 18
+
+		var leader *int32
+		if signed > 0 {
+			id := teamAID
+			leader = &id
+		} else if signed < 0 {
+			id := teamBID
+			leader = &id
+		}
 
 		result = append(result, HoleResult{
 			HoleNumber:     h,
-			RedStrokes:     r,
-			BlueStrokes:    b,
+			TeamScores:     []TeamHoleScore{{TeamID: teamAID, Strokes: sa}, {TeamID: teamBID, Strokes: sb}},
+			LeaderTeamID:   leader,
 			Lead:           lead,
 			HolesRemaining: holesRemaining,
 			Decided:        decided,

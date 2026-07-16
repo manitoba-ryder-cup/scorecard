@@ -9,8 +9,7 @@ func TestFormatHoleStatus(t *testing.T) {
 		want string
 	}{
 		{"all square", HoleResult{Lead: 0}, "AS"},
-		{"red two up", HoleResult{Lead: 2}, "2 UP"},
-		{"blue three up (abs)", HoleResult{Lead: -3}, "3 UP"},
+		{"two up", HoleResult{Lead: 2}, "2 UP"},
 		{"closed out", HoleResult{Lead: 3, HolesRemaining: 2, Decided: true}, "3 & 2"},
 	}
 	for _, c := range cases {

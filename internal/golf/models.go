@@ -135,15 +135,22 @@ type TeamMember struct {
 	Hdcp         float32
 }
 
-// HoleResult is the match-play state after a scored hole. It is pure domain
-// state with no presentation — rendering "AS"/"2 UP"/"3 & 2" is a separate
-// concern (see FormatHoleStatus). Lead is cumulative (+ Red ahead, - Blue ahead,
-// 0 all square); Decided means the lead exceeds the holes remaining, so the match
-// is closed out at this hole.
+// TeamHoleScore is one side's gross score on a hole, tagged by team ID.
+type TeamHoleScore struct {
+	TeamID  int32
+	Strokes int32
+}
+
+// HoleResult is the match-play state after a scored hole. It refers to the two
+// sides by team ID — color ("Red"/"Blue") is a display attribute of the team, not
+// scoring state. LeaderTeamID identifies who is ahead (nil = all square); Lead is
+// the margin in holes (>= 0). Decided means the lead exceeds the holes remaining,
+// so the match is closed out at this hole. Rendering ("AS"/"2 UP"/"3 & 2") is a
+// separate concern (FormatHoleStatus).
 type HoleResult struct {
 	HoleNumber     int32
-	RedStrokes     int32
-	BlueStrokes    int32
+	TeamScores     []TeamHoleScore // the two teams, in the order passed to ComputeMatchProgress
+	LeaderTeamID   *int32
 	Lead           int
 	HolesRemaining int
 	Decided        bool
