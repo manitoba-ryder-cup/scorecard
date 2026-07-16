@@ -7,88 +7,30 @@ package sqlc
 
 import (
 	"context"
-
-	"github.com/google/uuid"
 )
 
-const createMatchFormat = `-- name: CreateMatchFormat :one
-INSERT INTO match_formats (
-    tenant_id,
-    name
-) VALUES (
-    $1, $2
-) RETURNING id, tenant_id, name
-`
-
-type CreateMatchFormatParams struct {
-	TenantID uuid.UUID `json:"tenant_id"`
-	Name     string    `json:"name"`
-}
-
-func (q *Queries) CreateMatchFormat(ctx context.Context, arg CreateMatchFormatParams) (MatchFormat, error) {
-	row := q.db.QueryRow(ctx, createMatchFormat, arg.TenantID, arg.Name)
-	var i MatchFormat
-	err := row.Scan(&i.ID, &i.TenantID, &i.Name)
-	return i, err
-}
-
-const deleteMatchFormat = `-- name: DeleteMatchFormat :exec
-DELETE FROM match_formats
-WHERE id = $1 AND tenant_id = $2
-`
-
-type DeleteMatchFormatParams struct {
-	ID       int32     `json:"id"`
-	TenantID uuid.UUID `json:"tenant_id"`
-}
-
-func (q *Queries) DeleteMatchFormat(ctx context.Context, arg DeleteMatchFormatParams) error {
-	_, err := q.db.Exec(ctx, deleteMatchFormat, arg.ID, arg.TenantID)
-	return err
-}
-
 const getMatchFormat = `-- name: GetMatchFormat :one
-SELECT id, tenant_id, name FROM match_formats
-WHERE id = $1 AND tenant_id = $2
+
+SELECT id, name FROM match_formats
+WHERE id = $1
 `
 
-type GetMatchFormatParams struct {
-	ID       int32     `json:"id"`
-	TenantID uuid.UUID `json:"tenant_id"`
-}
-
-func (q *Queries) GetMatchFormat(ctx context.Context, arg GetMatchFormatParams) (MatchFormat, error) {
-	row := q.db.QueryRow(ctx, getMatchFormat, arg.ID, arg.TenantID)
+// Match formats are global, code-defined reference data (seeded, not tenant-scoped),
+// so these reads take no tenant_id and there is no create/update/delete.
+func (q *Queries) GetMatchFormat(ctx context.Context, id int32) (MatchFormat, error) {
+	row := q.db.QueryRow(ctx, getMatchFormat, id)
 	var i MatchFormat
-	err := row.Scan(&i.ID, &i.TenantID, &i.Name)
-	return i, err
-}
-
-const getMatchFormatByName = `-- name: GetMatchFormatByName :one
-SELECT id, tenant_id, name FROM match_formats
-WHERE name = $1 AND tenant_id = $2
-`
-
-type GetMatchFormatByNameParams struct {
-	Name     string    `json:"name"`
-	TenantID uuid.UUID `json:"tenant_id"`
-}
-
-func (q *Queries) GetMatchFormatByName(ctx context.Context, arg GetMatchFormatByNameParams) (MatchFormat, error) {
-	row := q.db.QueryRow(ctx, getMatchFormatByName, arg.Name, arg.TenantID)
-	var i MatchFormat
-	err := row.Scan(&i.ID, &i.TenantID, &i.Name)
+	err := row.Scan(&i.ID, &i.Name)
 	return i, err
 }
 
 const listMatchFormats = `-- name: ListMatchFormats :many
-SELECT id, tenant_id, name FROM match_formats
-WHERE tenant_id = $1
-ORDER BY name
+SELECT id, name FROM match_formats
+ORDER BY id
 `
 
-func (q *Queries) ListMatchFormats(ctx context.Context, tenantID uuid.UUID) ([]MatchFormat, error) {
-	rows, err := q.db.Query(ctx, listMatchFormats, tenantID)
+func (q *Queries) ListMatchFormats(ctx context.Context) ([]MatchFormat, error) {
+	rows, err := q.db.Query(ctx, listMatchFormats)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +38,7 @@ func (q *Queries) ListMatchFormats(ctx context.Context, tenantID uuid.UUID) ([]M
 	items := []MatchFormat{}
 	for rows.Next() {
 		var i MatchFormat
-		if err := rows.Scan(&i.ID, &i.TenantID, &i.Name); err != nil {
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -105,24 +47,4 @@ func (q *Queries) ListMatchFormats(ctx context.Context, tenantID uuid.UUID) ([]M
 		return nil, err
 	}
 	return items, nil
-}
-
-const updateMatchFormat = `-- name: UpdateMatchFormat :one
-UPDATE match_formats
-SET name = $3
-WHERE id = $1 AND tenant_id = $2
-RETURNING id, tenant_id, name
-`
-
-type UpdateMatchFormatParams struct {
-	ID       int32     `json:"id"`
-	TenantID uuid.UUID `json:"tenant_id"`
-	Name     string    `json:"name"`
-}
-
-func (q *Queries) UpdateMatchFormat(ctx context.Context, arg UpdateMatchFormatParams) (MatchFormat, error) {
-	row := q.db.QueryRow(ctx, updateMatchFormat, arg.ID, arg.TenantID, arg.Name)
-	var i MatchFormat
-	err := row.Scan(&i.ID, &i.TenantID, &i.Name)
-	return i, err
 }

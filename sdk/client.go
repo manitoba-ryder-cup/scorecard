@@ -55,6 +55,13 @@ func (c *Client) CreatePlayer(ctx context.Context, req CreatePlayerRequest) (*Pl
 	return &out, c.do(ctx, http.MethodPost, RouteV1Players, req, &out)
 }
 
+// --- Reference data ---
+
+func (c *Client) ListMatchFormats(ctx context.Context) ([]MatchFormat, error) {
+	var out []MatchFormat
+	return out, c.do(ctx, http.MethodGet, RouteV1MatchFormats, nil, &out)
+}
+
 // --- Course reference data ---
 
 func (c *Client) ListTeeColors(ctx context.Context) ([]TeeColor, error) {

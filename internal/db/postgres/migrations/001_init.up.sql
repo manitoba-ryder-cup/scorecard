@@ -136,13 +136,14 @@ CREATE TABLE team_members (
     CONSTRAINT uq__team_members__tournament_id__player_id UNIQUE (tournament_id, player_id)
 );
 
--- Create match_formats table
+-- Match formats are code-defined reference data: each name maps to scoring rules
+-- implemented in the application, so they are global (no tenant_id, no RLS) and
+-- seeded (see 002_seed_match_formats) rather than created by users.
 CREATE TABLE match_formats (
     id SERIAL,
-    tenant_id UUID NOT NULL,
     name VARCHAR(255) NOT NULL,
     CONSTRAINT pk__match_formats PRIMARY KEY (id),
-    CONSTRAINT uq__match_formats__tenant_id__name UNIQUE (tenant_id, name)
+    CONSTRAINT uq__match_formats__name UNIQUE (name)
 );
 
 -- Create matches table (with composite unique constraints for foreign keys)
@@ -283,7 +284,6 @@ ALTER TABLE players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tournaments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
-ALTER TABLE match_formats ENABLE ROW LEVEL SECURITY;
 ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE match_participants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE scores ENABLE ROW LEVEL SECURITY;
@@ -319,10 +319,6 @@ CREATE POLICY tenant_isolation_policy ON teams
     USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 CREATE POLICY tenant_isolation_policy ON team_members
-    FOR ALL TO PUBLIC
-    USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
-
-CREATE POLICY tenant_isolation_policy ON match_formats
     FOR ALL TO PUBLIC
     USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 

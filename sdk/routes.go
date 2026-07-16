@@ -8,6 +8,9 @@ const (
 	RouteV1Players = "/v1/players"
 	RouteV1Player  = "/v1/players/{id}"
 
+	// Reference data
+	RouteV1MatchFormats = "/v1/match-formats"
+
 	// Course reference data
 	RouteV1TeeColors  = "/v1/tee-colors"
 	RouteV1Courses    = "/v1/courses"

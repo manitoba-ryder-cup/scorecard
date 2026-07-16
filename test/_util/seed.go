@@ -118,11 +118,13 @@ func SeedSinglesMatch(ctx context.Context, conn *pgx.Conn) (*Fixture, error) {
 		return nil, fmt.Errorf("seed blue member: %w", err)
 	}
 
+	// Match formats are global seeded reference data, not tenant-scoped — reference the
+	// pre-seeded 'Singles' format rather than inserting one.
 	var formatID int32
 	if err := conn.QueryRow(ctx,
-		`INSERT INTO match_formats (tenant_id, name) VALUES ($1, 'Singles') RETURNING id`, t,
+		`SELECT id FROM match_formats WHERE name = 'Singles'`,
 	).Scan(&formatID); err != nil {
-		return nil, fmt.Errorf("seed match_format: %w", err)
+		return nil, fmt.Errorf("look up Singles match_format: %w", err)
 	}
 
 	if err := conn.QueryRow(ctx,

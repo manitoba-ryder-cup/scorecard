@@ -66,6 +66,11 @@ type teeSetDB interface {
 	CreateTeeSet(ctx context.Context, in CreateTeeSetInput) (*TeeSetWithHoles, error)
 }
 
+// formatDB interface defines read operations for global match formats
+type formatDB interface {
+	ListMatchFormats(ctx context.Context) ([]MatchFormat, error)
+}
+
 // tournamentDB interface defines database operations for tournaments
 type tournamentDB interface {
 	GetTournament(ctx context.Context, id int32) (*Tournament, error)

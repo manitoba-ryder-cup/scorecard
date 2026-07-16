@@ -25,6 +25,7 @@ type Config struct {
 	MatchService      *golf.MatchService
 	TournamentService *golf.TournamentService
 	CourseService     *golf.CourseService
+	FormatService     *golf.FormatService
 }
 
 type Server struct {
@@ -38,11 +39,15 @@ func NewServer(config *Config) *Server {
 	matchesHandler := NewMatchesHandler(config.MatchService)
 	tournamentsHandler := NewTournamentsHandler(config.TournamentService)
 	coursesHandler := NewCoursesHandler(config.CourseService)
+	formatsHandler := NewFormatsHandler(config.FormatService)
 
 	mux := http.NewServeMux()
 
 	// Health check (public, no auth, no tenant)
 	mux.HandleFunc("GET /healthz", HandleHealth)
+
+	// Match formats are global seeded reference data — truly public, no tenant needed.
+	mux.HandleFunc("GET "+sdk.RouteV1MatchFormats, formatsHandler.ListMatchFormats)
 
 	// public registers a read route with optional authentication: a token's tenant is
 	// used when present, else the configured public tenant (401 if neither).

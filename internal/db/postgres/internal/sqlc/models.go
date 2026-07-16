@@ -40,9 +40,8 @@ type Match struct {
 }
 
 type MatchFormat struct {
-	ID       int32     `json:"id"`
-	TenantID uuid.UUID `json:"tenant_id"`
-	Name     string    `json:"name"`
+	ID   int32  `json:"id"`
+	Name string `json:"name"`
 }
 
 type MatchParticipant struct {
