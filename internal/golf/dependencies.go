@@ -61,6 +61,11 @@ type courseDB interface {
 	ListCourses(ctx context.Context) ([]Course, error)
 }
 
+// teeSetDB interface defines database operations for tee sets (with their holes)
+type teeSetDB interface {
+	CreateTeeSet(ctx context.Context, in CreateTeeSetInput) (*TeeSetWithHoles, error)
+}
+
 // tournamentDB interface defines database operations for tournaments
 type tournamentDB interface {
 	GetTournament(ctx context.Context, id int32) (*Tournament, error)

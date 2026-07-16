@@ -11,6 +11,7 @@ import (
 type CourseService struct {
 	TeeColorDB teeColorDB
 	CourseDB   courseDB
+	TeeSetDB   teeSetDB
 	Logger     logger
 }
 
@@ -22,6 +23,32 @@ type CreateTeeColorInput struct {
 // CreateCourseInput is the intent to add a course (venue).
 type CreateCourseInput struct {
 	Name string
+}
+
+// HoleInput is one hole's setup within a tee-set creation.
+type HoleInput struct {
+	Number int32
+	Par    int32
+	Hdcp   int32
+	Yards  int32
+}
+
+// CreateTeeSetInput is the intent to add a tee set (and its holes) to a course. The
+// 18-holes/uniqueness shape is validated at the API boundary; the database enforces
+// it too.
+type CreateTeeSetInput struct {
+	CourseID   int32
+	TeeColorID int32
+	Slope      int32
+	Rating     float64
+	Holes      []HoleInput
+}
+
+// TeeSetWithHoles is a tee set plus its holes — a course's playable configuration for
+// one tee color.
+type TeeSetWithHoles struct {
+	TeeSet TeeSet
+	Holes  []Hole
 }
 
 func (s *CourseService) CreateTeeColor(ctx context.Context, in CreateTeeColorInput) (*TeeColor, error) {
@@ -54,6 +81,20 @@ func (s *CourseService) GetCourse(ctx context.Context, id int32) (*Course, error
 		return nil, fmt.Errorf("failed to get course: %w", err)
 	}
 	return course, nil
+}
+
+// CreateTeeSet adds a tee set and its holes to a course. It first confirms the course
+// exists (so a bad course in the path is a clean 404), then persists the tee set and
+// all its holes atomically.
+func (s *CourseService) CreateTeeSet(ctx context.Context, in CreateTeeSetInput) (*TeeSetWithHoles, error) {
+	if _, err := s.CourseDB.GetCourse(ctx, in.CourseID); err != nil {
+		return nil, fmt.Errorf("failed to load course: %w", err)
+	}
+	teeSet, err := s.TeeSetDB.CreateTeeSet(ctx, in)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create tee set: %w", err)
+	}
+	return teeSet, nil
 }
 
 func (s *CourseService) ListCourses(ctx context.Context) ([]Course, error) {

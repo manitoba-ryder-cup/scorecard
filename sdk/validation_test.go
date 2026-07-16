@@ -71,6 +71,54 @@ func TestCreateTournamentRequest_Validate(t *testing.T) {
 	}
 }
 
+// validHoles returns 18 well-formed holes (numbers and stroke indexes 1-18).
+func validHoles() []Hole {
+	holes := make([]Hole, 18)
+	for i := int32(0); i < 18; i++ {
+		holes[i] = Hole{Number: i + 1, Par: 4, Hdcp: i + 1, Yards: 400}
+	}
+	return holes
+}
+
+func TestCreateTeeSetRequest_Validate(t *testing.T) {
+	ctx := context.Background()
+
+	valid := CreateTeeSetRequest{TeeColorID: 1, Slope: 113, Rating: 71.2, Holes: validHoles()}
+	if err := valid.Validate(ctx); err != nil {
+		t.Fatalf("valid tee set should pass: %v", err)
+	}
+
+	// Bad slope.
+	bad := valid
+	bad.Slope = 200
+	if bad.Validate(ctx) == nil {
+		t.Error("slope out of range should fail")
+	}
+
+	// Wrong hole count.
+	bad = valid
+	bad.Holes = valid.Holes[:17]
+	if bad.Validate(ctx) == nil {
+		t.Error("17 holes should fail")
+	}
+
+	// Duplicate stroke index.
+	bad = valid
+	dupHoles := validHoles()
+	dupHoles[1].Hdcp = dupHoles[0].Hdcp
+	bad.Holes = dupHoles
+	if bad.Validate(ctx) == nil {
+		t.Error("duplicate hdcp should fail")
+	}
+
+	// Missing tee color.
+	bad = valid
+	bad.TeeColorID = 0
+	if bad.Validate(ctx) == nil {
+		t.Error("missing tee_color_id should fail")
+	}
+}
+
 func TestScoreSubmission_Validate(t *testing.T) {
 	ctx := context.Background()
 	cases := []struct {

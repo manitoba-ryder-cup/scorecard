@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Course struct {
@@ -116,11 +115,11 @@ type TeeColor struct {
 }
 
 type TeeSet struct {
-	CourseID   int32          `json:"course_id"`
-	TeeColorID int32          `json:"tee_color_id"`
-	TenantID   uuid.UUID      `json:"tenant_id"`
-	Slope      int32          `json:"slope"`
-	Rating     pgtype.Numeric `json:"rating"`
+	CourseID   int32     `json:"course_id"`
+	TeeColorID int32     `json:"tee_color_id"`
+	TenantID   uuid.UUID `json:"tenant_id"`
+	Slope      int32     `json:"slope"`
+	Rating     float64   `json:"rating"`
 }
 
 type Tournament struct {

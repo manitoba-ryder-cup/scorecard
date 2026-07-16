@@ -47,3 +47,14 @@ sql:
             go_type:
               pointer: true
               type: "time.Time"
+          # Course ratings are numeric(4,1); float64 is plenty of precision and keeps
+          # the repo out of pgtype.Numeric.
+          - db_type: "pg_catalog.numeric"
+            nullable: false
+            go_type:
+              type: "float64"
+          - db_type: "pg_catalog.numeric"
+            nullable: true
+            go_type:
+              pointer: true
+              type: "float64"

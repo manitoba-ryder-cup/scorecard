@@ -9,8 +9,11 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 )
 
-// pgUniqueViolation is PostgreSQL's SQLSTATE for a unique-constraint violation.
-const pgUniqueViolation = "23505"
+// PostgreSQL SQLSTATE codes we translate to domain sentinels.
+const (
+	pgUniqueViolation     = "23505" // duplicate key
+	pgForeignKeyViolation = "23503" // referenced row does not exist
+)
 
 // mapReadErr translates a single-row read error into a domain sentinel: the driver's
 // no-rows error becomes golf.ErrNotFound so the API returns 404 instead of 500. Only
@@ -35,8 +38,15 @@ func mapWriteErr(err error) error {
 		return nil
 	}
 	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
-		return fmt.Errorf("%w: %s", golf.ErrConflict, pgErr.ConstraintName)
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case pgUniqueViolation:
+			return fmt.Errorf("%w: %s", golf.ErrConflict, pgErr.ConstraintName)
+		case pgForeignKeyViolation:
+			// A body field references a row that doesn't exist (e.g. an unknown
+			// tee_color_id or player_id) — a client error, not a server fault.
+			return fmt.Errorf("%w: %s", golf.ErrInvalidInput, pgErr.ConstraintName)
+		}
 	}
 	return err
 }

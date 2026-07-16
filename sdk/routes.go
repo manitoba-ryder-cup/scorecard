@@ -9,9 +9,10 @@ const (
 	RouteV1Player  = "/v1/players/{id}"
 
 	// Course reference data
-	RouteV1TeeColors = "/v1/tee-colors"
-	RouteV1Courses   = "/v1/courses"
-	RouteV1Course    = "/v1/courses/{id}"
+	RouteV1TeeColors  = "/v1/tee-colors"
+	RouteV1Courses    = "/v1/courses"
+	RouteV1Course     = "/v1/courses/{id}"
+	RouteV1CourseTees = "/v1/courses/{id}/tees"
 
 	// Tournaments
 	RouteV1Tournaments      = "/v1/tournaments"

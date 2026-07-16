@@ -82,6 +82,12 @@ func (c *Client) CreateCourse(ctx context.Context, req CreateCourseRequest) (*Co
 	return &out, c.do(ctx, http.MethodPost, RouteV1Courses, req, &out)
 }
 
+// AddTeeSet adds a tee set and its 18 holes to a course.
+func (c *Client) AddTeeSet(ctx context.Context, courseID int32, req CreateTeeSetRequest) (*TeeSet, error) {
+	var out TeeSet
+	return &out, c.do(ctx, http.MethodPost, pathID(RouteV1CourseTees, courseID), req, &out)
+}
+
 // --- Tournaments ---
 
 func (c *Client) ListTournaments(ctx context.Context) ([]Tournament, error) {

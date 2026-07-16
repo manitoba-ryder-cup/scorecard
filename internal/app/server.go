@@ -79,6 +79,7 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 	resultsDB := postgres.NewResultsDB(db)
 	teeColorsDB := postgres.NewTeeColorsDB(db)
 	coursesDB := postgres.NewCoursesDB(db)
+	teeSetsDB := postgres.NewTeeSetsDB(db)
 
 	// Create domain services
 	playerService := &golf.PlayerService{
@@ -111,6 +112,7 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 	courseService := &golf.CourseService{
 		TeeColorDB: teeColorsDB,
 		CourseDB:   coursesDB,
+		TeeSetDB:   teeSetsDB,
 		Logger:     config.Logger,
 	}
 

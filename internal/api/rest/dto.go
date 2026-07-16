@@ -123,6 +123,20 @@ func toTeeColorDTOs(teeColors []golf.TeeColor) []sdk.TeeColor {
 	return out
 }
 
+func toTeeSetDTO(ts golf.TeeSetWithHoles) sdk.TeeSet {
+	holes := make([]sdk.Hole, len(ts.Holes))
+	for i, h := range ts.Holes {
+		holes[i] = sdk.Hole{Number: h.Number, Par: h.Par, Hdcp: h.Hdcp, Yards: h.Yards}
+	}
+	return sdk.TeeSet{
+		CourseID:   ts.TeeSet.CourseID,
+		TeeColorID: ts.TeeSet.TeeColorID,
+		Slope:      ts.TeeSet.Slope,
+		Rating:     ts.TeeSet.Rating,
+		Holes:      holes,
+	}
+}
+
 func toCourseDTO(c golf.Course) sdk.Course {
 	return sdk.Course{ID: c.ID, Name: c.Name}
 }

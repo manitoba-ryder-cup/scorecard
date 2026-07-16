@@ -15,6 +15,7 @@ type CourseService interface {
 	CreateCourse(ctx context.Context, in golf.CreateCourseInput) (*golf.Course, error)
 	GetCourse(ctx context.Context, id int32) (*golf.Course, error)
 	ListCourses(ctx context.Context) ([]golf.Course, error)
+	CreateTeeSet(ctx context.Context, in golf.CreateTeeSetInput) (*golf.TeeSetWithHoles, error)
 }
 
 type CoursesHandler struct {
@@ -77,6 +78,40 @@ func (h *CoursesHandler) GetCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondJSON(w, http.StatusOK, toCourseDTO(*course))
+}
+
+// POST /v1/courses/{id}/tees
+func (h *CoursesHandler) AddTeeSet(w http.ResponseWriter, r *http.Request) {
+	courseID, err := pathInt(r, "id")
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid course ID", err)
+		return
+	}
+	var req sdk.CreateTeeSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid request body", err)
+		return
+	}
+	if err := req.Validate(r.Context()); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
+	holes := make([]golf.HoleInput, len(req.Holes))
+	for i, h := range req.Holes {
+		holes[i] = golf.HoleInput{Number: h.Number, Par: h.Par, Hdcp: h.Hdcp, Yards: h.Yards}
+	}
+	teeSet, err := h.courseService.CreateTeeSet(r.Context(), golf.CreateTeeSetInput{
+		CourseID:   courseID,
+		TeeColorID: req.TeeColorID,
+		Slope:      req.Slope,
+		Rating:     req.Rating,
+		Holes:      holes,
+	})
+	if err != nil {
+		respondDomainError(w, "Failed to add tee set", err)
+		return
+	}
+	respondJSON(w, http.StatusCreated, toTeeSetDTO(*teeSet))
 }
 
 // POST /v1/courses

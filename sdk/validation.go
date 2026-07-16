@@ -55,6 +55,48 @@ func (r CreateCourseRequest) Validate(ctx context.Context) error {
 	return validateRequired(r.Name, "name")
 }
 
+// Validate checks a tee-set creation request: valid slope/rating and exactly 18
+// holes forming complete, non-duplicated hole-number and stroke-index (hdcp) sets.
+func (r CreateTeeSetRequest) Validate(ctx context.Context) error {
+	if r.TeeColorID <= 0 {
+		return fmt.Errorf("tee_color_id is required")
+	}
+	if r.Slope < 55 || r.Slope > 155 {
+		return fmt.Errorf("slope must be between 55 and 155")
+	}
+	if r.Rating <= 0 {
+		return fmt.Errorf("rating must be positive")
+	}
+	if len(r.Holes) != 18 {
+		return fmt.Errorf("exactly 18 holes are required, got %d", len(r.Holes))
+	}
+	seenNumber := make(map[int32]bool, 18)
+	seenHdcp := make(map[int32]bool, 18)
+	for _, h := range r.Holes {
+		if h.Number < 1 || h.Number > 18 {
+			return fmt.Errorf("hole number must be between 1 and 18")
+		}
+		if seenNumber[h.Number] {
+			return fmt.Errorf("duplicate hole number %d", h.Number)
+		}
+		seenNumber[h.Number] = true
+		if h.Par < 3 || h.Par > 6 {
+			return fmt.Errorf("hole %d: par must be between 3 and 6", h.Number)
+		}
+		if h.Hdcp < 1 || h.Hdcp > 18 {
+			return fmt.Errorf("hole %d: hdcp must be between 1 and 18", h.Number)
+		}
+		if seenHdcp[h.Hdcp] {
+			return fmt.Errorf("duplicate hdcp (stroke index) %d", h.Hdcp)
+		}
+		seenHdcp[h.Hdcp] = true
+		if h.Yards <= 0 {
+			return fmt.Errorf("hole %d: yards must be positive", h.Number)
+		}
+	}
+	return nil
+}
+
 // Validate checks a player creation request. Email and user_id are optional; an
 // email, when given, must be well-formed.
 func (r CreatePlayerRequest) Validate(ctx context.Context) error {

@@ -9,7 +9,6 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createTeeSet = `-- name: CreateTeeSet :one
@@ -25,11 +24,11 @@ INSERT INTO tee_sets (
 `
 
 type CreateTeeSetParams struct {
-	CourseID   int32          `json:"course_id"`
-	TeeColorID int32          `json:"tee_color_id"`
-	TenantID   uuid.UUID      `json:"tenant_id"`
-	Slope      int32          `json:"slope"`
-	Rating     pgtype.Numeric `json:"rating"`
+	CourseID   int32     `json:"course_id"`
+	TeeColorID int32     `json:"tee_color_id"`
+	TenantID   uuid.UUID `json:"tenant_id"`
+	Slope      int32     `json:"slope"`
+	Rating     float64   `json:"rating"`
 }
 
 func (q *Queries) CreateTeeSet(ctx context.Context, arg CreateTeeSetParams) (TeeSet, error) {
@@ -105,12 +104,12 @@ type ListTeeSetsByCourseParams struct {
 }
 
 type ListTeeSetsByCourseRow struct {
-	CourseID     int32          `json:"course_id"`
-	TeeColorID   int32          `json:"tee_color_id"`
-	TenantID     uuid.UUID      `json:"tenant_id"`
-	Slope        int32          `json:"slope"`
-	Rating       pgtype.Numeric `json:"rating"`
-	TeeColorName string         `json:"tee_color_name"`
+	CourseID     int32     `json:"course_id"`
+	TeeColorID   int32     `json:"tee_color_id"`
+	TenantID     uuid.UUID `json:"tenant_id"`
+	Slope        int32     `json:"slope"`
+	Rating       float64   `json:"rating"`
+	TeeColorName string    `json:"tee_color_name"`
 }
 
 func (q *Queries) ListTeeSetsByCourse(ctx context.Context, arg ListTeeSetsByCourseParams) ([]ListTeeSetsByCourseRow, error) {
@@ -150,11 +149,11 @@ RETURNING course_id, tee_color_id, tenant_id, slope, rating
 `
 
 type UpdateTeeSetParams struct {
-	CourseID   int32          `json:"course_id"`
-	TeeColorID int32          `json:"tee_color_id"`
-	TenantID   uuid.UUID      `json:"tenant_id"`
-	Slope      int32          `json:"slope"`
-	Rating     pgtype.Numeric `json:"rating"`
+	CourseID   int32     `json:"course_id"`
+	TeeColorID int32     `json:"tee_color_id"`
+	TenantID   uuid.UUID `json:"tenant_id"`
+	Slope      int32     `json:"slope"`
+	Rating     float64   `json:"rating"`
 }
 
 func (q *Queries) UpdateTeeSet(ctx context.Context, arg UpdateTeeSetParams) (TeeSet, error) {

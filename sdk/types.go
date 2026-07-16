@@ -70,6 +70,34 @@ type CreateCourseRequest struct {
 	Name string `json:"name"`
 }
 
+// Hole is one hole's setup for a tee: par, stroke index (hdcp), and yardage.
+type Hole struct {
+	Number int32 `json:"number"`
+	Par    int32 `json:"par"`
+	Hdcp   int32 `json:"hdcp"`
+	Yards  int32 `json:"yards"`
+}
+
+// TeeSet is a course's playable configuration for one tee color: rating/slope plus
+// its 18 holes.
+type TeeSet struct {
+	CourseID   int32   `json:"course_id"`
+	TeeColorID int32   `json:"tee_color_id"`
+	Slope      int32   `json:"slope"`
+	Rating     float64 `json:"rating"`
+	Holes      []Hole  `json:"holes"`
+}
+
+// CreateTeeSetRequest is the body for POST /v1/courses/{id}/tees. The course comes
+// from the path; tee_color_id references an existing tee color. Exactly 18 holes are
+// required, with unique numbers (1-18) and unique stroke indexes (hdcp, 1-18).
+type CreateTeeSetRequest struct {
+	TeeColorID int32   `json:"tee_color_id"`
+	Slope      int32   `json:"slope"`
+	Rating     float64 `json:"rating"`
+	Holes      []Hole  `json:"holes"`
+}
+
 // CreatePlayerRequest is the body for POST /v1/players. Email and user_id are
 // optional (roster-only players have neither); the photo is uploaded separately.
 type CreatePlayerRequest struct {
