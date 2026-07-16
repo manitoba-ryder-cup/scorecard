@@ -14,6 +14,7 @@ type logger interface {
 type playerDB interface {
 	GetPlayer(ctx context.Context, id int32) (*Player, error)
 	ListPlayers(ctx context.Context) ([]Player, error)
+	CreatePlayer(ctx context.Context, in CreatePlayerInput) (*Player, error)
 }
 
 // matchDB interface defines database operations for matches

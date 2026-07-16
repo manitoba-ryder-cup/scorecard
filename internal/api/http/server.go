@@ -45,6 +45,7 @@ func NewServer(config *Config) *Server {
 
 	// Player routes
 	auth("GET", "/v1/players", playersHandler.ListPlayers)
+	auth("POST", "/v1/players", playersHandler.CreatePlayer)
 	auth("GET", "/v1/players/{id}", playersHandler.GetPlayer)
 
 	// Match routes

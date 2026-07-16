@@ -13,7 +13,17 @@ sql:
         emit_empty_slices: true
         emit_pointers_for_null_types: true
         overrides:
+          # Map Postgres uuid straight to google/uuid.UUID (and *uuid.UUID when
+          # nullable), so repos hand the domain's uuid types through without any
+          # pgtype.UUID conversion.
           - db_type: "uuid"
+            nullable: false
             go_type:
               import: "github.com/google/uuid"
+              type: "UUID"
+          - db_type: "uuid"
+            nullable: true
+            go_type:
+              import: "github.com/google/uuid"
+              pointer: true
               type: "UUID"

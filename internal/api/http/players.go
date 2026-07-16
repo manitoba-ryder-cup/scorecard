@@ -2,15 +2,18 @@ package http
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
+	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
 type PlayerService interface {
 	GetPlayer(ctx context.Context, playerID int32) (*golf.Player, error)
 	ListPlayers(ctx context.Context) ([]golf.Player, error)
 	GetPlayerRecord(ctx context.Context, playerID int32) (golf.PlayerRecord, error)
+	CreatePlayer(ctx context.Context, in golf.CreatePlayerInput) (*golf.Player, error)
 }
 
 type PlayersHandler struct {
@@ -29,6 +32,26 @@ func (h *PlayersHandler) ListPlayers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondJSON(w, http.StatusOK, toPlayerDTOs(players))
+}
+
+// POST /v1/players
+func (h *PlayersHandler) CreatePlayer(w http.ResponseWriter, r *http.Request) {
+	var req sdk.CreatePlayerRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid request body", err)
+		return
+	}
+	player, err := h.playerService.CreatePlayer(r.Context(), golf.CreatePlayerInput{
+		FirstName: req.FirstName,
+		LastName:  req.LastName,
+		Email:     req.Email,
+		UserID:    req.UserID,
+	})
+	if err != nil {
+		respondDomainError(w, "Failed to create player", err)
+		return
+	}
+	respondJSON(w, http.StatusCreated, toPlayerDTO(*player))
 }
 
 // GET /v1/players/{id}

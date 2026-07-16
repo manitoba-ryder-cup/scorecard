@@ -66,7 +66,7 @@ type MatchResult struct {
 type Player struct {
 	ID        int32              `json:"id"`
 	TenantID  uuid.UUID          `json:"tenant_id"`
-	UserID    pgtype.UUID        `json:"user_id"`
+	UserID    *uuid.UUID         `json:"user_id"`
 	Email     *string            `json:"email"`
 	FirstName string             `json:"first_name"`
 	LastName  string             `json:"last_name"`

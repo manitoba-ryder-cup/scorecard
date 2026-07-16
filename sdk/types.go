@@ -48,6 +48,15 @@ type PlayerProfile struct {
 	Record PlayerRecord `json:"record"`
 }
 
+// CreatePlayerRequest is the body for POST /v1/players. Email and user_id are
+// optional (roster-only players have neither); the photo is uploaded separately.
+type CreatePlayerRequest struct {
+	FirstName string     `json:"first_name"`
+	LastName  string     `json:"last_name"`
+	Email     *string    `json:"email"`
+	UserID    *uuid.UUID `json:"user_id"`
+}
+
 // PlayerSummary is a lightweight player reference (e.g. a team captain).
 type PlayerSummary struct {
 	ID        int32   `json:"id"`

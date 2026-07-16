@@ -44,6 +44,11 @@ func (c *Client) GetPlayer(ctx context.Context, id int32) (*PlayerProfile, error
 	return &out, c.do(ctx, http.MethodGet, pathID(RouteV1Player, id), nil, &out)
 }
 
+func (c *Client) CreatePlayer(ctx context.Context, req CreatePlayerRequest) (*Player, error) {
+	var out Player
+	return &out, c.do(ctx, http.MethodPost, RouteV1Players, req, &out)
+}
+
 // --- Tournaments ---
 
 func (c *Client) ListTournaments(ctx context.Context) ([]Tournament, error) {

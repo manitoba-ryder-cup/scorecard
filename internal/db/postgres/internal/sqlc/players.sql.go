@@ -9,7 +9,6 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createPlayer = `-- name: CreatePlayer :one
@@ -26,12 +25,12 @@ INSERT INTO players (
 `
 
 type CreatePlayerParams struct {
-	TenantID  uuid.UUID   `json:"tenant_id"`
-	UserID    pgtype.UUID `json:"user_id"`
-	Email     *string     `json:"email"`
-	FirstName string      `json:"first_name"`
-	LastName  string      `json:"last_name"`
-	PhotoPath string      `json:"photo_path"`
+	TenantID  uuid.UUID  `json:"tenant_id"`
+	UserID    *uuid.UUID `json:"user_id"`
+	Email     *string    `json:"email"`
+	FirstName string     `json:"first_name"`
+	LastName  string     `json:"last_name"`
+	PhotoPath string     `json:"photo_path"`
 }
 
 func (q *Queries) CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Player, error) {
@@ -177,13 +176,13 @@ RETURNING id, tenant_id, user_id, email, first_name, last_name, photo_path, crea
 `
 
 type UpdatePlayerParams struct {
-	ID        int32       `json:"id"`
-	TenantID  uuid.UUID   `json:"tenant_id"`
-	UserID    pgtype.UUID `json:"user_id"`
-	Email     *string     `json:"email"`
-	FirstName string      `json:"first_name"`
-	LastName  string      `json:"last_name"`
-	PhotoPath string      `json:"photo_path"`
+	ID        int32      `json:"id"`
+	TenantID  uuid.UUID  `json:"tenant_id"`
+	UserID    *uuid.UUID `json:"user_id"`
+	Email     *string    `json:"email"`
+	FirstName string     `json:"first_name"`
+	LastName  string     `json:"last_name"`
+	PhotoPath string     `json:"photo_path"`
 }
 
 func (q *Queries) UpdatePlayer(ctx context.Context, arg UpdatePlayerParams) (Player, error) {
