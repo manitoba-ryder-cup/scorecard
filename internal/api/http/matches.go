@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
@@ -12,6 +13,7 @@ type MatchService interface {
 	GetWinner(ctx context.Context, matchID int32) (*int32, error)
 	IsFinished(ctx context.Context, matchID int32) (bool, error)
 	CalculateMatchScores(ctx context.Context, matchID int32) ([]golf.HoleResult, error)
+	SubmitScore(ctx context.Context, matchID int32, entry golf.ScoreEntry) error
 }
 
 type MatchesHandler struct {
@@ -36,6 +38,34 @@ func (h *MatchesHandler) GetMatchScores(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	respondJSON(w, http.StatusOK, toHoleStatusDTOs(scores))
+}
+
+// POST /v1/matches/{id}/scores
+// Records one hole score and recomputes the match's materialized result.
+func (h *MatchesHandler) SubmitScore(w http.ResponseWriter, r *http.Request) {
+	id, err := pathInt(r, "id")
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid match ID", err)
+		return
+	}
+	var req sdk.ScoreSubmission
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid request body", err)
+		return
+	}
+	entry := golf.ScoreEntry{
+		HoleNumber: req.HoleNumber,
+		Strokes:    req.Strokes,
+		TeamID:     req.TeamID,
+		PlayerID:   req.PlayerID,
+	}
+	// Domain rejects out-of-range holes/strokes and teams not in the match; surface
+	// those as 400 rather than 500 (client error, not server fault).
+	if err := h.matchService.SubmitScore(r.Context(), id, entry); err != nil {
+		respondError(w, http.StatusBadRequest, "Failed to submit score", err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // GET /v1/matches/{id}/winner

@@ -17,6 +17,48 @@ func NewScoresDB(db *DB) *ScoresDB {
 	return &ScoresDB{db: db}
 }
 
+// SaveScore upserts one hole score. PlayerID present -> per-player row (singles/
+// fourball); nil -> one team-attributable row (alt shot/scramble). The two paths hit
+// different partial unique indexes, so the write must pick the matching statement.
+func (s *ScoresDB) SaveScore(ctx context.Context, score golf.Score) error {
+	tenantID, err := identity.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	return s.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
+		if score.PlayerID != nil {
+			_, err := q.UpsertPlayerScore(ctx, sqlc.UpsertPlayerScoreParams{
+				MatchID:    score.MatchID,
+				TeamID:     score.TeamID,
+				PlayerID:   score.PlayerID,
+				CourseID:   score.CourseID,
+				TeeColorID: score.TeeColorID,
+				HoleNumber: score.HoleNumber,
+				TenantID:   tenantID,
+				Strokes:    score.Strokes,
+			})
+			if err != nil {
+				return fmt.Errorf("upserting player score: %w", err)
+			}
+			return nil
+		}
+		_, err := q.UpsertTeamScore(ctx, sqlc.UpsertTeamScoreParams{
+			MatchID:    score.MatchID,
+			TeamID:     score.TeamID,
+			CourseID:   score.CourseID,
+			TeeColorID: score.TeeColorID,
+			HoleNumber: score.HoleNumber,
+			TenantID:   tenantID,
+			Strokes:    score.Strokes,
+		})
+		if err != nil {
+			return fmt.Errorf("upserting team score: %w", err)
+		}
+		return nil
+	})
+}
+
 func (s *ScoresDB) ListScoresByMatch(ctx context.Context, matchID int32) ([]golf.Score, error) {
 	tenantID, err := identity.GetTenant(ctx)
 	if err != nil {

@@ -15,6 +15,54 @@ type MatchService struct {
 	Logger        logger
 }
 
+// ScoreEntry is a client-supplied hole score. CourseID/TeeColorID are intentionally
+// absent — they're derived from the match, not trusted from the caller. PlayerID is
+// nil for one-ball team formats (alt shot, scramble).
+type ScoreEntry struct {
+	HoleNumber int32
+	Strokes    int32
+	TeamID     int32
+	PlayerID   *int32
+}
+
+// SubmitScore validates and persists one hole score, then recomputes the match's
+// materialized result — the single write path that keeps match_results in sync.
+func (s *MatchService) SubmitScore(ctx context.Context, matchID int32, entry ScoreEntry) error {
+	if entry.HoleNumber < 1 || entry.HoleNumber > 18 {
+		return fmt.Errorf("hole number %d out of range 1-18", entry.HoleNumber)
+	}
+	if entry.Strokes < 1 {
+		return fmt.Errorf("strokes must be positive, got %d", entry.Strokes)
+	}
+	match, err := s.MatchDB.GetMatch(ctx, matchID)
+	if err != nil {
+		return fmt.Errorf("failed to get match: %w", err)
+	}
+	// Reject scores for a team that isn't actually playing this match.
+	teamA, teamB, ok, err := s.matchTeams(ctx, matchID)
+	if err != nil {
+		return err
+	}
+	if !ok || (entry.TeamID != teamA && entry.TeamID != teamB) {
+		return fmt.Errorf("team %d is not in match %d", entry.TeamID, matchID)
+	}
+
+	// Course/tee come from the match — the score's holes constraint keys off them.
+	score := Score{
+		MatchID:    matchID,
+		TeamID:     entry.TeamID,
+		PlayerID:   entry.PlayerID,
+		CourseID:   match.CourseID,
+		TeeColorID: match.TeeColorID,
+		HoleNumber: entry.HoleNumber,
+		Strokes:    entry.Strokes,
+	}
+	if err := s.ScoreDB.SaveScore(ctx, score); err != nil {
+		return fmt.Errorf("failed to save score: %w", err)
+	}
+	return s.RecomputeResult(ctx, matchID)
+}
+
 // CalculateMatchScores computes the live hole-by-hole match-play progression.
 func (s *MatchService) CalculateMatchScores(ctx context.Context, matchID int32) ([]HoleResult, error) {
 	teamA, teamB, ok, err := s.matchTeams(ctx, matchID)

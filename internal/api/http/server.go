@@ -50,6 +50,7 @@ func NewServer(config *Config) *Server {
 
 	// Match routes
 	auth("GET", "/v1/matches/{id}/scores", matchesHandler.GetMatchScores)
+	auth("POST", "/v1/matches/{id}/scores", matchesHandler.SubmitScore)
 	auth("GET", "/v1/matches/{id}/winner", matchesHandler.GetMatchWinner)
 	auth("GET", "/v1/matches/{id}/status", matchesHandler.GetMatchStatus)
 

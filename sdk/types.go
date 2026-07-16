@@ -56,6 +56,16 @@ type TournamentTeam struct {
 	Points  float64        `json:"points"`
 }
 
+// ScoreSubmission is the request body for POST /v1/matches/{id}/scores — one hole
+// score. course_id/tee_color_id are omitted: the server derives them from the match.
+// player_id is null for one-ball team formats (alt shot, scramble).
+type ScoreSubmission struct {
+	HoleNumber int32  `json:"hole_number"`
+	Strokes    int32  `json:"strokes"`
+	TeamID     int32  `json:"team_id"`
+	PlayerID   *int32 `json:"player_id"`
+}
+
 // TeamHoleScore is a side's gross score on a hole, identified by team_id.
 type TeamHoleScore struct {
 	TeamID  int32 `json:"team_id"`

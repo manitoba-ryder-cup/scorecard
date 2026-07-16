@@ -30,6 +30,9 @@ type participantDB interface {
 // scoreDB interface defines database operations for scores
 type scoreDB interface {
 	ListScoresByMatch(ctx context.Context, matchID int32) ([]Score, error)
+	// SaveScore upserts one hole score; the repo picks per-player vs team-attributable
+	// storage based on Score.PlayerID being set.
+	SaveScore(ctx context.Context, s Score) error
 }
 
 // teamDB interface defines database operations for teams
