@@ -69,7 +69,8 @@ func (h *PlayersHandler) GetPlayer(w http.ResponseWriter, r *http.Request) {
 	}
 	player, err := h.playerService.GetPlayer(r.Context(), id)
 	if err != nil {
-		respondError(w, http.StatusNotFound, "Player not found", err)
+		// ErrNotFound -> 404; a real DB failure -> 500 (not masked as "not found").
+		respondDomainError(w, "Failed to get player", err)
 		return
 	}
 	// The detail view carries the derived W/L/T record; the list view does not.

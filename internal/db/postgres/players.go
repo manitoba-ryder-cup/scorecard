@@ -62,7 +62,7 @@ func (p *PlayersDB) GetPlayer(ctx context.Context, id int32) (*golf.Player, erro
 			TenantID: tenantID,
 		})
 		if err != nil {
-			return fmt.Errorf("getting player %d: %w", id, err)
+			return fmt.Errorf("getting player %d: %w", id, mapReadErr(err))
 		}
 
 		p := toDomainPlayer(player)

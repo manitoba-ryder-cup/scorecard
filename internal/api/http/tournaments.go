@@ -81,7 +81,8 @@ func (h *TournamentsHandler) GetTournament(w http.ResponseWriter, r *http.Reques
 	}
 	tournament, err := h.tournamentService.GetTournament(r.Context(), id)
 	if err != nil {
-		respondError(w, http.StatusNotFound, "Tournament not found", err)
+		// ErrNotFound -> 404; a real DB failure -> 500 (not masked as "not found").
+		respondDomainError(w, "Failed to get tournament", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toTournamentDTO(*tournament))

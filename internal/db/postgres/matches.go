@@ -30,7 +30,7 @@ func (m *MatchesDB) GetMatch(ctx context.Context, id int32) (*golf.Match, error)
 	err = m.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
 		match, err := q.GetMatch(ctx, sqlc.GetMatchParams{ID: id, TenantID: tenantID})
 		if err != nil {
-			return fmt.Errorf("getting match %d: %w", id, err)
+			return fmt.Errorf("getting match %d: %w", id, mapReadErr(err))
 		}
 		dm := toDomainMatch(match)
 		result = &dm

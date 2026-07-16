@@ -187,6 +187,21 @@ func TestSubmitScoreRejectsInvalidStrokes(t *testing.T) {
 	}
 }
 
+// TestSubmitScoreToNonexistentMatchReturns404 confirms a missing match surfaces as
+// 404, not 500. The body is shape-valid so it passes client + server validation and
+// reaches the match lookup, which fails with not-found.
+func TestSubmitScoreToNonexistentMatchReturns404(t *testing.T) {
+	client := freshClient(t)
+
+	err := client.SubmitScore(context.Background(), 999999, sdk.ScoreSubmission{
+		HoleNumber: 1, Strokes: 4, TeamID: 1,
+	})
+	var apiErr *sdk.APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+		t.Fatalf("want 404 APIError, got %v", err)
+	}
+}
+
 // TestUnauthenticatedRequestRejected confirms the JWT middleware guards the API.
 func TestUnauthenticatedRequestRejected(t *testing.T) {
 	cfg := util.LoadConfig()

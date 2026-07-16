@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"testing"
 
@@ -65,6 +66,16 @@ func TestCreateTournamentSeedsBothTeams(t *testing.T) {
 	}
 	if !colors[sdk.TeamColorRed] || !colors[sdk.TeamColorBlue] {
 		t.Fatalf("want Red and Blue, got %v", colors)
+	}
+}
+
+func TestGetNonexistentTournamentReturns404(t *testing.T) {
+	client := freshClient(t)
+
+	_, err := client.GetTournament(context.Background(), 999999)
+	var apiErr *sdk.APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+		t.Fatalf("want 404 APIError, got %v", err)
 	}
 }
 

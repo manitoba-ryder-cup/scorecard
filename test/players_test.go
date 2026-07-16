@@ -85,6 +85,16 @@ func TestCreatePlayerDuplicateEmailConflicts(t *testing.T) {
 	}
 }
 
+func TestGetNonexistentPlayerReturns404(t *testing.T) {
+	client := freshClient(t)
+
+	_, err := client.GetPlayer(context.Background(), 999999)
+	var apiErr *sdk.APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+		t.Fatalf("want 404 APIError, got %v", err)
+	}
+}
+
 // Raw request (bypassing the SDK client's validation) confirms the server rejects a
 // nameless player too.
 func TestCreatePlayerEmptyNameRejectedByServer(t *testing.T) {

@@ -27,7 +27,7 @@ func (t *TeamsDB) GetTeam(ctx context.Context, id int32) (*golf.Team, error) {
 	err = t.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
 		team, err := q.GetTeam(ctx, sqlc.GetTeamParams{ID: id, TenantID: tenantID})
 		if err != nil {
-			return fmt.Errorf("getting team %d: %w", id, err)
+			return fmt.Errorf("getting team %d: %w", id, mapReadErr(err))
 		}
 		team2 := toDomainTeam(team)
 		result = &team2
