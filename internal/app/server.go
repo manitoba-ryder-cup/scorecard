@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/manitoba-ryder-cup/scorecard/internal/api/http"
+	"github.com/manitoba-ryder-cup/scorecard/internal/api/rest"
 	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/travisbale/knowhere/jwt"
@@ -31,7 +31,7 @@ type Config struct {
 
 // Server wraps the HTTP server and its dependencies
 type Server struct {
-	httpServer *http.Server
+	httpServer *rest.Server
 	db         *postgres.DB
 }
 
@@ -115,7 +115,7 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 	}
 
 	// Create HTTP server
-	httpServer := http.NewServer(&http.Config{
+	httpServer := rest.NewServer(&rest.Config{
 		Address:           config.HTTPAddress,
 		JWTValidator:      jwtValidator,
 		Environment:       config.Environment,
