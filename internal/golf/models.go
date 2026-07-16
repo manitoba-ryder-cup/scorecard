@@ -12,28 +12,29 @@ const (
 	TeamTied = "Tied"
 )
 
-// Player represents a golfer with handicap and statistics
+// Player represents a golfer's stable identity and career totals. Per-tournament
+// attributes (tier, biography, handicap) live on TeamMember.
 type Player struct {
 	ID        int32
 	TenantID  uuid.UUID
-	Email     string
+	UserID    *uuid.UUID // heimdall account link; nil for roster-only players
+	Email     *string
 	FirstName string
 	LastName  string
-	Hdcp      float32
-	PhotoPath *string
-	Biography *string
-	Tier      string
+	PhotoPath string
 	Cups      int32
 	Wins      int32
 	Ties      int32
 	Losses    int32
 }
 
-// Team represents a team in a tournament
+// Team represents one of a tournament's two sides.
 type Team struct {
-	ID       int32
-	TenantID uuid.UUID
-	Name     string
+	ID           int32
+	TenantID     uuid.UUID
+	TournamentID int32
+	Color        string
+	CaptainID    *int32
 }
 
 // Tournament represents a golf tournament event
@@ -58,18 +59,22 @@ type Match struct {
 	Handicapped   bool
 }
 
-// MatchParticipant links a player to a match
+// MatchParticipant links a player (on a team) to a match.
 type MatchParticipant struct {
 	TournamentID int32
 	MatchID      int32
 	PlayerID     int32
+	TeamID       int32
 	TenantID     uuid.UUID
 }
 
-// Score represents a player's score on a specific hole
+// Score is a hole score attributed to a side (TeamID) and, for per-player formats,
+// to a player. PlayerID is nil for one-ball team scores (alt shot, scramble).
 type Score struct {
+	ID         int32
 	MatchID    int32
-	PlayerID   int32
+	TeamID     int32
+	PlayerID   *int32
 	CourseID   int32
 	TeeColorID int32
 	HoleNumber int32
@@ -118,13 +123,16 @@ type MatchFormat struct {
 	Name     string
 }
 
-// TeamMember represents a player's membership on a team for a tournament
+// TeamMember is a player's membership on a team for a tournament, plus the
+// player's per-tournament attributes.
 type TeamMember struct {
-	TournamentID int32
-	PlayerID     int32
 	TeamID       int32
+	PlayerID     int32
+	TournamentID int32
 	TenantID     uuid.UUID
-	IsCaptain    bool
+	Tier         string
+	Biography    string
+	Hdcp         float32
 }
 
 // MatchStatus represents the state of a match at a specific hole
@@ -138,7 +146,7 @@ type MatchStatus struct {
 // TeamData represents a team's summary for a tournament
 type TeamData struct {
 	ID      int32
-	Name    string
+	Color   string
 	Captain *PlayerSummary
 	Points  float64
 }
@@ -148,5 +156,5 @@ type PlayerSummary struct {
 	ID        int32
 	FirstName string
 	LastName  string
-	Email     string
+	Email     *string
 }

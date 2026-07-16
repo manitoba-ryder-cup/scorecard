@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres/internal/sqlc"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/travisbale/knowhere/identity"
@@ -75,16 +77,23 @@ func toDomainPlayer(p sqlc.Player) golf.Player {
 	return golf.Player{
 		ID:        p.ID,
 		TenantID:  p.TenantID,
+		UserID:    pgUUIDToPtr(p.UserID),
 		Email:     p.Email,
 		FirstName: p.FirstName,
 		LastName:  p.LastName,
-		Hdcp:      p.Hdcp,
 		PhotoPath: p.PhotoPath,
-		Biography: p.Biography,
-		Tier:      p.Tier,
 		Cups:      p.Cups,
 		Wins:      p.Wins,
 		Ties:      p.Ties,
 		Losses:    p.Losses,
 	}
+}
+
+// pgUUIDToPtr converts a nullable pgtype.UUID to *uuid.UUID.
+func pgUUIDToPtr(u pgtype.UUID) *uuid.UUID {
+	if !u.Valid {
+		return nil
+	}
+	id := uuid.UUID(u.Bytes)
+	return &id
 }

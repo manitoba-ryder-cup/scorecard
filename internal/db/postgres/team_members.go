@@ -19,7 +19,7 @@ func NewTeamMembersDB(db *DB) *TeamMembersDB {
 	return &TeamMembersDB{db: db}
 }
 
-func (t *TeamMembersDB) ListTeamMembers(ctx context.Context, tournamentID int32, teamID int32) ([]golf.TeamMember, error) {
+func (t *TeamMembersDB) ListTeamMembers(ctx context.Context, teamID int32) ([]golf.TeamMember, error) {
 	tenantID, err := identity.GetTenant(ctx)
 	if err != nil {
 		return nil, err
@@ -28,9 +28,8 @@ func (t *TeamMembersDB) ListTeamMembers(ctx context.Context, tournamentID int32,
 	var result []golf.TeamMember
 	err = t.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
 		members, err := q.ListTeamMembersByTeam(ctx, sqlc.ListTeamMembersByTeamParams{
-			TournamentID: tournamentID,
-			TeamID:       teamID,
-			TenantID:     tenantID,
+			TeamID:   teamID,
+			TenantID: tenantID,
 		})
 		if err != nil {
 			return fmt.Errorf("listing team members: %w", err)
@@ -38,11 +37,13 @@ func (t *TeamMembersDB) ListTeamMembers(ctx context.Context, tournamentID int32,
 		result = make([]golf.TeamMember, len(members))
 		for i, member := range members {
 			result[i] = golf.TeamMember{
-				TournamentID: member.TournamentID,
-				PlayerID:     member.PlayerID,
 				TeamID:       member.TeamID,
+				PlayerID:     member.PlayerID,
+				TournamentID: member.TournamentID,
 				TenantID:     member.TenantID,
-				IsCaptain:    member.IsCaptain,
+				Tier:         member.Tier,
+				Biography:    member.Biography,
+				Hdcp:         member.Hdcp,
 			}
 		}
 		return nil
@@ -50,8 +51,8 @@ func (t *TeamMembersDB) ListTeamMembers(ctx context.Context, tournamentID int32,
 	return result, err
 }
 
-// GetTeamCaptain returns the captain for a team in a tournament
-func (t *TeamMembersDB) GetTeamCaptain(ctx context.Context, tournamentID int32, teamID int32) (*golf.Player, error) {
+// GetTeamCaptain returns the captain of a team (teams.captain_id), or nil if unset.
+func (t *TeamMembersDB) GetTeamCaptain(ctx context.Context, teamID int32) (*golf.Player, error) {
 	tenantID, err := identity.GetTenant(ctx)
 	if err != nil {
 		return nil, err
@@ -59,26 +60,15 @@ func (t *TeamMembersDB) GetTeamCaptain(ctx context.Context, tournamentID int32, 
 
 	var result *golf.Player
 	err = t.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
-		captain, err := q.GetTeamCaptain(ctx, sqlc.GetTeamCaptainParams{
-			TournamentID: tournamentID,
-			TeamID:       teamID,
-			TenantID:     tenantID,
-		})
+		captain, err := q.GetTeamCaptain(ctx, sqlc.GetTeamCaptainParams{ID: teamID, TenantID: tenantID})
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
-				// No captain found
-				return nil
+				return nil // no captain set
 			}
 			return fmt.Errorf("getting team captain: %w", err)
 		}
-
-		result = &golf.Player{
-			ID:        captain.PlayerID,
-			TenantID:  captain.TenantID,
-			FirstName: captain.FirstName,
-			LastName:  captain.LastName,
-			Email:     captain.Email,
-		}
+		p := toDomainPlayer(captain)
+		result = &p
 		return nil
 	})
 	return result, err

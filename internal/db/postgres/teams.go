@@ -29,13 +29,14 @@ func (t *TeamsDB) GetTeam(ctx context.Context, id int32) (*golf.Team, error) {
 		if err != nil {
 			return fmt.Errorf("getting team %d: %w", id, err)
 		}
-		result = &golf.Team{ID: team.ID, TenantID: team.TenantID, Name: team.Name}
+		team2 := toDomainTeam(team)
+		result = &team2
 		return nil
 	})
 	return result, err
 }
 
-func (t *TeamsDB) ListTeams(ctx context.Context) ([]golf.Team, error) {
+func (t *TeamsDB) ListTeamsByTournament(ctx context.Context, tournamentID int32) ([]golf.Team, error) {
 	tenantID, err := identity.GetTenant(ctx)
 	if err != nil {
 		return nil, err
@@ -43,15 +44,28 @@ func (t *TeamsDB) ListTeams(ctx context.Context) ([]golf.Team, error) {
 
 	var result []golf.Team
 	err = t.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
-		teams, err := q.ListTeams(ctx, tenantID)
+		teams, err := q.ListTeamsByTournament(ctx, sqlc.ListTeamsByTournamentParams{
+			TournamentID: tournamentID,
+			TenantID:     tenantID,
+		})
 		if err != nil {
-			return fmt.Errorf("listing teams: %w", err)
+			return fmt.Errorf("listing teams for tournament %d: %w", tournamentID, err)
 		}
 		result = make([]golf.Team, len(teams))
 		for i, team := range teams {
-			result[i] = golf.Team{ID: team.ID, TenantID: team.TenantID, Name: team.Name}
+			result[i] = toDomainTeam(team)
 		}
 		return nil
 	})
 	return result, err
+}
+
+func toDomainTeam(t sqlc.Team) golf.Team {
+	return golf.Team{
+		ID:           t.ID,
+		TenantID:     t.TenantID,
+		TournamentID: t.TournamentID,
+		Color:        t.Color,
+		CaptainID:    t.CaptainID,
+	}
 }

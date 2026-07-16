@@ -1,27 +1,29 @@
 -- name: CreateTeam :one
 INSERT INTO teams (
     tenant_id,
-    name
+    tournament_id,
+    color,
+    captain_id
 ) VALUES (
-    $1, $2
+    $1, $2, $3, $4
 ) RETURNING *;
 
 -- name: GetTeam :one
 SELECT * FROM teams
 WHERE id = $1 AND tenant_id = $2;
 
--- name: GetTeamByName :one
+-- name: GetTeamByColor :one
 SELECT * FROM teams
-WHERE name = $1 AND tenant_id = $2;
+WHERE tournament_id = $1 AND color = $2 AND tenant_id = $3;
 
--- name: ListTeams :many
+-- name: ListTeamsByTournament :many
 SELECT * FROM teams
-WHERE tenant_id = $1
-ORDER BY name;
+WHERE tournament_id = $1 AND tenant_id = $2
+ORDER BY color;
 
--- name: UpdateTeam :one
+-- name: SetTeamCaptain :one
 UPDATE teams
-SET name = $3
+SET captain_id = $3
 WHERE id = $1 AND tenant_id = $2
 RETURNING *;
 

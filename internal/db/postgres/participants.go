@@ -38,32 +38,9 @@ func (p *ParticipantsDB) ListMatchParticipants(ctx context.Context, matchID int3
 				TournamentID: participant.TournamentID,
 				MatchID:      participant.MatchID,
 				PlayerID:     participant.PlayerID,
+				TeamID:       participant.TeamID,
 				TenantID:     participant.TenantID,
 			}
-		}
-		return nil
-	})
-	return result, err
-}
-
-// ListMatchParticipantsWithTeam returns a map of playerID -> teamName
-func (p *ParticipantsDB) ListMatchParticipantsWithTeam(ctx context.Context, matchID int32) (map[int32]string, error) {
-	tenantID, err := identity.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make(map[int32]string)
-	err = p.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
-		participants, err := q.ListMatchParticipantsWithTeam(ctx, sqlc.ListMatchParticipantsWithTeamParams{
-			MatchID:  matchID,
-			TenantID: tenantID,
-		})
-		if err != nil {
-			return fmt.Errorf("listing match participants with team: %w", err)
-		}
-		for _, participant := range participants {
-			result[participant.PlayerID] = participant.TeamName
 		}
 		return nil
 	})

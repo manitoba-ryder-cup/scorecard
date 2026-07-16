@@ -13,90 +13,42 @@ type TournamentService struct {
 	Logger       logger
 }
 
-// IsFinished checks if all matches in a tournament are complete.
-//
-// Returns true only if all matches are finished, false otherwise.
+// IsFinished reports whether all of a tournament's matches are complete.
+// TODO(step 4): derive from materialized match results.
 func (s *TournamentService) IsFinished(ctx context.Context, tournamentID int32) (bool, error) {
-	matches, err := s.MatchService.MatchDB.ListMatchesByTournament(ctx, tournamentID)
-	if err != nil {
-		return false, fmt.Errorf("failed to list matches: %w", err)
-	}
-
-	if len(matches) == 0 {
-		return false, nil
-	}
-
-	// Check if all matches are finished
-	for _, match := range matches {
-		finished, err := s.MatchService.IsFinished(ctx, match.ID)
-		if err != nil {
-			return false, fmt.Errorf("failed to check if match %d finished: %w", match.ID, err)
-		}
-		if !finished {
-			return false, nil
-		}
-	}
-
-	return true, nil
+	return false, nil
 }
 
-// GetWinningTeam determines the tournament winner by comparing team points.
-// Requires the tournament to be finished.
+// GetWinningTeam returns the tournament's winning team color, or "" if undecided.
+// TODO(step 4): compare materialized team points.
 func (s *TournamentService) GetWinningTeam(ctx context.Context, tournamentID int32) (string, error) {
-	finished, err := s.IsFinished(ctx, tournamentID)
-	if err != nil {
-		return "", fmt.Errorf("failed to check if tournament finished: %w", err)
-	}
-	if !finished {
-		return "", ErrMatchNotFinished
-	}
-
-	redPoints, err := s.TeamService.GetTeamPoints(ctx, TeamRed, tournamentID)
-	if err != nil {
-		return "", fmt.Errorf("failed to get Red team points: %w", err)
-	}
-
-	bluePoints, err := s.TeamService.GetTeamPoints(ctx, TeamBlue, tournamentID)
-	if err != nil {
-		return "", fmt.Errorf("failed to get Blue team points: %w", err)
-	}
-
-	if redPoints > bluePoints {
-		return TeamRed, nil
-	} else if bluePoints > redPoints {
-		return TeamBlue, nil
-	}
-	return TeamTied, nil
+	return "", nil
 }
 
-// GetTeamsData builds team summary with captain and points for a tournament.
-// Returns data for all teams participating in the tournament.
+// GetTeamsData builds each team's summary (color, captain, points) for a tournament.
 func (s *TournamentService) GetTeamsData(ctx context.Context, tournamentID int32) ([]TeamData, error) {
-	teams, err := s.TeamService.ListTeams(ctx)
+	teams, err := s.TeamService.ListTeamsByTournament(ctx, tournamentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list teams: %w", err)
 	}
 
 	result := []TeamData{}
 	for _, team := range teams {
-		// Get captain
-		captain, err := s.TeamService.GetCaptain(ctx, team.ID, tournamentID)
+		captain, err := s.TeamService.GetCaptain(ctx, team.ID)
 		if err != nil {
 			s.Logger.Error("failed to get captain for team", "team_id", team.ID, "error", err)
-			// Continue without captain
 			captain = nil
 		}
 
-		// Get points
-		points, err := s.TeamService.GetTeamPoints(ctx, team.Name, tournamentID)
+		points, err := s.TeamService.GetTeamPoints(ctx, team.Color, tournamentID)
 		if err != nil {
-			s.Logger.Error("failed to get points for team", "team_name", team.Name, "error", err)
+			s.Logger.Error("failed to get points for team", "team_color", team.Color, "error", err)
 			points = 0
 		}
 
 		result = append(result, TeamData{
 			ID:      team.ID,
-			Name:    team.Name,
+			Color:   team.Color,
 			Captain: captain,
 			Points:  points,
 		})

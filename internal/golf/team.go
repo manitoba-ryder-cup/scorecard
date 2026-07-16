@@ -13,52 +13,22 @@ type TeamService struct {
 	Logger       logger
 }
 
-// GetTeamPoints calculates total points for a team in a tournament.
-// Awards: 1.0 for win, 0.5 for tie, 0.0 for loss.
-//
-// Algorithm:
-//   - Iterate through all matches in tournament
-//   - Add 1 point for each win
-//   - Add 0.5 points for each tie
-//   - Add 0 points for each loss
-func (s *TeamService) GetTeamPoints(ctx context.Context, teamName string, tournamentID int32) (float64, error) {
-	// Get all matches for tournament
-	matches, err := s.MatchService.MatchDB.ListMatchesByTournament(ctx, tournamentID)
-	if err != nil {
-		return 0, fmt.Errorf("failed to list matches: %w", err)
-	}
-
-	var points float64
-	for _, match := range matches {
-		// Calculate winner for this match
-		winner, err := s.MatchService.GetWinner(ctx, match.ID)
-		if err != nil {
-			// Skip incomplete matches
-			continue
-		}
-
-		if winner == teamName {
-			points += 1.0
-		} else if winner == TeamTied {
-			points += 0.5
-		}
-		// No points for loss
-	}
-
-	return points, nil
+// GetTeamPoints returns a team's Ryder-Cup points for a tournament (1 per win,
+// 0.5 per tie). TODO(step 4): read from materialized match results instead of
+// recomputing across every match/score.
+func (s *TeamService) GetTeamPoints(ctx context.Context, teamColor string, tournamentID int32) (float64, error) {
+	return 0, nil
 }
 
-// GetCaptain returns the team captain for a tournament
-func (s *TeamService) GetCaptain(ctx context.Context, teamID int32, tournamentID int32) (*PlayerSummary, error) {
-	captain, err := s.TeamMemberDB.GetTeamCaptain(ctx, tournamentID, teamID)
+// GetCaptain returns the captain of a team (teams.captain_id), or nil if unset.
+func (s *TeamService) GetCaptain(ctx context.Context, teamID int32) (*PlayerSummary, error) {
+	captain, err := s.TeamMemberDB.GetTeamCaptain(ctx, teamID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get captain: %w", err)
 	}
-
 	if captain == nil {
 		return nil, nil
 	}
-
 	return &PlayerSummary{
 		ID:        captain.ID,
 		FirstName: captain.FirstName,
@@ -76,9 +46,9 @@ func (s *TeamService) GetTeam(ctx context.Context, teamID int32) (*Team, error) 
 	return team, nil
 }
 
-// ListTeams retrieves all teams for the tenant
-func (s *TeamService) ListTeams(ctx context.Context) ([]Team, error) {
-	teams, err := s.TeamDB.ListTeams(ctx)
+// ListTeamsByTournament retrieves a tournament's two teams
+func (s *TeamService) ListTeamsByTournament(ctx context.Context, tournamentID int32) ([]Team, error) {
+	teams, err := s.TeamDB.ListTeamsByTournament(ctx, tournamentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list teams: %w", err)
 	}
