@@ -19,10 +19,10 @@ func (s *TournamentService) IsFinished(ctx context.Context, tournamentID int32) 
 	return false, nil
 }
 
-// GetWinningTeam returns the tournament's winning team color, or "" if undecided.
+// GetWinningTeam returns the tournament's winning team ID, or nil if undecided.
 // TODO(step 4): compare materialized team points.
-func (s *TournamentService) GetWinningTeam(ctx context.Context, tournamentID int32) (string, error) {
-	return "", nil
+func (s *TournamentService) GetWinningTeam(ctx context.Context, tournamentID int32) (*int32, error) {
+	return nil, nil
 }
 
 // GetTeamsData builds each team's summary (color, captain, points) for a tournament.

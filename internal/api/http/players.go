@@ -3,7 +3,6 @@ package http
 import (
 	"context"
 	"net/http"
-	"strconv"
 
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 )
@@ -28,24 +27,20 @@ func (h *PlayersHandler) ListPlayers(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusInternalServerError, "Failed to list players", err)
 		return
 	}
-
-	respondJSON(w, http.StatusOK, players)
+	respondJSON(w, http.StatusOK, toPlayerDTOs(players))
 }
 
 // GET /v1/players/{id}
 func (h *PlayersHandler) GetPlayer(w http.ResponseWriter, r *http.Request) {
-	idStr := r.PathValue("id")
-	id, err := strconv.ParseInt(idStr, 10, 32)
+	id, err := pathInt(r, "id")
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid player ID", err)
 		return
 	}
-
-	player, err := h.playerService.GetPlayer(r.Context(), int32(id))
+	player, err := h.playerService.GetPlayer(r.Context(), id)
 	if err != nil {
 		respondError(w, http.StatusNotFound, "Player not found", err)
 		return
 	}
-
-	respondJSON(w, http.StatusOK, player)
+	respondJSON(w, http.StatusOK, toPlayerDTO(*player))
 }

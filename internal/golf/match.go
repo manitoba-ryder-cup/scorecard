@@ -24,7 +24,7 @@ func (s *MatchService) IsFinished(ctx context.Context, matchID int32) (bool, err
 	return false, nil // TODO(step 4)
 }
 
-// GetWinner returns the winning team's color, or "" if undecided.
-func (s *MatchService) GetWinner(ctx context.Context, matchID int32) (string, error) {
-	return "", nil // TODO(step 4)
+// GetWinner returns the winning team's ID, or nil if the match is undecided.
+func (s *MatchService) GetWinner(ctx context.Context, matchID int32) (*int32, error) {
+	return nil, nil // TODO(step 4)
 }
