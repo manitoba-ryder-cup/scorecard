@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
+	util "github.com/manitoba-ryder-cup/scorecard/test/_util"
 	"github.com/manitoba-ryder-cup/scorecard/test/_util/request"
 )
 
@@ -82,6 +83,35 @@ func TestCreatePlayerDuplicateEmailConflicts(t *testing.T) {
 	var apiErr *sdk.APIError
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
 		t.Fatalf("want 409 APIError, got %v", err)
+	}
+}
+
+// TestAnonymousReadUsesPublicTenant confirms a request with no token can read data
+// belonging to the configured public tenant — the spectator path for a public site.
+func TestAnonymousReadUsesPublicTenant(t *testing.T) {
+	ctx := context.Background()
+	cfg := util.LoadConfig()
+
+	conn, err := util.Connect(ctx, cfg.DatabaseURL)
+	if err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	t.Cleanup(func() { conn.Close(ctx) })
+
+	// Seed a player directly under the public tenant (not via a tokened request).
+	id, err := util.SeedPlayer(ctx, conn, util.PublicTenantID, "Public", "Viewer")
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	// A client with no token reads it — the server resolves the public tenant.
+	client := sdk.NewClient(cfg.BaseURL)
+	got, err := client.GetPlayer(ctx, id)
+	if err != nil {
+		t.Fatalf("anonymous get player: %v", err)
+	}
+	if got.ID != id || got.LastName != "Viewer" {
+		t.Fatalf("unexpected player: %+v", got)
 	}
 }
 

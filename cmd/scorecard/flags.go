@@ -61,4 +61,13 @@ var (
 		EnvVars:     []string{"TRUSTED_PROXY_MODE"},
 		Destination: &config.TrustedProxyMode,
 	}
+
+	// PublicTenantIDFlag enables anonymous read access scoped to one tenant (a public
+	// single-tenant site). Leave unset for a multi-tenant deployment.
+	PublicTenantIDFlag = &cli.StringFlag{
+		Name:        "public-tenant-id",
+		Usage:       "Tenant ID for anonymous public reads (empty = require auth for all requests)",
+		EnvVars:     []string{"SCORECARD_PUBLIC_TENANT_ID"},
+		Destination: &config.PublicTenantID,
+	}
 )

@@ -55,7 +55,7 @@ func authedClient(t *testing.T) (*sdk.Client, *util.Fixture) {
 	}
 
 	client := sdk.NewClient(cfg.BaseURL)
-	client.SetToken(testjwt.MintAccessToken(t, fix.TenantID, uuid.New()))
+	client.SetToken(testjwt.MintAccessToken(t, fix.TenantID, uuid.New(), writeScopes...))
 	return client, fix
 }
 
@@ -202,13 +202,12 @@ func TestSubmitScoreToNonexistentMatchReturns404(t *testing.T) {
 	}
 }
 
-// TestUnauthenticatedRequestRejected confirms the JWT middleware guards the API.
-func TestUnauthenticatedRequestRejected(t *testing.T) {
-	cfg := util.LoadConfig()
-	client := sdk.NewClient(cfg.BaseURL) // no token
-	_, err := client.ListPlayers(context.Background())
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusUnauthorized {
-		t.Fatalf("want 401 APIError, got %v", err)
+// TestUnauthenticatedWriteRejected confirms writes require a token: reads are public
+// now, but an unauthenticated write is 401. Sent raw so no client token is attached.
+func TestUnauthenticatedWriteRejected(t *testing.T) {
+	body := `{"first_name":"No","last_name":"Auth"}`
+	status, _ := request.Raw(t, http.MethodPost, sdk.RouteV1Players, body, "")
+	if status != http.StatusUnauthorized {
+		t.Fatalf("want 401, got %d", status)
 	}
 }

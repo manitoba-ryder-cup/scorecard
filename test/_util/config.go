@@ -6,7 +6,13 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"github.com/google/uuid"
 )
+
+// PublicTenantID is the tenant the test server treats as its anonymous public tenant.
+// It must match SCORECARD_PUBLIC_TENANT_ID in test/docker-compose.yml.
+var PublicTenantID = uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 
 // Config holds the integration suite's connection details. Defaults point at the
 // local docker-compose infrastructure (test/docker-compose.yml).

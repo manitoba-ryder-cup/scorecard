@@ -12,9 +12,9 @@ import (
 	kjwt "github.com/travisbale/knowhere/jwt"
 )
 
-// MintAccessToken issues a signed access token carrying the given tenant and user,
-// accepted by the scorecard server's JWT middleware.
-func MintAccessToken(t *testing.T, tenantID, userID uuid.UUID) string {
+// MintAccessToken issues a signed access token carrying the given tenant, user, and
+// scopes, accepted by the scorecard server's JWT middleware.
+func MintAccessToken(t *testing.T, tenantID, userID uuid.UUID, scopes ...string) string {
 	t.Helper()
 
 	cfg := util.LoadConfig()
@@ -27,7 +27,12 @@ func MintAccessToken(t *testing.T, tenantID, userID uuid.UUID) string {
 		t.Fatalf("failed to create JWT issuer: %v", err)
 	}
 
-	token, _, err := issuer.IssueAccessToken(tenantID, userID, nil)
+	scopeVals := make([]kjwt.Scope, len(scopes))
+	for i, s := range scopes {
+		scopeVals[i] = kjwt.Scope(s)
+	}
+
+	token, _, err := issuer.IssueAccessToken(tenantID, userID, scopeVals)
 	if err != nil {
 		t.Fatalf("failed to issue access token: %v", err)
 	}

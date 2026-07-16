@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/api/http"
 	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
@@ -22,7 +23,10 @@ type Config struct {
 	JWTPublicKeyPath string
 	Environment      string
 	TrustedProxyMode bool
-	Logger           logger
+	// PublicTenantID, when set, enables anonymous read access scoped to that tenant
+	// (a single-tenant public site). Empty on a multi-tenant deployment.
+	PublicTenantID string
+	Logger         logger
 }
 
 // Server wraps the HTTP server and its dependencies
@@ -50,6 +54,18 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 	if err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to create JWT validator: %w", err)
+	}
+
+	// Parse the optional public tenant (fail fast on a malformed value rather than
+	// silently disabling public reads).
+	var publicTenantID *uuid.UUID
+	if config.PublicTenantID != "" {
+		id, err := uuid.Parse(config.PublicTenantID)
+		if err != nil {
+			db.Close()
+			return nil, fmt.Errorf("invalid public tenant ID %q: %w", config.PublicTenantID, err)
+		}
+		publicTenantID = &id
 	}
 
 	// Create database adapters
@@ -96,6 +112,7 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 		JWTValidator:      jwtValidator,
 		Environment:       config.Environment,
 		TrustedProxyMode:  config.TrustedProxyMode,
+		PublicTenantID:    publicTenantID,
 		PlayerService:     playerService,
 		MatchService:      matchService,
 		TournamentService: tournamentService,

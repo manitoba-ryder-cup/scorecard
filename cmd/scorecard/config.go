@@ -25,6 +25,10 @@ type Config struct {
 
 	// Proxy configuration
 	TrustedProxyMode bool
+
+	// PublicTenantID enables anonymous public reads scoped to this tenant (empty on a
+	// multi-tenant deployment)
+	PublicTenantID string
 }
 
 // config is the global configuration populated by CLI flags
@@ -38,6 +42,7 @@ func (c *Config) ToAppConfig() *app.Config {
 		JWTPublicKeyPath: c.JWTPublicKeyPath,
 		Environment:      c.Environment,
 		TrustedProxyMode: c.TrustedProxyMode,
+		PublicTenantID:   c.PublicTenantID,
 		Logger:           slog.Default(),
 	}
 }

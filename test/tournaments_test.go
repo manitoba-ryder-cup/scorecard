@@ -13,10 +13,14 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/test/_util/request"
 )
 
-// freshToken mints an access token for a brand-new tenant.
+// writeScopes are all the scopes an admin-style test client needs to exercise the
+// write endpoints.
+var writeScopes = []string{sdk.ScopeTournamentsWrite, sdk.ScopePlayersWrite, sdk.ScopeScoresWrite}
+
+// freshToken mints an access token for a brand-new tenant, carrying all write scopes.
 func freshToken(t *testing.T) string {
 	t.Helper()
-	return testjwt.MintAccessToken(t, uuid.New(), uuid.New())
+	return testjwt.MintAccessToken(t, uuid.New(), uuid.New(), writeScopes...)
 }
 
 // freshClient returns a client authenticated for a brand-new tenant, with nothing
@@ -66,6 +70,21 @@ func TestCreateTournamentSeedsBothTeams(t *testing.T) {
 	}
 	if !colors[sdk.TeamColorRed] || !colors[sdk.TeamColorBlue] {
 		t.Fatalf("want Red and Blue, got %v", colors)
+	}
+}
+
+// TestWriteWithoutScopeForbidden confirms a valid token lacking the write scope is
+// authorized-but-forbidden (403), distinct from unauthenticated (401).
+func TestWriteWithoutScopeForbidden(t *testing.T) {
+	client := sdk.NewClient(util.LoadConfig().BaseURL)
+	client.SetToken(testjwt.MintAccessToken(t, uuid.New(), uuid.New())) // no scopes
+
+	_, err := client.CreateTournament(context.Background(), sdk.CreateTournamentRequest{
+		Name: "Unauthorized Cup", StartDate: "2026-08-01", EndDate: "2026-08-03", Location: "Winnipeg",
+	})
+	var apiErr *sdk.APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusForbidden {
+		t.Fatalf("want 403 APIError, got %v", err)
 	}
 }
 

@@ -26,6 +26,18 @@ func Connect(ctx context.Context, databaseURL string) (*pgx.Conn, error) {
 	return pgx.Connect(ctx, databaseURL)
 }
 
+// SeedPlayer inserts one player under the given tenant and returns its ID. Used to
+// stage data for anonymous public-read tests (which read a specific tenant with no
+// token).
+func SeedPlayer(ctx context.Context, conn *pgx.Conn, tenantID uuid.UUID, first, last string) (int32, error) {
+	var id int32
+	err := conn.QueryRow(ctx,
+		`INSERT INTO players (tenant_id, first_name, last_name) VALUES ($1, $2, $3) RETURNING id`,
+		tenantID, first, last,
+	).Scan(&id)
+	return id, err
+}
+
 // SeedSinglesMatch inserts a complete fixture under a fresh random tenant and returns
 // its IDs. It runs as the superuser, so RLS is bypassed and tenant_id is set
 // explicitly on every row. Each call uses a new tenant, so fixtures never collide and

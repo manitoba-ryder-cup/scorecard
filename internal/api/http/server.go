@@ -5,16 +5,22 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
+	"github.com/manitoba-ryder-cup/scorecard/sdk"
 	"github.com/travisbale/knowhere/identity"
 	"github.com/travisbale/knowhere/jwt"
 )
 
 type Config struct {
-	Address           string
-	JWTValidator      *jwt.Validator
-	Environment       string // "development", "staging", "production"
-	TrustedProxyMode  bool   // Trust X-Forwarded-For headers from reverse proxy
+	Address          string
+	JWTValidator     *jwt.Validator
+	Environment      string // "development", "staging", "production"
+	TrustedProxyMode bool   // Trust X-Forwarded-For headers from reverse proxy
+	// PublicTenantID enables anonymous read access for a single-tenant public site
+	// (e.g. manitobarydercup.com): reads without a token resolve to this tenant. Nil
+	// on a multi-tenant deployment, where every request must carry a token.
+	PublicTenantID    *uuid.UUID
 	PlayerService     *golf.PlayerService
 	MatchService      *golf.MatchService
 	TournamentService *golf.TournamentService
@@ -33,34 +39,37 @@ func NewServer(config *Config) *Server {
 
 	mux := http.NewServeMux()
 
-	// Health check (public, no auth)
+	// Health check (public, no auth, no tenant)
 	mux.HandleFunc("GET /healthz", HandleHealth)
 
-	// auth wraps a handler with JWT authentication. knowhere's Authenticate is
-	// func(http.HandlerFunc) http.HandlerFunc — the std-lib shape used directly
-	// with ServeMux (chi's Handler-based Use rejected this signature).
-	auth := func(method, route string, handler http.HandlerFunc) {
-		mux.HandleFunc(method+" "+route, jwtMiddleware.Authenticate(handler))
+	// public registers a read route with optional authentication: a token's tenant is
+	// used when present, else the configured public tenant (401 if neither).
+	public := func(method, route string, handler http.HandlerFunc) {
+		mux.HandleFunc(method+" "+route, optionalAuth(jwtMiddleware, config.PublicTenantID, handler))
+	}
+	// scoped registers a write route that requires a valid token carrying `scope`.
+	scoped := func(method, route, scope string, handler http.HandlerFunc) {
+		mux.HandleFunc(method+" "+route, jwtMiddleware.RequireScope(jwt.Scope(scope), handler))
 	}
 
 	// Player routes
-	auth("GET", "/v1/players", playersHandler.ListPlayers)
-	auth("POST", "/v1/players", playersHandler.CreatePlayer)
-	auth("GET", "/v1/players/{id}", playersHandler.GetPlayer)
+	public("GET", "/v1/players", playersHandler.ListPlayers)
+	scoped("POST", "/v1/players", sdk.ScopePlayersWrite, playersHandler.CreatePlayer)
+	public("GET", "/v1/players/{id}", playersHandler.GetPlayer)
 
 	// Match routes
-	auth("GET", "/v1/matches/{id}/scores", matchesHandler.GetMatchScores)
-	auth("POST", "/v1/matches/{id}/scores", matchesHandler.SubmitScore)
-	auth("GET", "/v1/matches/{id}/winner", matchesHandler.GetMatchWinner)
-	auth("GET", "/v1/matches/{id}/status", matchesHandler.GetMatchStatus)
+	public("GET", "/v1/matches/{id}/scores", matchesHandler.GetMatchScores)
+	scoped("POST", "/v1/matches/{id}/scores", sdk.ScopeScoresWrite, matchesHandler.SubmitScore)
+	public("GET", "/v1/matches/{id}/winner", matchesHandler.GetMatchWinner)
+	public("GET", "/v1/matches/{id}/status", matchesHandler.GetMatchStatus)
 
 	// Tournament routes
-	auth("GET", "/v1/tournaments", tournamentsHandler.ListTournaments)
-	auth("POST", "/v1/tournaments", tournamentsHandler.CreateTournament)
-	auth("GET", "/v1/tournaments/{id}", tournamentsHandler.GetTournament)
-	auth("GET", "/v1/tournaments/{id}/teams", tournamentsHandler.GetTournamentTeams)
-	auth("GET", "/v1/tournaments/{id}/winner", tournamentsHandler.GetTournamentWinner)
-	auth("GET", "/v1/tournaments/{id}/status", tournamentsHandler.GetTournamentStatus)
+	public("GET", "/v1/tournaments", tournamentsHandler.ListTournaments)
+	scoped("POST", "/v1/tournaments", sdk.ScopeTournamentsWrite, tournamentsHandler.CreateTournament)
+	public("GET", "/v1/tournaments/{id}", tournamentsHandler.GetTournament)
+	public("GET", "/v1/tournaments/{id}/teams", tournamentsHandler.GetTournamentTeams)
+	public("GET", "/v1/tournaments/{id}/winner", tournamentsHandler.GetTournamentWinner)
+	public("GET", "/v1/tournaments/{id}/status", tournamentsHandler.GetTournamentStatus)
 
 	// Global middleware chain. Assembled inner-to-outer, so recoverMiddleware is
 	// outermost (wraps everything) and RequestID runs before ClientIP/UserAgent.
@@ -76,6 +85,26 @@ func NewServer(config *Config) *Server {
 			Handler:           handler,
 			ReadHeaderTimeout: 5 * time.Second,
 		},
+	}
+}
+
+// optionalAuth guards a public read route. With an Authorization header it delegates
+// to full JWT authentication (tenant + actor from the token; 401 on a bad token).
+// Without one, it falls back to the configured public tenant so anonymous spectators
+// can read a single-tenant site; if no public tenant is configured, it is 401 (a
+// multi-tenant deployment requires login even to read).
+func optionalAuth(m *jwt.HTTPMiddleware, publicTenantID *uuid.UUID, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "" {
+			m.Authenticate(next)(w, r)
+			return
+		}
+		if publicTenantID == nil {
+			http.Error(w, `{"error":"authentication required"}`, http.StatusUnauthorized)
+			return
+		}
+		ctx := identity.WithTenant(r.Context(), *publicTenantID)
+		next(w, r.WithContext(ctx))
 	}
 }
 

@@ -37,6 +37,8 @@ services:
       HTTP_ADDRESS: :5000
       JWT_PUBLIC_KEY_PATH: /keys/public-key.pem
       ENVIRONMENT: test
+      # Enables anonymous public reads in tests; must match util.PublicTenantID.
+      SCORECARD_PUBLIC_TENANT_ID: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
     volumes:
       - ./keys:/keys:ro
     depends_on:
