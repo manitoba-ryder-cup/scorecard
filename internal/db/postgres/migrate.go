@@ -3,7 +3,7 @@ package postgres
 import (
 	"embed"
 
-	_ "github.com/jackc/pgx/v5/stdlib" // pgx database driver for migrations
+	_ "github.com/golang-migrate/migrate/v4/database/postgres" // registers the "postgres" driver golang-migrate opens from the DATABASE_URL scheme
 	"github.com/travisbale/knowhere/db"
 )
 

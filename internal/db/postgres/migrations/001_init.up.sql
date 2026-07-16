@@ -1,5 +1,7 @@
--- Enable UUID extension for tenant IDs
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- tenant_id / user_id UUIDs are supplied by the application (from the JWT), never
+-- generated in-database, so no uuid extension is needed — which also lets the
+-- non-superuser application role run these migrations (CREATE EXTENSION needs
+-- superuser; RLS requires the app role NOT be a superuser).
 
 -- Create tee_colors table
 CREATE TABLE tee_colors (

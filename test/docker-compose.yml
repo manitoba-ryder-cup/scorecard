@@ -1,0 +1,44 @@
+# Explicit project name isolates this stack's containers, network, and volumes from
+# other services whose compose file also lives in a directory named "test" (which
+# would otherwise share the default project name and reuse each other's volumes).
+name: scorecard-test
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: scorecard-postgres-test
+    ports:
+      # Host 5433 avoids clashing with a heimdall test db on 5432; integration
+      # tests seed fixtures through this port as the superuser (bypassing RLS).
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: superuser
+      POSTGRES_PASSWORD: superuser
+      POSTGRES_DB: scorecard
+    volumes:
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U superuser -d scorecard"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  scorecard:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: scorecard-test
+    ports:
+      - "5000:5000"
+    environment:
+      # Connects as the non-superuser app role so RLS is enforced. The server runs
+      # migrations on startup, so no separate migrate step is needed.
+      DATABASE_URL: postgres://scorecard:scorecard_password@scorecard-postgres-test:5432/scorecard?sslmode=disable
+      HTTP_ADDRESS: :5000
+      JWT_PUBLIC_KEY_PATH: /keys/public-key.pem
+      ENVIRONMENT: test
+    volumes:
+      - ./keys:/keys:ro
+    depends_on:
+      postgres:
+        condition: service_healthy

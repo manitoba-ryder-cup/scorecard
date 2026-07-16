@@ -1,4 +1,4 @@
-.PHONY: build dev test coverage-html clean sqlc protoc fmt lint tidy download docker-build migrate-up migrate-down help
+.PHONY: build dev test test-keys test-setup test-teardown integration coverage-html clean sqlc protoc fmt lint tidy download docker-build migrate-up migrate-down help
 
 # Version is derived from git tags
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -15,11 +15,46 @@ dev: fmt
 	@go build -ldflags="-X 'main.Version=$(VERSION)'" -o bin/scorecard ./cmd/scorecard
 	@echo "Build complete: bin/scorecard"
 
-# Run all tests
+# Run unit tests (excludes the integration suite in ./test, which needs infrastructure)
 test:
-	@echo "Running tests..."
-	@go test -race -coverprofile=coverage.out -covermode=atomic ./...
+	@echo "Running unit tests..."
+	@go test -race -coverprofile=coverage.out -covermode=atomic $$(go list ./... | grep -v '/test')
 	@echo "Unit test coverage: $$(go tool cover -func=coverage.out | grep total | awk '{print $$3}')"
+
+# Generate RSA keys the test JWT issuer/validator share (one-time setup)
+test-keys:
+	@if [ ! -f test/keys/private-key.pem ]; then \
+		echo "Generating test RSA keys..."; \
+		mkdir -p test/keys; \
+		openssl genrsa -out test/keys/private-key.pem 2048 2>/dev/null; \
+		openssl rsa -in test/keys/private-key.pem -pubout -out test/keys/public-key.pem 2>/dev/null; \
+		chmod 644 test/keys/*.pem; \
+		echo "Test keys generated in test/keys/"; \
+	else \
+		echo "Test keys already exist, skipping generation"; \
+	fi
+
+# Start test infrastructure (postgres + scorecard); scorecard auto-migrates on boot
+test-setup: test-keys
+	@echo "Building scorecard image..."
+	@docker compose -f test/docker-compose.yml build
+	@echo "Starting postgres and scorecard..."
+	@docker compose -f test/docker-compose.yml up -d --wait scorecard || \
+		(echo "Scorecard failed to start. Logs:" && \
+		docker compose -f test/docker-compose.yml logs scorecard && exit 1)
+	@echo "Test infrastructure ready"
+
+# Tear down test infrastructure and its volumes
+test-teardown:
+	@echo "Stopping test infrastructure..."
+	@docker compose -f test/docker-compose.yml down -v
+
+# Run integration tests (requires test infrastructure to be running)
+integration:
+	@echo "Running integration tests..."
+	@go test -count=1 -timeout 5m ./test/... || \
+		(echo "Integration tests failed. Scorecard logs:" && \
+		docker compose -f test/docker-compose.yml logs scorecard > test/scorecard.log 2>&1 && exit 1)
 
 # Generate HTML coverage report
 coverage-html: test
@@ -88,8 +123,14 @@ help:
 	@echo "Available targets:"
 	@echo "  build          - Build production binary"
 	@echo "  dev            - Build with debug symbols (faster compilation)"
-	@echo "  test           - Run all tests with coverage"
+	@echo "  test           - Run unit tests with coverage (no infrastructure)"
 	@echo "  coverage-html  - Generate HTML coverage report"
+	@echo ""
+	@echo "Integration testing:"
+	@echo "  test-keys      - Generate test JWT RSA keys (one-time)"
+	@echo "  test-setup     - Build and start postgres + scorecard test infra"
+	@echo "  integration    - Run the integration suite (needs test-setup first)"
+	@echo "  test-teardown  - Stop test infra and remove volumes"
 	@echo "  clean          - Clean build artifacts"
 	@echo "  deps           - Install and tidy Go dependencies"
 	@echo "  sqlc           - Generate sqlc code from queries"
