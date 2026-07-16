@@ -141,6 +141,13 @@ type TeamHoleScore struct {
 	Strokes int32
 }
 
+// MatchResult is the decided outcome of a match. WinnerTeamID is nil for a tie
+// (all square through 18); both fields are zero-valued while the match is unfinished.
+type MatchResult struct {
+	Finished     bool
+	WinnerTeamID *int32
+}
+
 // HoleResult is the match-play state after a scored hole. It refers to the two
 // sides by team ID — color ("Red"/"Blue") is a display attribute of the team, not
 // scoring state. LeaderTeamID identifies who is ahead (nil = all square); Lead is
