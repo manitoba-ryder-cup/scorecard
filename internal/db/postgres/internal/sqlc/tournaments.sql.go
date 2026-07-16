@@ -7,9 +7,9 @@ package sqlc
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createTournament = `-- name: CreateTournament :one
@@ -25,11 +25,11 @@ INSERT INTO tournaments (
 `
 
 type CreateTournamentParams struct {
-	TenantID  uuid.UUID   `json:"tenant_id"`
-	Name      string      `json:"name"`
-	StartDate pgtype.Date `json:"start_date"`
-	EndDate   pgtype.Date `json:"end_date"`
-	Location  string      `json:"location"`
+	TenantID  uuid.UUID `json:"tenant_id"`
+	Name      string    `json:"name"`
+	StartDate time.Time `json:"start_date"`
+	EndDate   time.Time `json:"end_date"`
+	Location  string    `json:"location"`
 }
 
 func (q *Queries) CreateTournament(ctx context.Context, arg CreateTournamentParams) (Tournament, error) {
@@ -139,9 +139,9 @@ ORDER BY start_date DESC
 `
 
 type ListTournamentsByDateRangeParams struct {
-	TenantID  uuid.UUID   `json:"tenant_id"`
-	StartDate pgtype.Date `json:"start_date"`
-	EndDate   pgtype.Date `json:"end_date"`
+	TenantID  uuid.UUID `json:"tenant_id"`
+	StartDate time.Time `json:"start_date"`
+	EndDate   time.Time `json:"end_date"`
 }
 
 func (q *Queries) ListTournamentsByDateRange(ctx context.Context, arg ListTournamentsByDateRangeParams) ([]Tournament, error) {
@@ -185,12 +185,12 @@ RETURNING id, tenant_id, name, start_date, end_date, location, created_at, updat
 `
 
 type UpdateTournamentParams struct {
-	ID        int32       `json:"id"`
-	TenantID  uuid.UUID   `json:"tenant_id"`
-	Name      string      `json:"name"`
-	StartDate pgtype.Date `json:"start_date"`
-	EndDate   pgtype.Date `json:"end_date"`
-	Location  string      `json:"location"`
+	ID        int32     `json:"id"`
+	TenantID  uuid.UUID `json:"tenant_id"`
+	Name      string    `json:"name"`
+	StartDate time.Time `json:"start_date"`
+	EndDate   time.Time `json:"end_date"`
+	Location  string    `json:"location"`
 }
 
 func (q *Queries) UpdateTournament(ctx context.Context, arg UpdateTournamentParams) (Tournament, error) {

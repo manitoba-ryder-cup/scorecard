@@ -64,7 +64,7 @@ func (m *MatchesDB) ListMatchesByTournament(ctx context.Context, tournamentID in
 				CourseID:      match.CourseID,
 				TeeColorID:    match.TeeColorID,
 				MatchFormatID: match.MatchFormatID,
-				TeeTime:       pgTimestampToPtr(match.TeeTime),
+				TeeTime:       match.TeeTime,
 				Handicapped:   match.Handicapped,
 			}
 		}
@@ -82,7 +82,7 @@ func toDomainMatch(m sqlc.Match) golf.Match {
 		CourseID:      m.CourseID,
 		TeeColorID:    m.TeeColorID,
 		MatchFormatID: m.MatchFormatID,
-		TeeTime:       pgTimestampToPtr(m.TeeTime),
+		TeeTime:       m.TeeTime,
 		Handicapped:   m.Handicapped,
 	}
 }

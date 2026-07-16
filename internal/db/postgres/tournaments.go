@@ -30,8 +30,8 @@ func (t *TournamentsDB) CreateTournamentWithTeams(ctx context.Context, in golf.C
 		tournament, err := q.CreateTournament(ctx, sqlc.CreateTournamentParams{
 			TenantID:  tenantID,
 			Name:      in.Name,
-			StartDate: timeToPgDate(in.StartDate),
-			EndDate:   timeToPgDate(in.EndDate),
+			StartDate: in.StartDate,
+			EndDate:   in.EndDate,
 			Location:  in.Location,
 		})
 		if err != nil {
@@ -98,8 +98,8 @@ func toDomainTournament(t sqlc.Tournament) golf.Tournament {
 	return golf.Tournament{
 		ID:        t.ID,
 		Name:      t.Name,
-		StartDate: pgDateToTime(t.StartDate),
-		EndDate:   pgDateToTime(t.EndDate),
+		StartDate: t.StartDate,
+		EndDate:   t.EndDate,
 		Location:  t.Location,
 	}
 }

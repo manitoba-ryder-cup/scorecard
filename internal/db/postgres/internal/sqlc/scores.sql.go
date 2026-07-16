@@ -7,9 +7,9 @@ package sqlc
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const deleteScoresByMatch = `-- name: DeleteScoresByMatch :exec
@@ -47,20 +47,20 @@ type ListScoresByMatchParams struct {
 }
 
 type ListScoresByMatchRow struct {
-	ID         int32              `json:"id"`
-	MatchID    int32              `json:"match_id"`
-	TeamID     int32              `json:"team_id"`
-	PlayerID   *int32             `json:"player_id"`
-	CourseID   int32              `json:"course_id"`
-	TeeColorID int32              `json:"tee_color_id"`
-	HoleNumber int32              `json:"hole_number"`
-	TenantID   uuid.UUID          `json:"tenant_id"`
-	Strokes    int32              `json:"strokes"`
-	CreatedAt  pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
-	Par        int32              `json:"par"`
-	HoleHdcp   int32              `json:"hole_hdcp"`
-	Yards      int32              `json:"yards"`
+	ID         int32     `json:"id"`
+	MatchID    int32     `json:"match_id"`
+	TeamID     int32     `json:"team_id"`
+	PlayerID   *int32    `json:"player_id"`
+	CourseID   int32     `json:"course_id"`
+	TeeColorID int32     `json:"tee_color_id"`
+	HoleNumber int32     `json:"hole_number"`
+	TenantID   uuid.UUID `json:"tenant_id"`
+	Strokes    int32     `json:"strokes"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+	Par        int32     `json:"par"`
+	HoleHdcp   int32     `json:"hole_hdcp"`
+	Yards      int32     `json:"yards"`
 }
 
 func (q *Queries) ListScoresByMatch(ctx context.Context, arg ListScoresByMatchParams) ([]ListScoresByMatchRow, error) {

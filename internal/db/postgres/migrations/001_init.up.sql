@@ -153,7 +153,7 @@ CREATE TABLE matches (
     tee_color_id INTEGER NOT NULL,
     match_format_id INTEGER NOT NULL,
     tenant_id UUID NOT NULL,
-    tee_time TIMESTAMP,
+    tee_time TIMESTAMPTZ,
     handicapped BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),

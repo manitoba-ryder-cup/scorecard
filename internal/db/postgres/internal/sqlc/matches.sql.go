@@ -7,9 +7,9 @@ package sqlc
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createMatch = `-- name: CreateMatch :one
@@ -27,13 +27,13 @@ INSERT INTO matches (
 `
 
 type CreateMatchParams struct {
-	TournamentID  int32            `json:"tournament_id"`
-	CourseID      int32            `json:"course_id"`
-	TeeColorID    int32            `json:"tee_color_id"`
-	MatchFormatID int32            `json:"match_format_id"`
-	TenantID      uuid.UUID        `json:"tenant_id"`
-	TeeTime       pgtype.Timestamp `json:"tee_time"`
-	Handicapped   bool             `json:"handicapped"`
+	TournamentID  int32      `json:"tournament_id"`
+	CourseID      int32      `json:"course_id"`
+	TeeColorID    int32      `json:"tee_color_id"`
+	MatchFormatID int32      `json:"match_format_id"`
+	TenantID      uuid.UUID  `json:"tenant_id"`
+	TeeTime       *time.Time `json:"tee_time"`
+	Handicapped   bool       `json:"handicapped"`
 }
 
 func (q *Queries) CreateMatch(ctx context.Context, arg CreateMatchParams) (Match, error) {
@@ -126,20 +126,20 @@ type GetMatchWithDetailsParams struct {
 }
 
 type GetMatchWithDetailsRow struct {
-	ID              int32              `json:"id"`
-	TournamentID    int32              `json:"tournament_id"`
-	CourseID        int32              `json:"course_id"`
-	TeeColorID      int32              `json:"tee_color_id"`
-	MatchFormatID   int32              `json:"match_format_id"`
-	TenantID        uuid.UUID          `json:"tenant_id"`
-	TeeTime         pgtype.Timestamp   `json:"tee_time"`
-	Handicapped     bool               `json:"handicapped"`
-	CreatedAt       pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
-	CourseName      string             `json:"course_name"`
-	TeeColorName    string             `json:"tee_color_name"`
-	MatchFormatName string             `json:"match_format_name"`
-	TournamentName  string             `json:"tournament_name"`
+	ID              int32      `json:"id"`
+	TournamentID    int32      `json:"tournament_id"`
+	CourseID        int32      `json:"course_id"`
+	TeeColorID      int32      `json:"tee_color_id"`
+	MatchFormatID   int32      `json:"match_format_id"`
+	TenantID        uuid.UUID  `json:"tenant_id"`
+	TeeTime         *time.Time `json:"tee_time"`
+	Handicapped     bool       `json:"handicapped"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+	CourseName      string     `json:"course_name"`
+	TeeColorName    string     `json:"tee_color_name"`
+	MatchFormatName string     `json:"match_format_name"`
+	TournamentName  string     `json:"tournament_name"`
 }
 
 func (q *Queries) GetMatchWithDetails(ctx context.Context, arg GetMatchWithDetailsParams) (GetMatchWithDetailsRow, error) {
@@ -182,18 +182,18 @@ type ListMatchesByTournamentParams struct {
 }
 
 type ListMatchesByTournamentRow struct {
-	ID            int32              `json:"id"`
-	TournamentID  int32              `json:"tournament_id"`
-	CourseID      int32              `json:"course_id"`
-	TeeColorID    int32              `json:"tee_color_id"`
-	MatchFormatID int32              `json:"match_format_id"`
-	TenantID      uuid.UUID          `json:"tenant_id"`
-	TeeTime       pgtype.Timestamp   `json:"tee_time"`
-	Handicapped   bool               `json:"handicapped"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
-	CourseName    string             `json:"course_name"`
-	TeeColorName  string             `json:"tee_color_name"`
+	ID            int32      `json:"id"`
+	TournamentID  int32      `json:"tournament_id"`
+	CourseID      int32      `json:"course_id"`
+	TeeColorID    int32      `json:"tee_color_id"`
+	MatchFormatID int32      `json:"match_format_id"`
+	TenantID      uuid.UUID  `json:"tenant_id"`
+	TeeTime       *time.Time `json:"tee_time"`
+	Handicapped   bool       `json:"handicapped"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+	CourseName    string     `json:"course_name"`
+	TeeColorName  string     `json:"tee_color_name"`
 }
 
 func (q *Queries) ListMatchesByTournament(ctx context.Context, arg ListMatchesByTournamentParams) ([]ListMatchesByTournamentRow, error) {
@@ -242,13 +242,13 @@ RETURNING id, tournament_id, course_id, tee_color_id, match_format_id, tenant_id
 `
 
 type UpdateMatchParams struct {
-	ID            int32            `json:"id"`
-	TenantID      uuid.UUID        `json:"tenant_id"`
-	CourseID      int32            `json:"course_id"`
-	TeeColorID    int32            `json:"tee_color_id"`
-	MatchFormatID int32            `json:"match_format_id"`
-	TeeTime       pgtype.Timestamp `json:"tee_time"`
-	Handicapped   bool             `json:"handicapped"`
+	ID            int32      `json:"id"`
+	TenantID      uuid.UUID  `json:"tenant_id"`
+	CourseID      int32      `json:"course_id"`
+	TeeColorID    int32      `json:"tee_color_id"`
+	MatchFormatID int32      `json:"match_format_id"`
+	TeeTime       *time.Time `json:"tee_time"`
+	Handicapped   bool       `json:"handicapped"`
 }
 
 func (q *Queries) UpdateMatch(ctx context.Context, arg UpdateMatchParams) (Match, error) {

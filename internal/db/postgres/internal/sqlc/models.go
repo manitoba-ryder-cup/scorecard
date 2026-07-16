@@ -5,6 +5,8 @@
 package sqlc
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -26,16 +28,16 @@ type Hole struct {
 }
 
 type Match struct {
-	ID            int32              `json:"id"`
-	TournamentID  int32              `json:"tournament_id"`
-	CourseID      int32              `json:"course_id"`
-	TeeColorID    int32              `json:"tee_color_id"`
-	MatchFormatID int32              `json:"match_format_id"`
-	TenantID      uuid.UUID          `json:"tenant_id"`
-	TeeTime       pgtype.Timestamp   `json:"tee_time"`
-	Handicapped   bool               `json:"handicapped"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+	ID            int32      `json:"id"`
+	TournamentID  int32      `json:"tournament_id"`
+	CourseID      int32      `json:"course_id"`
+	TeeColorID    int32      `json:"tee_color_id"`
+	MatchFormatID int32      `json:"match_format_id"`
+	TenantID      uuid.UUID  `json:"tenant_id"`
+	TeeTime       *time.Time `json:"tee_time"`
+	Handicapped   bool       `json:"handicapped"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
 }
 
 type MatchFormat struct {
@@ -53,40 +55,40 @@ type MatchParticipant struct {
 }
 
 type MatchResult struct {
-	MatchID        int32              `json:"match_id"`
-	TournamentID   int32              `json:"tournament_id"`
-	TenantID       uuid.UUID          `json:"tenant_id"`
-	Finished       bool               `json:"finished"`
-	LeaderTeamID   *int32             `json:"leader_team_id"`
-	Lead           int32              `json:"lead"`
-	HolesRemaining int32              `json:"holes_remaining"`
-	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	MatchID        int32     `json:"match_id"`
+	TournamentID   int32     `json:"tournament_id"`
+	TenantID       uuid.UUID `json:"tenant_id"`
+	Finished       bool      `json:"finished"`
+	LeaderTeamID   *int32    `json:"leader_team_id"`
+	Lead           int32     `json:"lead"`
+	HolesRemaining int32     `json:"holes_remaining"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type Player struct {
-	ID        int32              `json:"id"`
-	TenantID  uuid.UUID          `json:"tenant_id"`
-	UserID    *uuid.UUID         `json:"user_id"`
-	Email     *string            `json:"email"`
-	FirstName string             `json:"first_name"`
-	LastName  string             `json:"last_name"`
-	PhotoPath string             `json:"photo_path"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	ID        int32      `json:"id"`
+	TenantID  uuid.UUID  `json:"tenant_id"`
+	UserID    *uuid.UUID `json:"user_id"`
+	Email     *string    `json:"email"`
+	FirstName string     `json:"first_name"`
+	LastName  string     `json:"last_name"`
+	PhotoPath string     `json:"photo_path"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
 }
 
 type Score struct {
-	ID         int32              `json:"id"`
-	MatchID    int32              `json:"match_id"`
-	TeamID     int32              `json:"team_id"`
-	PlayerID   *int32             `json:"player_id"`
-	CourseID   int32              `json:"course_id"`
-	TeeColorID int32              `json:"tee_color_id"`
-	HoleNumber int32              `json:"hole_number"`
-	TenantID   uuid.UUID          `json:"tenant_id"`
-	Strokes    int32              `json:"strokes"`
-	CreatedAt  pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+	ID         int32     `json:"id"`
+	MatchID    int32     `json:"match_id"`
+	TeamID     int32     `json:"team_id"`
+	PlayerID   *int32    `json:"player_id"`
+	CourseID   int32     `json:"course_id"`
+	TeeColorID int32     `json:"tee_color_id"`
+	HoleNumber int32     `json:"hole_number"`
+	TenantID   uuid.UUID `json:"tenant_id"`
+	Strokes    int32     `json:"strokes"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 type Team struct {
@@ -122,12 +124,12 @@ type TeeSet struct {
 }
 
 type Tournament struct {
-	ID        int32              `json:"id"`
-	TenantID  uuid.UUID          `json:"tenant_id"`
-	Name      string             `json:"name"`
-	StartDate pgtype.Date        `json:"start_date"`
-	EndDate   pgtype.Date        `json:"end_date"`
-	Location  string             `json:"location"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	ID        int32     `json:"id"`
+	TenantID  uuid.UUID `json:"tenant_id"`
+	Name      string    `json:"name"`
+	StartDate time.Time `json:"start_date"`
+	EndDate   time.Time `json:"end_date"`
+	Location  string    `json:"location"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
