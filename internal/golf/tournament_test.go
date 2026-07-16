@@ -2,7 +2,6 @@ package golf
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -49,35 +48,5 @@ func TestCreateTournament_Valid(t *testing.T) {
 	// The tournament is seeded with exactly its two sides, Red and Blue.
 	if len(db.teamColors) != 2 || db.teamColors[0] != sdk.TeamColorRed || db.teamColors[1] != sdk.TeamColorBlue {
 		t.Errorf("want [Red Blue] teams seeded, got %v", db.teamColors)
-	}
-}
-
-func TestCreateTournament_RejectsEmptyName(t *testing.T) {
-	db := &fakeTournamentDB{}
-	svc := &TournamentService{TournamentDB: db}
-
-	_, err := svc.CreateTournament(context.Background(), CreateTournamentInput{
-		Name: "  ", StartDate: date(2026, 7, 1), EndDate: date(2026, 7, 3),
-	})
-	if !errors.Is(err, ErrInvalidInput) {
-		t.Fatalf("want ErrInvalidInput, got %v", err)
-	}
-	if db.created != nil {
-		t.Error("must not write on validation failure")
-	}
-}
-
-func TestCreateTournament_RejectsEndBeforeStart(t *testing.T) {
-	db := &fakeTournamentDB{}
-	svc := &TournamentService{TournamentDB: db}
-
-	_, err := svc.CreateTournament(context.Background(), CreateTournamentInput{
-		Name: "Cup", StartDate: date(2026, 7, 3), EndDate: date(2026, 7, 1),
-	})
-	if !errors.Is(err, ErrInvalidInput) {
-		t.Fatalf("want ErrInvalidInput, got %v", err)
-	}
-	if db.created != nil {
-		t.Error("must not write on validation failure")
 	}
 }

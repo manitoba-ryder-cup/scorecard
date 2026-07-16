@@ -12,6 +12,7 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 	util "github.com/manitoba-ryder-cup/scorecard/test/_util"
 	testjwt "github.com/manitoba-ryder-cup/scorecard/test/_util/jwt"
+	"github.com/manitoba-ryder-cup/scorecard/test/_util/request"
 )
 
 // TestMain preflights the infrastructure so `go test ./test/...` without a running
@@ -175,19 +176,14 @@ func TestSubmitScoreUpsertsHole(t *testing.T) {
 	}
 }
 
-// TestSubmitScoreRejectsInvalidStrokes confirms the domain validation surfaces as a
-// 400 through the real HTTP stack.
+// TestSubmitScoreRejectsInvalidStrokes confirms the server rejects non-positive
+// strokes with 400. Sent raw (bypassing the SDK client's validation); shape checks
+// run before any match lookup, so no seeded match is needed.
 func TestSubmitScoreRejectsInvalidStrokes(t *testing.T) {
-	client, fix := authedClient(t)
-	ctx := context.Background()
-	red := fix.RedPlayer
-
-	err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
-		HoleNumber: 1, Strokes: 0, TeamID: fix.TeamRed, PlayerID: &red,
-	})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
-		t.Fatalf("want 400 APIError, got %v", err)
+	body := `{"hole_number":1,"strokes":0,"team_id":1}`
+	status, _ := request.Raw(t, http.MethodPost, "/v1/matches/1/scores", body, freshToken(t))
+	if status != http.StatusBadRequest {
+		t.Fatalf("want 400, got %d", status)
 	}
 }
 

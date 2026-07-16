@@ -17,7 +17,8 @@ type MatchService struct {
 
 // ScoreEntry is a client-supplied hole score. CourseID/TeeColorID are intentionally
 // absent — they're derived from the match, not trusted from the caller. PlayerID is
-// nil for one-ball team formats (alt shot, scramble).
+// nil for one-ball team formats (alt shot, scramble). Hole/strokes range is validated
+// at the API boundary; the team-in-match invariant below needs match state.
 type ScoreEntry struct {
 	HoleNumber int32
 	Strokes    int32
@@ -25,26 +26,21 @@ type ScoreEntry struct {
 	PlayerID   *int32
 }
 
-// SubmitScore validates and persists one hole score, then recomputes the match's
-// materialized result — the single write path that keeps match_results in sync.
+// SubmitScore persists one hole score, then recomputes the match's materialized
+// result — the single write path that keeps match_results in sync.
 func (s *MatchService) SubmitScore(ctx context.Context, matchID int32, entry ScoreEntry) error {
-	if entry.HoleNumber < 1 || entry.HoleNumber > 18 {
-		return fmt.Errorf("hole number %d out of range 1-18", entry.HoleNumber)
-	}
-	if entry.Strokes < 1 {
-		return fmt.Errorf("strokes must be positive, got %d", entry.Strokes)
-	}
 	match, err := s.MatchDB.GetMatch(ctx, matchID)
 	if err != nil {
 		return fmt.Errorf("failed to get match: %w", err)
 	}
-	// Reject scores for a team that isn't actually playing this match.
+	// Reject scores for a team that isn't actually playing this match. This needs the
+	// match's participants, so it's a domain invariant, not boundary shape validation.
 	teamA, teamB, ok, err := s.matchTeams(ctx, matchID)
 	if err != nil {
 		return err
 	}
 	if !ok || (entry.TeamID != teamA && entry.TeamID != teamB) {
-		return fmt.Errorf("team %d is not in match %d", entry.TeamID, matchID)
+		return fmt.Errorf("%w: team %d is not in match %d", ErrInvalidInput, entry.TeamID, matchID)
 	}
 
 	// Course/tee come from the match — the score's holes constraint keys off them.

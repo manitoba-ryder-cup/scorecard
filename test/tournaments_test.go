@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"testing"
 
@@ -10,15 +9,21 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 	util "github.com/manitoba-ryder-cup/scorecard/test/_util"
 	testjwt "github.com/manitoba-ryder-cup/scorecard/test/_util/jwt"
+	"github.com/manitoba-ryder-cup/scorecard/test/_util/request"
 )
+
+// freshToken mints an access token for a brand-new tenant.
+func freshToken(t *testing.T) string {
+	t.Helper()
+	return testjwt.MintAccessToken(t, uuid.New(), uuid.New())
+}
 
 // freshClient returns a client authenticated for a brand-new tenant, with nothing
 // seeded — the write endpoints build their own state from scratch.
 func freshClient(t *testing.T) *sdk.Client {
 	t.Helper()
-	cfg := util.LoadConfig()
-	client := sdk.NewClient(cfg.BaseURL)
-	client.SetToken(testjwt.MintAccessToken(t, uuid.New(), uuid.New()))
+	client := sdk.NewClient(util.LoadConfig().BaseURL)
+	client.SetToken(freshToken(t))
 	return client
 }
 
@@ -63,14 +68,12 @@ func TestCreateTournamentSeedsBothTeams(t *testing.T) {
 	}
 }
 
-func TestCreateTournamentInvalidDatesRejected(t *testing.T) {
-	client := freshClient(t)
-
-	_, err := client.CreateTournament(context.Background(), sdk.CreateTournamentRequest{
-		Name: "Backwards Cup", StartDate: "2026-08-03", EndDate: "2026-08-01", Location: "Winnipeg",
-	})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
-		t.Fatalf("want 400 APIError, got %v", err)
+// The SDK client would reject end-before-start before sending, so this hits the
+// server directly to confirm it validates too (a non-SDK caller must get 400).
+func TestCreateTournamentInvalidDatesRejectedByServer(t *testing.T) {
+	body := `{"name":"Backwards Cup","start_date":"2026-08-03","end_date":"2026-08-01","location":"Winnipeg"}`
+	status, _ := request.Raw(t, http.MethodPost, sdk.RouteV1Tournaments, body, freshToken(t))
+	if status != http.StatusBadRequest {
+		t.Fatalf("want 400, got %d", status)
 	}
 }

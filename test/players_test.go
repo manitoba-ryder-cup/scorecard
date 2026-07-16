@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
+	"github.com/manitoba-ryder-cup/scorecard/test/_util/request"
 )
 
 func TestCreatePlayerAndReadBack(t *testing.T) {
@@ -84,12 +85,12 @@ func TestCreatePlayerDuplicateEmailConflicts(t *testing.T) {
 	}
 }
 
-func TestCreatePlayerEmptyNameRejected(t *testing.T) {
-	client := freshClient(t)
-
-	_, err := client.CreatePlayer(context.Background(), sdk.CreatePlayerRequest{FirstName: "", LastName: "Johnson"})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
-		t.Fatalf("want 400 APIError, got %v", err)
+// Raw request (bypassing the SDK client's validation) confirms the server rejects a
+// nameless player too.
+func TestCreatePlayerEmptyNameRejectedByServer(t *testing.T) {
+	body := `{"first_name":"","last_name":"Johnson"}`
+	status, _ := request.Raw(t, http.MethodPost, sdk.RouteV1Players, body, freshToken(t))
+	if status != http.StatusBadRequest {
+		t.Fatalf("want 400, got %d", status)
 	}
 }

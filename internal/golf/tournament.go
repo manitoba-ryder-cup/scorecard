@@ -3,14 +3,14 @@ package golf
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
-// CreateTournamentInput is the validated intent to create a tournament — only the
-// caller-supplied fields (no ID, no tenant, which the persistence layer owns).
+// CreateTournamentInput is the intent to create a tournament — only the caller-supplied
+// fields (no ID, no tenant). Request-shape validation (name present, dates valid and
+// ordered) happens at the API boundary; the domain owns the two-team invariant below.
 type CreateTournamentInput struct {
 	Name      string
 	StartDate time.Time
@@ -23,18 +23,9 @@ type CreateTournamentInput struct {
 // rather than added by an admin — there is no valid state with zero or one team.
 var tournamentTeamColors = []string{sdk.TeamColorRed, sdk.TeamColorBlue}
 
-// CreateTournament validates and persists a new tournament together with its two
-// teams (Red and Blue) in a single atomic operation.
+// CreateTournament persists a new tournament together with its two teams (Red and
+// Blue) in a single atomic operation.
 func (s *TournamentService) CreateTournament(ctx context.Context, in CreateTournamentInput) (*Tournament, error) {
-	if strings.TrimSpace(in.Name) == "" {
-		return nil, fmt.Errorf("%w: tournament name is required", ErrInvalidInput)
-	}
-	if in.StartDate.IsZero() || in.EndDate.IsZero() {
-		return nil, fmt.Errorf("%w: start and end dates are required", ErrInvalidInput)
-	}
-	if in.EndDate.Before(in.StartDate) {
-		return nil, fmt.Errorf("%w: end date cannot precede start date", ErrInvalidInput)
-	}
 	tournament, err := s.TournamentDB.CreateTournamentWithTeams(ctx, in, tournamentTeamColors)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create tournament: %w", err)

@@ -3,14 +3,14 @@ package golf
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/google/uuid"
 )
 
-// CreatePlayerInput is the validated intent to add a player to the roster. Email and
-// UserID are optional: roster-only players have neither, while a player with a
-// heimdall login carries UserID. photo_path is set later via the photo upload.
+// CreatePlayerInput is the intent to add a player to the roster. Email and UserID are
+// optional: roster-only players have neither, while a player with a heimdall login
+// carries UserID. photo_path is set later via the photo upload. Request-shape
+// validation (names present, email well-formed) happens at the API boundary.
 type CreatePlayerInput struct {
 	FirstName string
 	LastName  string
@@ -18,11 +18,9 @@ type CreatePlayerInput struct {
 	UserID    *uuid.UUID
 }
 
-// CreatePlayer validates and persists a new player.
+// CreatePlayer persists a new player. A duplicate email or user_id surfaces as
+// ErrConflict from the repository.
 func (s *PlayerService) CreatePlayer(ctx context.Context, in CreatePlayerInput) (*Player, error) {
-	if strings.TrimSpace(in.FirstName) == "" || strings.TrimSpace(in.LastName) == "" {
-		return nil, fmt.Errorf("%w: first and last name are required", ErrInvalidInput)
-	}
 	player, err := s.PlayerDB.CreatePlayer(ctx, in)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create player: %w", err)

@@ -2,6 +2,7 @@ package golf
 
 import (
 	"context"
+	"errors"
 	"testing"
 )
 
@@ -114,38 +115,10 @@ func TestSubmitScore_RejectsTeamNotInMatch(t *testing.T) {
 	err := svc.SubmitScore(context.Background(), 7, ScoreEntry{
 		HoleNumber: 1, Strokes: 4, TeamID: 99,
 	})
-	if err == nil {
-		t.Fatal("want error for team not in match")
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("want ErrInvalidInput for team not in match, got %v", err)
 	}
 	if len(sdb.saved) != 0 || len(rdb.upsertMatch) != 0 {
 		t.Error("must not write or recompute on validation failure")
-	}
-}
-
-func TestSubmitScore_RejectsInvalidStrokes(t *testing.T) {
-	m, p := twoTeamMatch()
-	sdb := &fakeScoreDB{}
-	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{}}
-
-	err := svc.SubmitScore(context.Background(), 7, ScoreEntry{HoleNumber: 1, Strokes: 0, TeamID: 1})
-	if err == nil {
-		t.Fatal("want error for non-positive strokes")
-	}
-	if len(sdb.saved) != 0 {
-		t.Error("must not write on validation failure")
-	}
-}
-
-func TestSubmitScore_RejectsInvalidHole(t *testing.T) {
-	m, p := twoTeamMatch()
-	sdb := &fakeScoreDB{}
-	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{}}
-
-	err := svc.SubmitScore(context.Background(), 7, ScoreEntry{HoleNumber: 19, Strokes: 4, TeamID: 1})
-	if err == nil {
-		t.Fatal("want error for hole out of range")
-	}
-	if len(sdb.saved) != 0 {
-		t.Error("must not write on validation failure")
 	}
 }

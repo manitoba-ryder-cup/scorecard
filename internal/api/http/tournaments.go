@@ -43,6 +43,12 @@ func (h *TournamentsHandler) CreateTournament(w http.ResponseWriter, r *http.Req
 		respondError(w, http.StatusBadRequest, "Invalid request body", err)
 		return
 	}
+	if err := req.Validate(r.Context()); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
+	// Validate already confirmed the dates parse; the errors here are unreachable in
+	// practice but kept so a future format skew can't silently produce zero dates.
 	start, err := parseDate(req.StartDate)
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid start_date (want YYYY-MM-DD)", err)

@@ -2,7 +2,6 @@ package golf
 
 import (
 	"context"
-	"errors"
 	"testing"
 )
 
@@ -33,29 +32,5 @@ func TestCreatePlayer_Valid(t *testing.T) {
 	}
 	if db.created == nil || db.created.Email == nil || *db.created.Email != "dj@example.com" {
 		t.Errorf("input not passed through: %+v", db.created)
-	}
-}
-
-func TestCreatePlayer_RejectsEmptyNames(t *testing.T) {
-	for _, tc := range []struct {
-		name  string
-		first string
-		last  string
-	}{
-		{"empty first", "  ", "Johnson"},
-		{"empty last", "Dustin", ""},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			db := &fakePlayerDB{}
-			svc := &PlayerService{PlayerDB: db}
-
-			_, err := svc.CreatePlayer(context.Background(), CreatePlayerInput{FirstName: tc.first, LastName: tc.last})
-			if !errors.Is(err, ErrInvalidInput) {
-				t.Fatalf("want ErrInvalidInput, got %v", err)
-			}
-			if db.created != nil {
-				t.Error("must not write on validation failure")
-			}
-		})
 	}
 }

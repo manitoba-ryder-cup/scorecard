@@ -41,6 +41,12 @@ func (h *PlayersHandler) CreatePlayer(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "Invalid request body", err)
 		return
 	}
+	// Server-side shape validation guards non-SDK callers (the SDK client also runs
+	// this before sending). Domain invariants are enforced separately below.
+	if err := req.Validate(r.Context()); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
 	player, err := h.playerService.CreatePlayer(r.Context(), golf.CreatePlayerInput{
 		FirstName: req.FirstName,
 		LastName:  req.LastName,

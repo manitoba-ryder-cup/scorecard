@@ -53,16 +53,20 @@ func (h *MatchesHandler) SubmitScore(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "Invalid request body", err)
 		return
 	}
+	if err := req.Validate(r.Context()); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
 	entry := golf.ScoreEntry{
 		HoleNumber: req.HoleNumber,
 		Strokes:    req.Strokes,
 		TeamID:     req.TeamID,
 		PlayerID:   req.PlayerID,
 	}
-	// Domain rejects out-of-range holes/strokes and teams not in the match; surface
-	// those as 400 rather than 500 (client error, not server fault).
+	// Shape is validated above; the domain still enforces its invariant (the team must
+	// be in the match) -> 400, while a real failure (DB, etc.) -> 500.
 	if err := h.matchService.SubmitScore(r.Context(), id, entry); err != nil {
-		respondError(w, http.StatusBadRequest, "Failed to submit score", err)
+		respondDomainError(w, "Failed to submit score", err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

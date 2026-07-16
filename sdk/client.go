@@ -32,6 +32,12 @@ func NewClient(baseURL string) *Client {
 // SetToken sets the bearer token sent on subsequent authenticated requests.
 func (c *Client) SetToken(token string) { c.token = token }
 
+// validatable is implemented by request bodies that can validate their own shape.
+// The client runs it before sending, so bad input fails fast without a round trip.
+type validatable interface {
+	Validate(ctx context.Context) error
+}
+
 // --- Players ---
 
 func (c *Client) ListPlayers(ctx context.Context) ([]Player, error) {
@@ -115,6 +121,12 @@ func pathID(route string, id int32) string {
 func (c *Client) do(ctx context.Context, method, route string, req, result any) error {
 	var body io.Reader
 	if req != nil {
+		// Client-side fast-fail: reject a malformed request before it hits the wire.
+		if v, ok := req.(validatable); ok {
+			if err := v.Validate(ctx); err != nil {
+				return fmt.Errorf("invalid request: %w", err)
+			}
+		}
 		b, err := json.Marshal(req)
 		if err != nil {
 			return fmt.Errorf("marshal request: %w", err)
