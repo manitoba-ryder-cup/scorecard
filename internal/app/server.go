@@ -98,7 +98,6 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 		TrustedProxyMode:  config.TrustedProxyMode,
 		PlayerService:     playerService,
 		MatchService:      matchService,
-		TeamService:       teamService,
 		TournamentService: tournamentService,
 	})
 

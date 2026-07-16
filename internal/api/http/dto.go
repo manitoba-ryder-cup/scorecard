@@ -111,15 +111,6 @@ func toHoleStatusDTOs(holes []golf.HoleResult) []sdk.HoleStatus {
 	return out
 }
 
-func toTeamDTO(t golf.Team) sdk.Team {
-	return sdk.Team{
-		ID:           t.ID,
-		TournamentID: t.TournamentID,
-		Color:        t.Color,
-		CaptainID:    t.CaptainID,
-	}
-}
-
 // dateString formats a date as YYYY-MM-DD, or "" if unset.
 func dateString(d time.Time) string {
 	if d.IsZero() {

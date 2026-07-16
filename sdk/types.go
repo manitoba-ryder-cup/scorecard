@@ -73,22 +73,6 @@ type CreateTournamentRequest struct {
 	Location  string `json:"location"`
 }
 
-// Team is a tournament side in its raw form (no derived points), returned when a
-// team is created. See TournamentTeam for the standings view with captain + points.
-type Team struct {
-	ID           int32  `json:"id"`
-	TournamentID int32  `json:"tournament_id"`
-	Color        string `json:"color"`
-	CaptainID    *int32 `json:"captain_id"`
-}
-
-// CreateTeamRequest is the body for POST /v1/tournaments/{id}/teams. The tournament
-// comes from the path; color must be Red or Blue; captain_id is optional.
-type CreateTeamRequest struct {
-	Color     string `json:"color"`
-	CaptainID *int32 `json:"captain_id"`
-}
-
 // TournamentTeam is one of a tournament's two sides with its captain and points.
 type TournamentTeam struct {
 	ID      int32          `json:"id"`

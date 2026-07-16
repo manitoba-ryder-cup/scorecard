@@ -22,7 +22,7 @@ func freshClient(t *testing.T) *sdk.Client {
 	return client
 }
 
-func TestCreateTournamentAndTeams(t *testing.T) {
+func TestCreateTournamentSeedsBothTeams(t *testing.T) {
 	client := freshClient(t)
 	ctx := context.Background()
 
@@ -45,23 +45,14 @@ func TestCreateTournamentAndTeams(t *testing.T) {
 		t.Fatalf("round-trip mismatch: %+v", got)
 	}
 
-	red, err := client.CreateTeam(ctx, tour.ID, sdk.CreateTeamRequest{Color: sdk.TeamColorRed})
-	if err != nil {
-		t.Fatalf("create red: %v", err)
-	}
-	if red.Color != sdk.TeamColorRed || red.TournamentID != tour.ID {
-		t.Fatalf("unexpected red team: %+v", red)
-	}
-	if _, err := client.CreateTeam(ctx, tour.ID, sdk.CreateTeamRequest{Color: sdk.TeamColorBlue}); err != nil {
-		t.Fatalf("create blue: %v", err)
-	}
-
+	// Creating the tournament must have seeded exactly its two sides, Red and Blue —
+	// no separate team-creation step exists.
 	teams, err := client.GetTournamentTeams(ctx, tour.ID)
 	if err != nil {
 		t.Fatalf("get teams: %v", err)
 	}
 	if len(teams) != 2 {
-		t.Fatalf("want 2 teams, got %d", len(teams))
+		t.Fatalf("want 2 teams seeded, got %d", len(teams))
 	}
 	colors := map[string]bool{}
 	for _, tm := range teams {
@@ -69,46 +60,6 @@ func TestCreateTournamentAndTeams(t *testing.T) {
 	}
 	if !colors[sdk.TeamColorRed] || !colors[sdk.TeamColorBlue] {
 		t.Fatalf("want Red and Blue, got %v", colors)
-	}
-}
-
-func TestCreateTeamDuplicateColorConflicts(t *testing.T) {
-	client := freshClient(t)
-	ctx := context.Background()
-
-	tour, err := client.CreateTournament(ctx, sdk.CreateTournamentRequest{
-		Name: "Dup Color Cup", StartDate: "2026-08-01", EndDate: "2026-08-03", Location: "Brandon",
-	})
-	if err != nil {
-		t.Fatalf("create tournament: %v", err)
-	}
-	if _, err := client.CreateTeam(ctx, tour.ID, sdk.CreateTeamRequest{Color: sdk.TeamColorRed}); err != nil {
-		t.Fatalf("create first red: %v", err)
-	}
-
-	// A second Red team collides with UNIQUE(tournament_id, color) -> 409.
-	_, err = client.CreateTeam(ctx, tour.ID, sdk.CreateTeamRequest{Color: sdk.TeamColorRed})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Fatalf("want 409 APIError, got %v", err)
-	}
-}
-
-func TestCreateTeamInvalidColorRejected(t *testing.T) {
-	client := freshClient(t)
-	ctx := context.Background()
-
-	tour, err := client.CreateTournament(ctx, sdk.CreateTournamentRequest{
-		Name: "Bad Color Cup", StartDate: "2026-08-01", EndDate: "2026-08-03", Location: "Selkirk",
-	})
-	if err != nil {
-		t.Fatalf("create tournament: %v", err)
-	}
-
-	_, err = client.CreateTeam(ctx, tour.ID, sdk.CreateTeamRequest{Color: "Green"})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
-		t.Fatalf("want 400 APIError, got %v", err)
 	}
 }
 

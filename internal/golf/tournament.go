@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
 // CreateTournamentInput is the validated intent to create a tournament — only the
@@ -16,7 +18,13 @@ type CreateTournamentInput struct {
 	Location  string
 }
 
-// CreateTournament validates and persists a new tournament.
+// tournamentTeamColors are the two sides every tournament is created with. A Ryder
+// Cup has exactly two teams, no more no less, so they're seeded with the tournament
+// rather than added by an admin — there is no valid state with zero or one team.
+var tournamentTeamColors = []string{sdk.TeamColorRed, sdk.TeamColorBlue}
+
+// CreateTournament validates and persists a new tournament together with its two
+// teams (Red and Blue) in a single atomic operation.
 func (s *TournamentService) CreateTournament(ctx context.Context, in CreateTournamentInput) (*Tournament, error) {
 	if strings.TrimSpace(in.Name) == "" {
 		return nil, fmt.Errorf("%w: tournament name is required", ErrInvalidInput)
@@ -27,7 +35,7 @@ func (s *TournamentService) CreateTournament(ctx context.Context, in CreateTourn
 	if in.EndDate.Before(in.StartDate) {
 		return nil, fmt.Errorf("%w: end date cannot precede start date", ErrInvalidInput)
 	}
-	tournament, err := s.TournamentDB.CreateTournament(ctx, in)
+	tournament, err := s.TournamentDB.CreateTournamentWithTeams(ctx, in, tournamentTeamColors)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create tournament: %w", err)
 	}

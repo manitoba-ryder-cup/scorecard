@@ -5,10 +5,13 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
 type fakeTournamentDB struct {
-	created *CreateTournamentInput
+	created    *CreateTournamentInput
+	teamColors []string
 }
 
 func (f *fakeTournamentDB) GetTournament(ctx context.Context, id int32) (*Tournament, error) {
@@ -17,8 +20,9 @@ func (f *fakeTournamentDB) GetTournament(ctx context.Context, id int32) (*Tourna
 func (f *fakeTournamentDB) ListTournaments(ctx context.Context) ([]Tournament, error) {
 	return nil, nil
 }
-func (f *fakeTournamentDB) CreateTournament(ctx context.Context, in CreateTournamentInput) (*Tournament, error) {
+func (f *fakeTournamentDB) CreateTournamentWithTeams(ctx context.Context, in CreateTournamentInput, teamColors []string) (*Tournament, error) {
 	f.created = &in
+	f.teamColors = teamColors
 	return &Tournament{ID: 1, Name: in.Name, StartDate: in.StartDate, EndDate: in.EndDate, Location: in.Location}, nil
 }
 
@@ -41,6 +45,10 @@ func TestCreateTournament_Valid(t *testing.T) {
 	}
 	if db.created == nil || db.created.Location != "Winnipeg" {
 		t.Errorf("input not passed through: %+v", db.created)
+	}
+	// The tournament is seeded with exactly its two sides, Red and Blue.
+	if len(db.teamColors) != 2 || db.teamColors[0] != sdk.TeamColorRed || db.teamColors[1] != sdk.TeamColorBlue {
+		t.Errorf("want [Red Blue] teams seeded, got %v", db.teamColors)
 	}
 }
 

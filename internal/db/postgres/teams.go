@@ -17,30 +17,6 @@ func NewTeamsDB(db *DB) *TeamsDB {
 	return &TeamsDB{db: db}
 }
 
-func (t *TeamsDB) CreateTeam(ctx context.Context, in golf.CreateTeamInput) (*golf.Team, error) {
-	tenantID, err := identity.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var result *golf.Team
-	err = t.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
-		team, err := q.CreateTeam(ctx, sqlc.CreateTeamParams{
-			TenantID:     tenantID,
-			TournamentID: in.TournamentID,
-			Color:        in.Color,
-			CaptainID:    in.CaptainID,
-		})
-		if err != nil {
-			return fmt.Errorf("creating team: %w", mapWriteErr(err))
-		}
-		td := toDomainTeam(team)
-		result = &td
-		return nil
-	})
-	return result, err
-}
-
 func (t *TeamsDB) GetTeam(ctx context.Context, id int32) (*golf.Team, error) {
 	tenantID, err := identity.GetTenant(ctx)
 	if err != nil {
