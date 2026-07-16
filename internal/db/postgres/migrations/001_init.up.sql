@@ -45,7 +45,12 @@ CREATE TABLE holes (
     CONSTRAINT fk__holes__course_id_tee_color_id__tee_sets
         FOREIGN KEY (course_id, tee_color_id)
         REFERENCES tee_sets(course_id, tee_color_id)
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
+    CONSTRAINT ck__holes__number CHECK (number >= 1 AND number <= 18),
+    CONSTRAINT ck__holes__par CHECK (par >= 3 AND par <= 6),
+    CONSTRAINT ck__holes__hdcp CHECK (hdcp >= 1 AND hdcp <= 18),
+    -- Stroke indexes 1-18 must be unique per tee set, or handicap allocation breaks.
+    CONSTRAINT uq__holes__course_id__tee_color_id__hdcp UNIQUE (course_id, tee_color_id, hdcp)
 );
 
 -- Players hold stable identity and career totals only. Per-tournament attributes
