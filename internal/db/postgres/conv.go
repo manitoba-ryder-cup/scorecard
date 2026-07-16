@@ -17,6 +17,14 @@ func pgDateToTime(d pgtype.Date) time.Time {
 	return d.Time
 }
 
+// timeToPgDate converts a time.Time to a pgtype.Date (invalid/NULL for the zero time).
+func timeToPgDate(t time.Time) pgtype.Date {
+	if t.IsZero() {
+		return pgtype.Date{}
+	}
+	return pgtype.Date{Time: t, Valid: true}
+}
+
 // pgTimestampToPtr converts a nullable pgtype.Timestamp to *time.Time.
 func pgTimestampToPtr(ts pgtype.Timestamp) *time.Time {
 	if !ts.Valid {

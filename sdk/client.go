@@ -56,6 +56,16 @@ func (c *Client) GetTournament(ctx context.Context, id int32) (*Tournament, erro
 	return &out, c.do(ctx, http.MethodGet, pathID(RouteV1Tournament, id), nil, &out)
 }
 
+func (c *Client) CreateTournament(ctx context.Context, req CreateTournamentRequest) (*Tournament, error) {
+	var out Tournament
+	return &out, c.do(ctx, http.MethodPost, RouteV1Tournaments, req, &out)
+}
+
+func (c *Client) CreateTeam(ctx context.Context, tournamentID int32, req CreateTeamRequest) (*Team, error) {
+	var out Team
+	return &out, c.do(ctx, http.MethodPost, pathID(RouteV1TournamentTeams, tournamentID), req, &out)
+}
+
 func (c *Client) GetTournamentTeams(ctx context.Context, id int32) ([]TournamentTeam, error) {
 	var out []TournamentTeam
 	return out, c.do(ctx, http.MethodGet, pathID(RouteV1TournamentTeams, id), nil, &out)

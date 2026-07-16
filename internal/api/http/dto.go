@@ -111,12 +111,26 @@ func toHoleStatusDTOs(holes []golf.HoleResult) []sdk.HoleStatus {
 	return out
 }
 
+func toTeamDTO(t golf.Team) sdk.Team {
+	return sdk.Team{
+		ID:           t.ID,
+		TournamentID: t.TournamentID,
+		Color:        t.Color,
+		CaptainID:    t.CaptainID,
+	}
+}
+
 // dateString formats a date as YYYY-MM-DD, or "" if unset.
 func dateString(d time.Time) string {
 	if d.IsZero() {
 		return ""
 	}
 	return d.Format("2006-01-02")
+}
+
+// parseDate parses a YYYY-MM-DD string into a UTC time.Time.
+func parseDate(s string) (time.Time, error) {
+	return time.Parse("2006-01-02", s)
 }
 
 // pathInt parses an int32 path parameter.

@@ -31,6 +31,7 @@ func NewServer(config *Config) *Server {
 	playersHandler := NewPlayersHandler(config.PlayerService)
 	matchesHandler := NewMatchesHandler(config.MatchService)
 	tournamentsHandler := NewTournamentsHandler(config.TournamentService)
+	teamsHandler := NewTeamsHandler(config.TeamService)
 
 	mux := http.NewServeMux()
 
@@ -56,8 +57,10 @@ func NewServer(config *Config) *Server {
 
 	// Tournament routes
 	auth("GET", "/v1/tournaments", tournamentsHandler.ListTournaments)
+	auth("POST", "/v1/tournaments", tournamentsHandler.CreateTournament)
 	auth("GET", "/v1/tournaments/{id}", tournamentsHandler.GetTournament)
 	auth("GET", "/v1/tournaments/{id}/teams", tournamentsHandler.GetTournamentTeams)
+	auth("POST", "/v1/tournaments/{id}/teams", teamsHandler.CreateTeam)
 	auth("GET", "/v1/tournaments/{id}/winner", tournamentsHandler.GetTournamentWinner)
 	auth("GET", "/v1/tournaments/{id}/status", tournamentsHandler.GetTournamentStatus)
 

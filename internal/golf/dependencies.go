@@ -39,6 +39,7 @@ type scoreDB interface {
 type teamDB interface {
 	GetTeam(ctx context.Context, id int32) (*Team, error)
 	ListTeamsByTournament(ctx context.Context, tournamentID int32) ([]Team, error)
+	CreateTeam(ctx context.Context, in CreateTeamInput) (*Team, error)
 }
 
 // teamMemberDB interface defines database operations for team members
@@ -51,6 +52,7 @@ type teamMemberDB interface {
 type tournamentDB interface {
 	GetTournament(ctx context.Context, id int32) (*Tournament, error)
 	ListTournaments(ctx context.Context) ([]Tournament, error)
+	CreateTournament(ctx context.Context, in CreateTournamentInput) (*Tournament, error)
 }
 
 // resultDB reads/writes the materialized match_results and the aggregates derived

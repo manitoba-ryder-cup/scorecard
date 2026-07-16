@@ -3,7 +3,36 @@ package golf
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 )
+
+// CreateTournamentInput is the validated intent to create a tournament — only the
+// caller-supplied fields (no ID, no tenant, which the persistence layer owns).
+type CreateTournamentInput struct {
+	Name      string
+	StartDate time.Time
+	EndDate   time.Time
+	Location  string
+}
+
+// CreateTournament validates and persists a new tournament.
+func (s *TournamentService) CreateTournament(ctx context.Context, in CreateTournamentInput) (*Tournament, error) {
+	if strings.TrimSpace(in.Name) == "" {
+		return nil, fmt.Errorf("%w: tournament name is required", ErrInvalidInput)
+	}
+	if in.StartDate.IsZero() || in.EndDate.IsZero() {
+		return nil, fmt.Errorf("%w: start and end dates are required", ErrInvalidInput)
+	}
+	if in.EndDate.Before(in.StartDate) {
+		return nil, fmt.Errorf("%w: end date cannot precede start date", ErrInvalidInput)
+	}
+	tournament, err := s.TournamentDB.CreateTournament(ctx, in)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create tournament: %w", err)
+	}
+	return tournament, nil
+}
 
 // TournamentService handles tournament reads and standings, derived from the
 // materialized match_results.

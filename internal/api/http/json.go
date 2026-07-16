@@ -2,9 +2,11 @@ package http
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 
+	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
@@ -23,4 +25,18 @@ func respondError(writer http.ResponseWriter, status int, message string, err er
 		slog.Error("API error", "message", message, "error", err, "status", status)
 	}
 	respondJSON(writer, status, sdk.ErrorResponse{Error: message})
+}
+
+// respondDomainError maps a domain sentinel to the right HTTP status: invalid input
+// -> 400, conflict -> 409, anything else -> 500. Keeps handlers from re-deriving the
+// mapping and keeps status semantics in one place.
+func respondDomainError(writer http.ResponseWriter, message string, err error) {
+	switch {
+	case errors.Is(err, golf.ErrInvalidInput):
+		respondError(writer, http.StatusBadRequest, message, err)
+	case errors.Is(err, golf.ErrConflict):
+		respondError(writer, http.StatusConflict, message, err)
+	default:
+		respondError(writer, http.StatusInternalServerError, message, err)
+	}
 }

@@ -3,7 +3,30 @@ package golf
 import (
 	"context"
 	"fmt"
+
+	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
+
+// CreateTeamInput is the validated intent to create one of a tournament's two sides.
+// CaptainID is optional (a team can be created before its captain is chosen).
+type CreateTeamInput struct {
+	TournamentID int32
+	Color        string
+	CaptainID    *int32
+}
+
+// CreateTeam validates and persists a team. Color must be one of the two Ryder Cup
+// sides; the database additionally caps a tournament at one team per color.
+func (s *TeamService) CreateTeam(ctx context.Context, in CreateTeamInput) (*Team, error) {
+	if !sdk.IsValidTeamColor(in.Color) {
+		return nil, fmt.Errorf("%w: team color must be %q or %q", ErrInvalidInput, sdk.TeamColorRed, sdk.TeamColorBlue)
+	}
+	team, err := s.TeamDB.CreateTeam(ctx, in)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create team: %w", err)
+	}
+	return team, nil
+}
 
 // TeamService handles team reads.
 type TeamService struct {

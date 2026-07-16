@@ -17,6 +17,31 @@ func NewTournamentsDB(db *DB) *TournamentsDB {
 	return &TournamentsDB{db: db}
 }
 
+func (t *TournamentsDB) CreateTournament(ctx context.Context, in golf.CreateTournamentInput) (*golf.Tournament, error) {
+	tenantID, err := identity.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var result *golf.Tournament
+	err = t.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
+		tournament, err := q.CreateTournament(ctx, sqlc.CreateTournamentParams{
+			TenantID:  tenantID,
+			Name:      in.Name,
+			StartDate: timeToPgDate(in.StartDate),
+			EndDate:   timeToPgDate(in.EndDate),
+			Location:  in.Location,
+		})
+		if err != nil {
+			return fmt.Errorf("creating tournament: %w", mapWriteErr(err))
+		}
+		td := toDomainTournament(tournament)
+		result = &td
+		return nil
+	})
+	return result, err
+}
+
 func (t *TournamentsDB) GetTournament(ctx context.Context, id int32) (*golf.Tournament, error) {
 	tenantID, err := identity.GetTenant(ctx)
 	if err != nil {

@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
@@ -11,6 +12,7 @@ import (
 type TournamentService interface {
 	GetTournament(ctx context.Context, tournamentID int32) (*golf.Tournament, error)
 	ListTournaments(ctx context.Context) ([]golf.Tournament, error)
+	CreateTournament(ctx context.Context, in golf.CreateTournamentInput) (*golf.Tournament, error)
 	IsFinished(ctx context.Context, tournamentID int32) (bool, error)
 	GetWinningTeam(ctx context.Context, tournamentID int32) (*int32, error)
 	GetTeamsData(ctx context.Context, tournamentID int32) ([]golf.TeamData, error)
@@ -32,6 +34,36 @@ func (h *TournamentsHandler) ListTournaments(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	respondJSON(w, http.StatusOK, toTournamentDTOs(tournaments))
+}
+
+// POST /v1/tournaments
+func (h *TournamentsHandler) CreateTournament(w http.ResponseWriter, r *http.Request) {
+	var req sdk.CreateTournamentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid request body", err)
+		return
+	}
+	start, err := parseDate(req.StartDate)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid start_date (want YYYY-MM-DD)", err)
+		return
+	}
+	end, err := parseDate(req.EndDate)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid end_date (want YYYY-MM-DD)", err)
+		return
+	}
+	tournament, err := h.tournamentService.CreateTournament(r.Context(), golf.CreateTournamentInput{
+		Name:      req.Name,
+		StartDate: start,
+		EndDate:   end,
+		Location:  req.Location,
+	})
+	if err != nil {
+		respondDomainError(w, "Failed to create tournament", err)
+		return
+	}
+	respondJSON(w, http.StatusCreated, toTournamentDTO(*tournament))
 }
 
 // GET /v1/tournaments/{id}
