@@ -77,6 +77,8 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 	teamMembersDB := postgres.NewTeamMembersDB(db)
 	tournamentsDB := postgres.NewTournamentsDB(db)
 	resultsDB := postgres.NewResultsDB(db)
+	teeColorsDB := postgres.NewTeeColorsDB(db)
+	coursesDB := postgres.NewCoursesDB(db)
 
 	// Create domain services
 	playerService := &golf.PlayerService{
@@ -106,6 +108,12 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 		Logger:       config.Logger,
 	}
 
+	courseService := &golf.CourseService{
+		TeeColorDB: teeColorsDB,
+		CourseDB:   coursesDB,
+		Logger:     config.Logger,
+	}
+
 	// Create HTTP server
 	httpServer := http.NewServer(&http.Config{
 		Address:           config.HTTPAddress,
@@ -116,6 +124,7 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 		PlayerService:     playerService,
 		MatchService:      matchService,
 		TournamentService: tournamentService,
+		CourseService:     courseService,
 	})
 
 	return &Server{

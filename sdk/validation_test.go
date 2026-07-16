@@ -30,6 +30,24 @@ func TestCreatePlayerRequest_Validate(t *testing.T) {
 	}
 }
 
+func TestCreateTeeColorRequest_Validate(t *testing.T) {
+	if (CreateTeeColorRequest{Color: "White"}).Validate(context.Background()) != nil {
+		t.Error("valid tee color should pass")
+	}
+	if (CreateTeeColorRequest{Color: " "}).Validate(context.Background()) == nil {
+		t.Error("empty color should fail")
+	}
+}
+
+func TestCreateCourseRequest_Validate(t *testing.T) {
+	if (CreateCourseRequest{Name: "Pine Ridge"}).Validate(context.Background()) != nil {
+		t.Error("valid course should pass")
+	}
+	if (CreateCourseRequest{Name: ""}).Validate(context.Background()) == nil {
+		t.Error("empty name should fail")
+	}
+}
+
 func TestCreateTournamentRequest_Validate(t *testing.T) {
 	ctx := context.Background()
 	cases := []struct {

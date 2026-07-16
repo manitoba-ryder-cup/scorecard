@@ -24,6 +24,7 @@ type Config struct {
 	PlayerService     *golf.PlayerService
 	MatchService      *golf.MatchService
 	TournamentService *golf.TournamentService
+	CourseService     *golf.CourseService
 }
 
 type Server struct {
@@ -36,6 +37,7 @@ func NewServer(config *Config) *Server {
 	playersHandler := NewPlayersHandler(config.PlayerService)
 	matchesHandler := NewMatchesHandler(config.MatchService)
 	tournamentsHandler := NewTournamentsHandler(config.TournamentService)
+	coursesHandler := NewCoursesHandler(config.CourseService)
 
 	mux := http.NewServeMux()
 
@@ -56,6 +58,13 @@ func NewServer(config *Config) *Server {
 	public("GET", "/v1/players", playersHandler.ListPlayers)
 	scoped("POST", "/v1/players", sdk.ScopePlayersWrite, playersHandler.CreatePlayer)
 	public("GET", "/v1/players/{id}", playersHandler.GetPlayer)
+
+	// Course reference-data routes
+	public("GET", "/v1/tee-colors", coursesHandler.ListTeeColors)
+	scoped("POST", "/v1/tee-colors", sdk.ScopeCoursesWrite, coursesHandler.CreateTeeColor)
+	public("GET", "/v1/courses", coursesHandler.ListCourses)
+	scoped("POST", "/v1/courses", sdk.ScopeCoursesWrite, coursesHandler.CreateCourse)
+	public("GET", "/v1/courses/{id}", coursesHandler.GetCourse)
 
 	// Match routes
 	public("GET", "/v1/matches/{id}/scores", matchesHandler.GetMatchScores)

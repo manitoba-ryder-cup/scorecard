@@ -55,6 +55,33 @@ func (c *Client) CreatePlayer(ctx context.Context, req CreatePlayerRequest) (*Pl
 	return &out, c.do(ctx, http.MethodPost, RouteV1Players, req, &out)
 }
 
+// --- Course reference data ---
+
+func (c *Client) ListTeeColors(ctx context.Context) ([]TeeColor, error) {
+	var out []TeeColor
+	return out, c.do(ctx, http.MethodGet, RouteV1TeeColors, nil, &out)
+}
+
+func (c *Client) CreateTeeColor(ctx context.Context, req CreateTeeColorRequest) (*TeeColor, error) {
+	var out TeeColor
+	return &out, c.do(ctx, http.MethodPost, RouteV1TeeColors, req, &out)
+}
+
+func (c *Client) ListCourses(ctx context.Context) ([]Course, error) {
+	var out []Course
+	return out, c.do(ctx, http.MethodGet, RouteV1Courses, nil, &out)
+}
+
+func (c *Client) GetCourse(ctx context.Context, id int32) (*Course, error) {
+	var out Course
+	return &out, c.do(ctx, http.MethodGet, pathID(RouteV1Course, id), nil, &out)
+}
+
+func (c *Client) CreateCourse(ctx context.Context, req CreateCourseRequest) (*Course, error) {
+	var out Course
+	return &out, c.do(ctx, http.MethodPost, RouteV1Courses, req, &out)
+}
+
 // --- Tournaments ---
 
 func (c *Client) ListTournaments(ctx context.Context) ([]Tournament, error) {

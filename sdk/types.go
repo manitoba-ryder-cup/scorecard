@@ -48,6 +48,28 @@ type PlayerProfile struct {
 	Record PlayerRecord `json:"record"`
 }
 
+// TeeColor is a tenant-level tee marker (e.g. White, Blue), shared across courses.
+type TeeColor struct {
+	ID    int32  `json:"id"`
+	Color string `json:"color"`
+}
+
+// CreateTeeColorRequest is the body for POST /v1/tee-colors.
+type CreateTeeColorRequest struct {
+	Color string `json:"color"`
+}
+
+// Course is a golf course (venue). Its tee sets and holes are added separately.
+type Course struct {
+	ID   int32  `json:"id"`
+	Name string `json:"name"`
+}
+
+// CreateCourseRequest is the body for POST /v1/courses.
+type CreateCourseRequest struct {
+	Name string `json:"name"`
+}
+
 // CreatePlayerRequest is the body for POST /v1/players. Email and user_id are
 // optional (roster-only players have neither); the photo is uploaded separately.
 type CreatePlayerRequest struct {

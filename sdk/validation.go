@@ -45,6 +45,16 @@ func validateDate(value, field string) (time.Time, error) {
 	return t, nil
 }
 
+// Validate checks a tee-color creation request.
+func (r CreateTeeColorRequest) Validate(ctx context.Context) error {
+	return validateRequired(r.Color, "color")
+}
+
+// Validate checks a course creation request.
+func (r CreateCourseRequest) Validate(ctx context.Context) error {
+	return validateRequired(r.Name, "name")
+}
+
 // Validate checks a player creation request. Email and user_id are optional; an
 // email, when given, must be well-formed.
 func (r CreatePlayerRequest) Validate(ctx context.Context) error {

@@ -111,6 +111,30 @@ func toHoleStatusDTOs(holes []golf.HoleResult) []sdk.HoleStatus {
 	return out
 }
 
+func toTeeColorDTO(tc golf.TeeColor) sdk.TeeColor {
+	return sdk.TeeColor{ID: tc.ID, Color: tc.Color}
+}
+
+func toTeeColorDTOs(teeColors []golf.TeeColor) []sdk.TeeColor {
+	out := make([]sdk.TeeColor, len(teeColors))
+	for i, tc := range teeColors {
+		out[i] = toTeeColorDTO(tc)
+	}
+	return out
+}
+
+func toCourseDTO(c golf.Course) sdk.Course {
+	return sdk.Course{ID: c.ID, Name: c.Name}
+}
+
+func toCourseDTOs(courses []golf.Course) []sdk.Course {
+	out := make([]sdk.Course, len(courses))
+	for i, c := range courses {
+		out[i] = toCourseDTO(c)
+	}
+	return out
+}
+
 // dateString formats a date as YYYY-MM-DD, or "" if unset.
 func dateString(d time.Time) string {
 	if d.IsZero() {

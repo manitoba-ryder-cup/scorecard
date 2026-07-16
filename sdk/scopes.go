@@ -9,4 +9,5 @@ const (
 	ScopeTournamentsWrite = "scorecard:tournaments:write"
 	ScopePlayersWrite     = "scorecard:players:write"
 	ScopeScoresWrite      = "scorecard:scores:write"
+	ScopeCoursesWrite     = "scorecard:courses:write"
 )

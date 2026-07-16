@@ -15,7 +15,7 @@ import (
 
 // writeScopes are all the scopes an admin-style test client needs to exercise the
 // write endpoints.
-var writeScopes = []string{sdk.ScopeTournamentsWrite, sdk.ScopePlayersWrite, sdk.ScopeScoresWrite}
+var writeScopes = []string{sdk.ScopeTournamentsWrite, sdk.ScopePlayersWrite, sdk.ScopeScoresWrite, sdk.ScopeCoursesWrite}
 
 // freshToken mints an access token for a brand-new tenant, carrying all write scopes.
 func freshToken(t *testing.T) string {
