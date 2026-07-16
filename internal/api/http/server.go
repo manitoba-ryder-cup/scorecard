@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/travisbale/knowhere/identity"
 	"github.com/travisbale/knowhere/jwt"
@@ -14,7 +13,6 @@ import (
 type Config struct {
 	Address           string
 	JWTValidator      *jwt.Validator
-	DB                *postgres.DB
 	Environment       string // "development", "staging", "production"
 	TrustedProxyMode  bool   // Trust X-Forwarded-For headers from reverse proxy
 	PlayerService     *golf.PlayerService

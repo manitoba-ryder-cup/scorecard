@@ -63,7 +63,6 @@ func (t *TeamsDB) ListTeamsByTournament(ctx context.Context, tournamentID int32)
 func toDomainTeam(t sqlc.Team) golf.Team {
 	return golf.Team{
 		ID:           t.ID,
-		TenantID:     t.TenantID,
 		TournamentID: t.TournamentID,
 		Color:        t.Color,
 		CaptainID:    t.CaptainID,

@@ -42,7 +42,6 @@ func (s *ScoresDB) ListScoresByMatch(ctx context.Context, matchID int32) ([]golf
 				CourseID:   score.CourseID,
 				TeeColorID: score.TeeColorID,
 				HoleNumber: score.HoleNumber,
-				TenantID:   score.TenantID,
 				Strokes:    score.Strokes,
 			}
 		}

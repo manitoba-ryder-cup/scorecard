@@ -94,7 +94,6 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 	httpServer := http.NewServer(&http.Config{
 		Address:           config.HTTPAddress,
 		JWTValidator:      jwtValidator,
-		DB:                db,
 		Environment:       config.Environment,
 		TrustedProxyMode:  config.TrustedProxyMode,
 		PlayerService:     playerService,

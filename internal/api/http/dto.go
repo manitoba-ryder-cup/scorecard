@@ -3,8 +3,8 @@ package http
 import (
 	"net/http"
 	"strconv"
+	"time"
 
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
@@ -100,11 +100,11 @@ func toHoleStatusDTOs(holes []golf.HoleResult) []sdk.HoleStatus {
 }
 
 // dateString formats a date as YYYY-MM-DD, or "" if unset.
-func dateString(d pgtype.Date) string {
-	if !d.Valid {
+func dateString(d time.Time) string {
+	if d.IsZero() {
 		return ""
 	}
-	return d.Time.Format("2006-01-02")
+	return d.Format("2006-01-02")
 }
 
 // pathInt parses an int32 path parameter.

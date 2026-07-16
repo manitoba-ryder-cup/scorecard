@@ -76,7 +76,6 @@ func (p *PlayersDB) ListPlayers(ctx context.Context) ([]golf.Player, error) {
 func toDomainPlayer(p sqlc.Player) golf.Player {
 	return golf.Player{
 		ID:        p.ID,
-		TenantID:  p.TenantID,
 		UserID:    pgUUIDToPtr(p.UserID),
 		Email:     p.Email,
 		FirstName: p.FirstName,

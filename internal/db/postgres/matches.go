@@ -27,17 +27,13 @@ func (m *MatchesDB) GetMatch(ctx context.Context, id int32) (*golf.Match, error)
 	}
 
 	var result *golf.Match
-
 	err = m.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
-		match, err := q.GetMatch(ctx, sqlc.GetMatchParams{
-			ID:       id,
-			TenantID: tenantID,
-		})
+		match, err := q.GetMatch(ctx, sqlc.GetMatchParams{ID: id, TenantID: tenantID})
 		if err != nil {
 			return fmt.Errorf("getting match %d: %w", id, err)
 		}
-
-		result = toDomainMatch(match)
+		dm := toDomainMatch(match)
+		result = &dm
 		return nil
 	})
 
@@ -52,7 +48,6 @@ func (m *MatchesDB) ListMatchesByTournament(ctx context.Context, tournamentID in
 	}
 
 	var result []golf.Match
-
 	err = m.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
 		matches, err := q.ListMatchesByTournament(ctx, sqlc.ListMatchesByTournamentParams{
 			TournamentID: tournamentID,
@@ -61,7 +56,6 @@ func (m *MatchesDB) ListMatchesByTournament(ctx context.Context, tournamentID in
 		if err != nil {
 			return fmt.Errorf("listing matches for tournament %d: %w", tournamentID, err)
 		}
-
 		result = make([]golf.Match, len(matches))
 		for i, match := range matches {
 			result[i] = golf.Match{
@@ -70,8 +64,7 @@ func (m *MatchesDB) ListMatchesByTournament(ctx context.Context, tournamentID in
 				CourseID:      match.CourseID,
 				TeeColorID:    match.TeeColorID,
 				MatchFormatID: match.MatchFormatID,
-				TenantID:      match.TenantID,
-				TeeTime:       match.TeeTime,
+				TeeTime:       pgTimestampToPtr(match.TeeTime),
 				Handicapped:   match.Handicapped,
 			}
 		}
@@ -82,15 +75,14 @@ func (m *MatchesDB) ListMatchesByTournament(ctx context.Context, tournamentID in
 }
 
 // toDomainMatch converts a sqlc Match to a domain Match
-func toDomainMatch(m sqlc.Match) *golf.Match {
-	return &golf.Match{
+func toDomainMatch(m sqlc.Match) golf.Match {
+	return golf.Match{
 		ID:            m.ID,
 		TournamentID:  m.TournamentID,
 		CourseID:      m.CourseID,
 		TeeColorID:    m.TeeColorID,
 		MatchFormatID: m.MatchFormatID,
-		TenantID:      m.TenantID,
-		TeeTime:       m.TeeTime,
+		TeeTime:       pgTimestampToPtr(m.TeeTime),
 		Handicapped:   m.Handicapped,
 	}
 }

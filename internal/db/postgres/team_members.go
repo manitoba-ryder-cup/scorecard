@@ -40,7 +40,6 @@ func (t *TeamMembersDB) ListTeamMembers(ctx context.Context, teamID int32) ([]go
 				TeamID:       member.TeamID,
 				PlayerID:     member.PlayerID,
 				TournamentID: member.TournamentID,
-				TenantID:     member.TenantID,
 				Tier:         member.Tier,
 				Biography:    member.Biography,
 				Hdcp:         member.Hdcp,

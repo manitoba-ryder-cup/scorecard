@@ -1,22 +1,20 @@
 package golf
 
 import (
+	"time"
+
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// Team name constants
-const (
-	TeamRed  = "Red"
-	TeamBlue = "Blue"
-	TeamTied = "Tied"
-)
+// The domain layer holds no tenant_id — tenancy is a persistence/RLS concern
+// carried in context by the repositories, never a domain field. Dates are plain
+// time.Time; the repos map to/from the database driver's types.
 
-// Player represents a golfer's stable identity and career totals. Per-tournament
-// attributes (tier, biography, handicap) live on TeamMember.
+// Player represents a golfer's stable identity. Per-tournament attributes (tier,
+// biography, handicap) live on TeamMember; win/loss records are derived from
+// match_results.
 type Player struct {
 	ID        int32
-	TenantID  uuid.UUID
 	UserID    *uuid.UUID // heimdall account link; nil for roster-only players
 	Email     *string
 	FirstName string
@@ -27,7 +25,6 @@ type Player struct {
 // Team represents one of a tournament's two sides.
 type Team struct {
 	ID           int32
-	TenantID     uuid.UUID
 	TournamentID int32
 	Color        string
 	CaptainID    *int32
@@ -36,10 +33,9 @@ type Team struct {
 // Tournament represents a golf tournament event
 type Tournament struct {
 	ID        int32
-	TenantID  uuid.UUID
 	Name      string
-	StartDate pgtype.Date
-	EndDate   pgtype.Date
+	StartDate time.Time
+	EndDate   time.Time
 	Location  string
 }
 
@@ -50,8 +46,7 @@ type Match struct {
 	CourseID      int32
 	TeeColorID    int32
 	MatchFormatID int32
-	TenantID      uuid.UUID
-	TeeTime       pgtype.Timestamp
+	TeeTime       *time.Time
 	Handicapped   bool
 }
 
@@ -61,7 +56,6 @@ type MatchParticipant struct {
 	MatchID      int32
 	PlayerID     int32
 	TeamID       int32
-	TenantID     uuid.UUID
 }
 
 // Score is a hole score attributed to a side (TeamID) and, for per-player formats,
@@ -74,15 +68,13 @@ type Score struct {
 	CourseID   int32
 	TeeColorID int32
 	HoleNumber int32
-	TenantID   uuid.UUID
 	Strokes    int32
 }
 
 // Course represents a golf course
 type Course struct {
-	ID       int32
-	TenantID uuid.UUID
-	Name     string
+	ID   int32
+	Name string
 }
 
 // Hole represents a hole on a golf course with specific tee
@@ -90,7 +82,6 @@ type Hole struct {
 	CourseID   int32
 	TeeColorID int32
 	Number     int32
-	TenantID   uuid.UUID
 	Par        int32
 	Hdcp       int32
 	Yards      int32
@@ -98,25 +89,22 @@ type Hole struct {
 
 // TeeColor represents tee marker colors
 type TeeColor struct {
-	ID       int32
-	TenantID uuid.UUID
-	Color    string
+	ID    int32
+	Color string
 }
 
 // TeeSet represents course rating and slope for a specific tee
 type TeeSet struct {
 	CourseID   int32
 	TeeColorID int32
-	TenantID   uuid.UUID
 	Slope      int32
-	Rating     pgtype.Numeric
+	Rating     float64
 }
 
 // MatchFormat represents the type of match
 type MatchFormat struct {
-	ID       int32
-	TenantID uuid.UUID
-	Name     string
+	ID   int32
+	Name string
 }
 
 // TeamMember is a player's membership on a team for a tournament, plus the
@@ -125,7 +113,6 @@ type TeamMember struct {
 	TeamID       int32
 	PlayerID     int32
 	TournamentID int32
-	TenantID     uuid.UUID
 	Tier         string
 	Biography    string
 	Hdcp         float32

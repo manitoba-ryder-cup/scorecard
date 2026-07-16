@@ -29,14 +29,8 @@ func (t *TournamentsDB) GetTournament(ctx context.Context, id int32) (*golf.Tour
 		if err != nil {
 			return fmt.Errorf("getting tournament %d: %w", id, err)
 		}
-		result = &golf.Tournament{
-			ID:        tournament.ID,
-			TenantID:  tournament.TenantID,
-			Name:      tournament.Name,
-			StartDate: tournament.StartDate,
-			EndDate:   tournament.EndDate,
-			Location:  tournament.Location,
-		}
+		td := toDomainTournament(tournament)
+		result = &td
 		return nil
 	})
 	return result, err
@@ -56,16 +50,19 @@ func (t *TournamentsDB) ListTournaments(ctx context.Context) ([]golf.Tournament,
 		}
 		result = make([]golf.Tournament, len(tournaments))
 		for i, tournament := range tournaments {
-			result[i] = golf.Tournament{
-				ID:        tournament.ID,
-				TenantID:  tournament.TenantID,
-				Name:      tournament.Name,
-				StartDate: tournament.StartDate,
-				EndDate:   tournament.EndDate,
-				Location:  tournament.Location,
-			}
+			result[i] = toDomainTournament(tournament)
 		}
 		return nil
 	})
 	return result, err
+}
+
+func toDomainTournament(t sqlc.Tournament) golf.Tournament {
+	return golf.Tournament{
+		ID:        t.ID,
+		Name:      t.Name,
+		StartDate: pgDateToTime(t.StartDate),
+		EndDate:   pgDateToTime(t.EndDate),
+		Location:  t.Location,
+	}
 }

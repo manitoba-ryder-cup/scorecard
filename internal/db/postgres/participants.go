@@ -39,7 +39,6 @@ func (p *ParticipantsDB) ListMatchParticipants(ctx context.Context, matchID int3
 				MatchID:      participant.MatchID,
 				PlayerID:     participant.PlayerID,
 				TeamID:       participant.TeamID,
-				TenantID:     participant.TenantID,
 			}
 		}
 		return nil
