@@ -48,6 +48,13 @@ type teamMemberDB interface {
 	GetTeamCaptain(ctx context.Context, teamID int32) (*Player, error)
 }
 
+// tournamentPlayerDB interface defines database operations for tournament entries
+type tournamentPlayerDB interface {
+	CreateTournamentPlayer(ctx context.Context, in EnterPlayerInput) (*TournamentPlayer, error)
+	UpdateTournamentPlayer(ctx context.Context, in EnterPlayerInput) (*TournamentPlayer, error)
+	ListTournamentPlayers(ctx context.Context, tournamentID int32) ([]TournamentPlayerDetail, error)
+}
+
 // teeColorDB interface defines database operations for tenant-level tee colors
 type teeColorDB interface {
 	CreateTeeColor(ctx context.Context, in CreateTeeColorInput) (*TeeColor, error)

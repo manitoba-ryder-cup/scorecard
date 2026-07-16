@@ -118,6 +118,24 @@ func (c *Client) GetTournamentTeams(ctx context.Context, id int32) ([]Tournament
 	return out, c.do(ctx, http.MethodGet, pathID(RouteV1TournamentTeams, id), nil, &out)
 }
 
+// --- Tournament roster ---
+
+func (c *Client) ListTournamentPlayers(ctx context.Context, tournamentID int32) ([]TournamentPlayerDetail, error) {
+	var out []TournamentPlayerDetail
+	return out, c.do(ctx, http.MethodGet, pathID(RouteV1TournamentPlayers, tournamentID), nil, &out)
+}
+
+func (c *Client) EnterTournamentPlayer(ctx context.Context, tournamentID int32, req EnterTournamentPlayerRequest) (*TournamentPlayer, error) {
+	var out TournamentPlayer
+	return &out, c.do(ctx, http.MethodPost, pathID(RouteV1TournamentPlayers, tournamentID), req, &out)
+}
+
+func (c *Client) UpdateTournamentPlayer(ctx context.Context, tournamentID, playerID int32, req UpdateTournamentPlayerRequest) (*TournamentPlayer, error) {
+	route := strings.Replace(pathID(RouteV1TournamentPlayer, tournamentID), "{playerId}", strconv.FormatInt(int64(playerID), 10), 1)
+	var out TournamentPlayer
+	return &out, c.do(ctx, http.MethodPut, route, req, &out)
+}
+
 func (c *Client) GetTournamentWinner(ctx context.Context, id int32) (*TournamentWinnerResponse, error) {
 	var out TournamentWinnerResponse
 	return &out, c.do(ctx, http.MethodGet, pathID(RouteV1TournamentWinner, id), nil, &out)

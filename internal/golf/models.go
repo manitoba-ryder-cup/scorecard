@@ -107,15 +107,32 @@ type MatchFormat struct {
 	Name string
 }
 
-// TeamMember is a player's membership on a team for a tournament, plus the
-// player's per-tournament attributes.
+// TeamMember is the draft outcome: a player assigned to a team for a tournament.
+// Per-tournament attributes live on TournamentPlayer, not here.
 type TeamMember struct {
 	TeamID       int32
 	PlayerID     int32
 	TournamentID int32
+}
+
+// TournamentPlayer is a player entered in a tournament with the per-tournament
+// attributes (tier, biography, handicap) set independently of the team draft.
+type TournamentPlayer struct {
+	TournamentID int32
+	PlayerID     int32
 	Tier         string
 	Biography    string
 	Hdcp         float32
+}
+
+// TournamentPlayerDetail is a tournament entry joined with the player's identity, for
+// roster listings.
+type TournamentPlayerDetail struct {
+	TournamentPlayer
+	FirstName string
+	LastName  string
+	Email     *string
+	PhotoPath string
 }
 
 // TeamHoleScore is one side's gross score on a hole, tagged by team ID.

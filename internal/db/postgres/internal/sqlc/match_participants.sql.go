@@ -91,20 +91,9 @@ func (q *Queries) GetMatchParticipant(ctx context.Context, arg GetMatchParticipa
 }
 
 const listMatchParticipants = `-- name: ListMatchParticipants :many
-SELECT
-    mp.tournament_id, mp.match_id, mp.player_id, mp.team_id, mp.tenant_id,
-    p.first_name,
-    p.last_name,
-    p.email,
-    tm.hdcp,
-    tm.tier,
-    t.color AS team_color
-FROM match_participants mp
-JOIN players p ON mp.player_id = p.id
-JOIN team_members tm ON mp.team_id = tm.team_id AND mp.player_id = tm.player_id
-JOIN teams t ON mp.team_id = t.id
-WHERE mp.match_id = $1 AND mp.tenant_id = $2
-ORDER BY t.color, p.last_name, p.first_name
+SELECT tournament_id, match_id, player_id, team_id, tenant_id FROM match_participants
+WHERE match_id = $1 AND tenant_id = $2
+ORDER BY team_id, player_id
 `
 
 type ListMatchParticipantsParams struct {
@@ -112,41 +101,21 @@ type ListMatchParticipantsParams struct {
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
-type ListMatchParticipantsRow struct {
-	TournamentID int32     `json:"tournament_id"`
-	MatchID      int32     `json:"match_id"`
-	PlayerID     int32     `json:"player_id"`
-	TeamID       int32     `json:"team_id"`
-	TenantID     uuid.UUID `json:"tenant_id"`
-	FirstName    string    `json:"first_name"`
-	LastName     string    `json:"last_name"`
-	Email        *string   `json:"email"`
-	Hdcp         float32   `json:"hdcp"`
-	Tier         string    `json:"tier"`
-	TeamColor    string    `json:"team_color"`
-}
-
-func (q *Queries) ListMatchParticipants(ctx context.Context, arg ListMatchParticipantsParams) ([]ListMatchParticipantsRow, error) {
+func (q *Queries) ListMatchParticipants(ctx context.Context, arg ListMatchParticipantsParams) ([]MatchParticipant, error) {
 	rows, err := q.db.Query(ctx, listMatchParticipants, arg.MatchID, arg.TenantID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListMatchParticipantsRow{}
+	items := []MatchParticipant{}
 	for rows.Next() {
-		var i ListMatchParticipantsRow
+		var i MatchParticipant
 		if err := rows.Scan(
 			&i.TournamentID,
 			&i.MatchID,
 			&i.PlayerID,
 			&i.TeamID,
 			&i.TenantID,
-			&i.FirstName,
-			&i.LastName,
-			&i.Email,
-			&i.Hdcp,
-			&i.Tier,
-			&i.TeamColor,
 		); err != nil {
 			return nil, err
 		}

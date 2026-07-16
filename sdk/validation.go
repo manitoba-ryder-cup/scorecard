@@ -55,6 +55,28 @@ func (r CreateCourseRequest) Validate(ctx context.Context) error {
 	return validateRequired(r.Name, "name")
 }
 
+// maxTierLen matches the tier column's VARCHAR(32).
+const maxTierLen = 32
+
+// Validate checks a tournament-entry request: a player reference and a tier that fits.
+func (r EnterTournamentPlayerRequest) Validate(ctx context.Context) error {
+	if r.PlayerID <= 0 {
+		return fmt.Errorf("player_id is required")
+	}
+	if len(r.Tier) > maxTierLen {
+		return fmt.Errorf("tier must be at most %d characters", maxTierLen)
+	}
+	return nil
+}
+
+// Validate checks a tournament-entry update. Handicap may be negative (plus handicaps).
+func (r UpdateTournamentPlayerRequest) Validate(ctx context.Context) error {
+	if len(r.Tier) > maxTierLen {
+		return fmt.Errorf("tier must be at most %d characters", maxTierLen)
+	}
+	return nil
+}
+
 // Validate checks a tee-set creation request: valid slope/rating and exactly 18
 // holes forming complete, non-duplicated hole-number and stroke-index (hdcp) sets.
 func (r CreateTeeSetRequest) Validate(ctx context.Context) error {

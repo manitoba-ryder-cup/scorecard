@@ -102,9 +102,6 @@ type TeamMember struct {
 	PlayerID     int32     `json:"player_id"`
 	TournamentID int32     `json:"tournament_id"`
 	TenantID     uuid.UUID `json:"tenant_id"`
-	Tier         string    `json:"tier"`
-	Biography    string    `json:"biography"`
-	Hdcp         float32   `json:"hdcp"`
 }
 
 type TeeColor struct {
@@ -130,4 +127,15 @@ type Tournament struct {
 	Location  string    `json:"location"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type TournamentPlayer struct {
+	TournamentID int32     `json:"tournament_id"`
+	PlayerID     int32     `json:"player_id"`
+	TenantID     uuid.UUID `json:"tenant_id"`
+	Tier         string    `json:"tier"`
+	Biography    string    `json:"biography"`
+	Hdcp         float32   `json:"hdcp"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }

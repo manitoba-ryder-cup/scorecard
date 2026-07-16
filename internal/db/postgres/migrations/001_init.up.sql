@@ -114,25 +114,45 @@ CREATE TABLE teams (
     CONSTRAINT uq__teams__id__tournament_id UNIQUE (id, tournament_id)
 );
 
--- Team membership for a tournament, plus the player's per-tournament attributes.
--- The composite FK (team_id, tournament_id) -> teams keeps tournament_id honest
--- (it must match the team's tournament); UNIQUE(tournament_id, player_id) enforces
--- one side per player per tournament.
+-- A player entered in a tournament, with the per-tournament attributes (tier,
+-- biography, handicap) that are set independently of — and often before — the team
+-- draft. Team assignment lives separately in team_members; these attributes do not
+-- depend on a team existing yet.
+CREATE TABLE tournament_players (
+    tournament_id INTEGER NOT NULL,
+    player_id INTEGER NOT NULL,
+    tenant_id UUID NOT NULL,
+    tier VARCHAR(32) NOT NULL DEFAULT 'white',
+    biography TEXT NOT NULL DEFAULT '',
+    hdcp REAL NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT pk__tournament_players PRIMARY KEY (tournament_id, player_id),
+    CONSTRAINT fk__tournament_players__tournament_id__tournaments
+        FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
+    CONSTRAINT fk__tournament_players__player_id__players
+        FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
+);
+
+-- The draft outcome: assigns an entered player to one of the tournament's teams.
+-- Attribute-free — tier/bio/hdcp live on tournament_players. The composite FK to
+-- tournament_players means a player must be entered before being drafted; the FK to
+-- teams keeps tournament_id honest; UNIQUE(tournament_id, player_id) caps a player at
+-- one side per tournament.
 CREATE TABLE team_members (
     team_id INTEGER NOT NULL,
     player_id INTEGER NOT NULL,
     tournament_id INTEGER NOT NULL,
     tenant_id UUID NOT NULL,
-    tier VARCHAR(32) NOT NULL DEFAULT 'white',
-    biography TEXT NOT NULL DEFAULT '',
-    hdcp REAL NOT NULL DEFAULT 0,
     CONSTRAINT pk__team_members PRIMARY KEY (team_id, player_id),
     CONSTRAINT fk__team_members__team_id_tournament_id__teams
         FOREIGN KEY (team_id, tournament_id)
         REFERENCES teams(id, tournament_id)
         ON DELETE CASCADE,
-    CONSTRAINT fk__team_members__player_id__players
-        FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE,
+    CONSTRAINT fk__team_members__tournament_id_player_id__tournament_players
+        FOREIGN KEY (tournament_id, player_id)
+        REFERENCES tournament_players(tournament_id, player_id)
+        ON DELETE CASCADE,
     CONSTRAINT uq__team_members__tournament_id__player_id UNIQUE (tournament_id, player_id)
 );
 
@@ -283,6 +303,7 @@ ALTER TABLE holes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tournaments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tournament_players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE match_participants ENABLE ROW LEVEL SECURITY;
@@ -315,6 +336,10 @@ CREATE POLICY tenant_isolation_policy ON tournaments
     USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 CREATE POLICY tenant_isolation_policy ON teams
+    FOR ALL TO PUBLIC
+    USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+CREATE POLICY tenant_isolation_policy ON tournament_players
     FOR ALL TO PUBLIC
     USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 

@@ -12,17 +12,15 @@ import (
 )
 
 const createTeamMember = `-- name: CreateTeamMember :one
+
 INSERT INTO team_members (
     team_id,
     player_id,
     tournament_id,
-    tenant_id,
-    tier,
-    biography,
-    hdcp
+    tenant_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7
-) RETURNING team_id, player_id, tournament_id, tenant_id, tier, biography, hdcp
+    $1, $2, $3, $4
+) RETURNING team_id, player_id, tournament_id, tenant_id
 `
 
 type CreateTeamMemberParams struct {
@@ -30,20 +28,16 @@ type CreateTeamMemberParams struct {
 	PlayerID     int32     `json:"player_id"`
 	TournamentID int32     `json:"tournament_id"`
 	TenantID     uuid.UUID `json:"tenant_id"`
-	Tier         string    `json:"tier"`
-	Biography    string    `json:"biography"`
-	Hdcp         float32   `json:"hdcp"`
 }
 
+// team_members records the draft: an entered player assigned to a team. Per-tournament
+// attributes (tier/biography/hdcp) live on tournament_players, not here.
 func (q *Queries) CreateTeamMember(ctx context.Context, arg CreateTeamMemberParams) (TeamMember, error) {
 	row := q.db.QueryRow(ctx, createTeamMember,
 		arg.TeamID,
 		arg.PlayerID,
 		arg.TournamentID,
 		arg.TenantID,
-		arg.Tier,
-		arg.Biography,
-		arg.Hdcp,
 	)
 	var i TeamMember
 	err := row.Scan(
@@ -51,9 +45,6 @@ func (q *Queries) CreateTeamMember(ctx context.Context, arg CreateTeamMemberPara
 		&i.PlayerID,
 		&i.TournamentID,
 		&i.TenantID,
-		&i.Tier,
-		&i.Biography,
-		&i.Hdcp,
 	)
 	return i, err
 }
@@ -104,7 +95,7 @@ func (q *Queries) GetTeamCaptain(ctx context.Context, arg GetTeamCaptainParams) 
 }
 
 const getTeamMember = `-- name: GetTeamMember :one
-SELECT team_id, player_id, tournament_id, tenant_id, tier, biography, hdcp FROM team_members
+SELECT team_id, player_id, tournament_id, tenant_id FROM team_members
 WHERE tournament_id = $1 AND player_id = $2 AND tenant_id = $3
 `
 
@@ -122,15 +113,12 @@ func (q *Queries) GetTeamMember(ctx context.Context, arg GetTeamMemberParams) (T
 		&i.PlayerID,
 		&i.TournamentID,
 		&i.TenantID,
-		&i.Tier,
-		&i.Biography,
-		&i.Hdcp,
 	)
 	return i, err
 }
 
 const listTeamMembersByTeam = `-- name: ListTeamMembersByTeam :many
-SELECT tm.team_id, tm.player_id, tm.tournament_id, tm.tenant_id, tm.tier, tm.biography, tm.hdcp, p.first_name, p.last_name, p.email
+SELECT tm.team_id, tm.player_id, tm.tournament_id, tm.tenant_id, p.first_name, p.last_name, p.email
 FROM team_members tm
 JOIN players p ON tm.player_id = p.id
 WHERE tm.team_id = $1 AND tm.tenant_id = $2
@@ -147,9 +135,6 @@ type ListTeamMembersByTeamRow struct {
 	PlayerID     int32     `json:"player_id"`
 	TournamentID int32     `json:"tournament_id"`
 	TenantID     uuid.UUID `json:"tenant_id"`
-	Tier         string    `json:"tier"`
-	Biography    string    `json:"biography"`
-	Hdcp         float32   `json:"hdcp"`
 	FirstName    string    `json:"first_name"`
 	LastName     string    `json:"last_name"`
 	Email        *string   `json:"email"`
@@ -169,9 +154,6 @@ func (q *Queries) ListTeamMembersByTeam(ctx context.Context, arg ListTeamMembers
 			&i.PlayerID,
 			&i.TournamentID,
 			&i.TenantID,
-			&i.Tier,
-			&i.Biography,
-			&i.Hdcp,
 			&i.FirstName,
 			&i.LastName,
 			&i.Email,
@@ -187,7 +169,7 @@ func (q *Queries) ListTeamMembersByTeam(ctx context.Context, arg ListTeamMembers
 }
 
 const listTeamMembersByTournament = `-- name: ListTeamMembersByTournament :many
-SELECT tm.team_id, tm.player_id, tm.tournament_id, tm.tenant_id, tm.tier, tm.biography, tm.hdcp, p.first_name, p.last_name, p.email, t.color AS team_color
+SELECT tm.team_id, tm.player_id, tm.tournament_id, tm.tenant_id, p.first_name, p.last_name, p.email, t.color AS team_color
 FROM team_members tm
 JOIN players p ON tm.player_id = p.id
 JOIN teams t ON tm.team_id = t.id
@@ -205,9 +187,6 @@ type ListTeamMembersByTournamentRow struct {
 	PlayerID     int32     `json:"player_id"`
 	TournamentID int32     `json:"tournament_id"`
 	TenantID     uuid.UUID `json:"tenant_id"`
-	Tier         string    `json:"tier"`
-	Biography    string    `json:"biography"`
-	Hdcp         float32   `json:"hdcp"`
 	FirstName    string    `json:"first_name"`
 	LastName     string    `json:"last_name"`
 	Email        *string   `json:"email"`
@@ -228,9 +207,6 @@ func (q *Queries) ListTeamMembersByTournament(ctx context.Context, arg ListTeamM
 			&i.PlayerID,
 			&i.TournamentID,
 			&i.TenantID,
-			&i.Tier,
-			&i.Biography,
-			&i.Hdcp,
 			&i.FirstName,
 			&i.LastName,
 			&i.Email,
@@ -244,42 +220,4 @@ func (q *Queries) ListTeamMembersByTournament(ctx context.Context, arg ListTeamM
 		return nil, err
 	}
 	return items, nil
-}
-
-const updateTeamMember = `-- name: UpdateTeamMember :one
-UPDATE team_members
-SET tier = $4, biography = $5, hdcp = $6
-WHERE team_id = $1 AND player_id = $2 AND tenant_id = $3
-RETURNING team_id, player_id, tournament_id, tenant_id, tier, biography, hdcp
-`
-
-type UpdateTeamMemberParams struct {
-	TeamID    int32     `json:"team_id"`
-	PlayerID  int32     `json:"player_id"`
-	TenantID  uuid.UUID `json:"tenant_id"`
-	Tier      string    `json:"tier"`
-	Biography string    `json:"biography"`
-	Hdcp      float32   `json:"hdcp"`
-}
-
-func (q *Queries) UpdateTeamMember(ctx context.Context, arg UpdateTeamMemberParams) (TeamMember, error) {
-	row := q.db.QueryRow(ctx, updateTeamMember,
-		arg.TeamID,
-		arg.PlayerID,
-		arg.TenantID,
-		arg.Tier,
-		arg.Biography,
-		arg.Hdcp,
-	)
-	var i TeamMember
-	err := row.Scan(
-		&i.TeamID,
-		&i.PlayerID,
-		&i.TournamentID,
-		&i.TenantID,
-		&i.Tier,
-		&i.Biography,
-		&i.Hdcp,
-	)
-	return i, err
 }

@@ -139,6 +139,43 @@ type CreateTournamentRequest struct {
 	Location  string `json:"location"`
 }
 
+// TournamentPlayer is a player's per-tournament attributes (their tournament entry),
+// returned from enter/update. Team assignment is separate (see the draft).
+type TournamentPlayer struct {
+	TournamentID int32   `json:"tournament_id"`
+	PlayerID     int32   `json:"player_id"`
+	Tier         string  `json:"tier"`
+	Biography    string  `json:"biography"`
+	Hdcp         float32 `json:"hdcp"`
+}
+
+// TournamentPlayerDetail is a tournament entry joined with the player's identity, for
+// roster listings.
+type TournamentPlayerDetail struct {
+	TournamentPlayer
+	FirstName string  `json:"first_name"`
+	LastName  string  `json:"last_name"`
+	Email     *string `json:"email"`
+	PhotoPath string  `json:"photo_path"`
+}
+
+// EnterTournamentPlayerRequest is the body for POST /v1/tournaments/{id}/players. The
+// tournament comes from the path; player_id references an existing player. Attributes
+// default sensibly if omitted (tier "white", empty bio, hdcp 0).
+type EnterTournamentPlayerRequest struct {
+	PlayerID  int32   `json:"player_id"`
+	Tier      string  `json:"tier"`
+	Biography string  `json:"biography"`
+	Hdcp      float32 `json:"hdcp"`
+}
+
+// UpdateTournamentPlayerRequest is the body for PUT /v1/tournaments/{id}/players/{playerId}.
+type UpdateTournamentPlayerRequest struct {
+	Tier      string  `json:"tier"`
+	Biography string  `json:"biography"`
+	Hdcp      float32 `json:"hdcp"`
+}
+
 // TournamentTeam is one of a tournament's two sides with its captain and points.
 type TournamentTeam struct {
 	ID      int32          `json:"id"`

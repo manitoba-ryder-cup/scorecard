@@ -23,6 +23,10 @@ const (
 	RouteV1TournamentWinner = "/v1/tournaments/{id}/winner"
 	RouteV1TournamentStatus = "/v1/tournaments/{id}/status"
 
+	// Roster (players entered in a tournament)
+	RouteV1TournamentPlayers = "/v1/tournaments/{id}/players"
+	RouteV1TournamentPlayer  = "/v1/tournaments/{id}/players/{playerId}"
+
 	// Teams (scoped to a tournament)
 	RouteV1TournamentTeams = "/v1/tournaments/{id}/teams"
 

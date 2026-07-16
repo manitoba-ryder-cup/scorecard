@@ -105,6 +105,17 @@ func SeedSinglesMatch(ctx context.Context, conn *pgx.Conn) (*Fixture, error) {
 		return nil, fmt.Errorf("seed blue team: %w", err)
 	}
 
+	// Players must be entered in the tournament (tournament_players) before they can be
+	// drafted onto a team (team_members FK requires it).
+	for _, playerID := range []int32{f.RedPlayer, f.BluePlayer} {
+		if _, err := conn.Exec(ctx,
+			`INSERT INTO tournament_players (tournament_id, player_id, tenant_id) VALUES ($1, $2, $3)`,
+			tournamentID, playerID, t,
+		); err != nil {
+			return nil, fmt.Errorf("seed tournament_player %d: %w", playerID, err)
+		}
+	}
+
 	if _, err := conn.Exec(ctx,
 		`INSERT INTO team_members (team_id, player_id, tournament_id, tenant_id) VALUES ($1, $2, $3, $4)`,
 		f.TeamRed, f.RedPlayer, tournamentID, t,

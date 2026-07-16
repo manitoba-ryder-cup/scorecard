@@ -1,14 +1,14 @@
+-- team_members records the draft: an entered player assigned to a team. Per-tournament
+-- attributes (tier/biography/hdcp) live on tournament_players, not here.
+
 -- name: CreateTeamMember :one
 INSERT INTO team_members (
     team_id,
     player_id,
     tournament_id,
-    tenant_id,
-    tier,
-    biography,
-    hdcp
+    tenant_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7
+    $1, $2, $3, $4
 ) RETURNING *;
 
 -- name: GetTeamMember :one
@@ -35,12 +35,6 @@ SELECT p.*
 FROM teams t
 JOIN players p ON t.captain_id = p.id
 WHERE t.id = $1 AND t.tenant_id = $2;
-
--- name: UpdateTeamMember :one
-UPDATE team_members
-SET tier = $4, biography = $5, hdcp = $6
-WHERE team_id = $1 AND player_id = $2 AND tenant_id = $3
-RETURNING *;
 
 -- name: DeleteTeamMember :exec
 DELETE FROM team_members

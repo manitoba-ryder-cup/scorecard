@@ -19,37 +19,6 @@ func NewTeamMembersDB(db *DB) *TeamMembersDB {
 	return &TeamMembersDB{db: db}
 }
 
-func (t *TeamMembersDB) ListTeamMembers(ctx context.Context, teamID int32) ([]golf.TeamMember, error) {
-	tenantID, err := identity.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var result []golf.TeamMember
-	err = t.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
-		members, err := q.ListTeamMembersByTeam(ctx, sqlc.ListTeamMembersByTeamParams{
-			TeamID:   teamID,
-			TenantID: tenantID,
-		})
-		if err != nil {
-			return fmt.Errorf("listing team members: %w", err)
-		}
-		result = make([]golf.TeamMember, len(members))
-		for i, member := range members {
-			result[i] = golf.TeamMember{
-				TeamID:       member.TeamID,
-				PlayerID:     member.PlayerID,
-				TournamentID: member.TournamentID,
-				Tier:         member.Tier,
-				Biography:    member.Biography,
-				Hdcp:         member.Hdcp,
-			}
-		}
-		return nil
-	})
-	return result, err
-}
-
 // GetTeamCaptain returns the captain of a team (teams.captain_id), or nil if unset.
 func (t *TeamMembersDB) GetTeamCaptain(ctx context.Context, teamID int32) (*golf.Player, error) {
 	tenantID, err := identity.GetTenant(ctx)

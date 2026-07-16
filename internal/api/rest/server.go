@@ -26,6 +26,7 @@ type Config struct {
 	TournamentService *golf.TournamentService
 	CourseService     *golf.CourseService
 	FormatService     *golf.FormatService
+	RosterService     *golf.RosterService
 }
 
 type Server struct {
@@ -40,6 +41,7 @@ func NewServer(config *Config) *Server {
 	tournamentsHandler := NewTournamentsHandler(config.TournamentService)
 	coursesHandler := NewCoursesHandler(config.CourseService)
 	formatsHandler := NewFormatsHandler(config.FormatService)
+	rosterHandler := NewRosterHandler(config.RosterService)
 
 	mux := http.NewServeMux()
 
@@ -83,6 +85,11 @@ func NewServer(config *Config) *Server {
 	scoped("POST", "/v1/tournaments", sdk.ScopeTournamentsWrite, tournamentsHandler.CreateTournament)
 	public("GET", "/v1/tournaments/{id}", tournamentsHandler.GetTournament)
 	public("GET", "/v1/tournaments/{id}/teams", tournamentsHandler.GetTournamentTeams)
+
+	// Tournament roster routes
+	public("GET", "/v1/tournaments/{id}/players", rosterHandler.ListPlayers)
+	scoped("POST", "/v1/tournaments/{id}/players", sdk.ScopeTournamentsWrite, rosterHandler.EnterPlayer)
+	scoped("PUT", "/v1/tournaments/{id}/players/{playerId}", sdk.ScopeTournamentsWrite, rosterHandler.UpdatePlayer)
 	public("GET", "/v1/tournaments/{id}/winner", tournamentsHandler.GetTournamentWinner)
 	public("GET", "/v1/tournaments/{id}/status", tournamentsHandler.GetTournamentStatus)
 
