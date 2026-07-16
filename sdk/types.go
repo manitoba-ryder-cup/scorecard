@@ -31,6 +31,23 @@ type Player struct {
 	PhotoPath string     `json:"photo_path"`
 }
 
+// PlayerRecord is a player's win/loss/tie tally across finished matches, derived on
+// read from match_results (never stored — the old app's stale columns are gone).
+type PlayerRecord struct {
+	Wins   int32 `json:"wins"`
+	Losses int32 `json:"losses"`
+	Ties   int32 `json:"ties"`
+}
+
+// PlayerProfile is the player detail response: the base player plus the derived
+// record. The list endpoint returns bare Players (no per-player record query); the
+// detail endpoint pays for the extra derivation. Player is embedded, so its fields
+// stay at the top level of the JSON alongside "record".
+type PlayerProfile struct {
+	Player
+	Record PlayerRecord `json:"record"`
+}
+
 // PlayerSummary is a lightweight player reference (e.g. a team captain).
 type PlayerSummary struct {
 	ID        int32   `json:"id"`

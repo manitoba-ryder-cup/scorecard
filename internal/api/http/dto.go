@@ -24,6 +24,18 @@ func toPlayerDTO(p golf.Player) sdk.Player {
 	}
 }
 
+// toPlayerProfileDTO combines a player with their derived record for the detail view.
+func toPlayerProfileDTO(p golf.Player, rec golf.PlayerRecord) sdk.PlayerProfile {
+	return sdk.PlayerProfile{
+		Player: toPlayerDTO(p),
+		Record: sdk.PlayerRecord{
+			Wins:   rec.Wins,
+			Losses: rec.Losses,
+			Ties:   rec.Ties,
+		},
+	}
+}
+
 func toPlayerDTOs(players []golf.Player) []sdk.Player {
 	out := make([]sdk.Player, len(players))
 	for i, p := range players {

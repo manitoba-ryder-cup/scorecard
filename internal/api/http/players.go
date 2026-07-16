@@ -10,6 +10,7 @@ import (
 type PlayerService interface {
 	GetPlayer(ctx context.Context, playerID int32) (*golf.Player, error)
 	ListPlayers(ctx context.Context) ([]golf.Player, error)
+	GetPlayerRecord(ctx context.Context, playerID int32) (golf.PlayerRecord, error)
 }
 
 type PlayersHandler struct {
@@ -42,5 +43,11 @@ func (h *PlayersHandler) GetPlayer(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusNotFound, "Player not found", err)
 		return
 	}
-	respondJSON(w, http.StatusOK, toPlayerDTO(*player))
+	// The detail view carries the derived W/L/T record; the list view does not.
+	record, err := h.playerService.GetPlayerRecord(r.Context(), id)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to get player record", err)
+		return
+	}
+	respondJSON(w, http.StatusOK, toPlayerProfileDTO(*player, record))
 }
