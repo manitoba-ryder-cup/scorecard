@@ -66,6 +66,8 @@ CREATE TABLE players (
     wins INTEGER NOT NULL DEFAULT 0,
     ties INTEGER NOT NULL DEFAULT 0,
     losses INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT pk__players PRIMARY KEY (id),
     -- Nullable uniqueness: Postgres treats NULLs as distinct, so roster-only
     -- players (NULL email/user_id) don't collide.
@@ -81,6 +83,8 @@ CREATE TABLE tournaments (
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     location VARCHAR(255) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT pk__tournaments PRIMARY KEY (id),
     CONSTRAINT uq__tournaments__tenant_id__name_start_date_end_date
         UNIQUE (tenant_id, name, start_date, end_date)
@@ -94,7 +98,6 @@ CREATE TABLE teams (
     id SERIAL,
     tenant_id UUID NOT NULL,
     tournament_id INTEGER NOT NULL,
-    name VARCHAR(64) NOT NULL,
     color VARCHAR(16) NOT NULL,
     captain_id INTEGER,
     CONSTRAINT pk__teams PRIMARY KEY (id),
@@ -104,8 +107,7 @@ CREATE TABLE teams (
         FOREIGN KEY (captain_id) REFERENCES players(id) ON DELETE SET NULL,
     CONSTRAINT ck__teams__color CHECK (color IN ('Red', 'Blue')),
     CONSTRAINT uq__teams__tournament_id__color UNIQUE (tournament_id, color),
-    CONSTRAINT uq__teams__tournament_id__name UNIQUE (tournament_id, name),
-    -- Lets match_participants prove a team belongs to the participant's tournament.
+    -- Lets team_members and match_participants prove a team belongs to a tournament.
     CONSTRAINT uq__teams__id__tournament_id UNIQUE (id, tournament_id)
 );
 
@@ -150,11 +152,14 @@ CREATE TABLE matches (
     tenant_id UUID NOT NULL,
     tee_time TIMESTAMP,
     handicapped BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT pk__matches PRIMARY KEY (id),
+    -- RESTRICT: a tournament that has matches cannot be deleted (protects history).
     CONSTRAINT fk__matches__tournament_id__tournaments
         FOREIGN KEY (tournament_id)
         REFERENCES tournaments(id)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
     CONSTRAINT fk__matches__course_id__courses
         FOREIGN KEY (course_id)
         REFERENCES courses(id),
@@ -174,7 +179,8 @@ CREATE TABLE matches (
 -- Match participants carry their team_id, so a match's two sides are explicit
 -- rather than derived. The composite FKs enforce integrity: the player is a member
 -- of the team (team_id, player_id -> team_members), and the team belongs to the
--- match's tournament (team_id, tournament_id -> teams).
+-- match's tournament (team_id, tournament_id -> teams). The direct player FK is
+-- RESTRICT so a player who has played in a match cannot be deleted.
 CREATE TABLE match_participants (
     tournament_id INTEGER NOT NULL,
     match_id INTEGER NOT NULL,
@@ -192,19 +198,32 @@ CREATE TABLE match_participants (
         ON DELETE CASCADE,
     CONSTRAINT fk__match_participants__team_id_tournament_id__teams
         FOREIGN KEY (team_id, tournament_id)
-        REFERENCES teams(id, tournament_id)
+        REFERENCES teams(id, tournament_id),
+    CONSTRAINT fk__match_participants__player_id__players
+        FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE RESTRICT
 );
 
--- Create scores table (composite PK with match_id, player_id, hole_number)
+-- Scores are attributed to a side (team_id) and, for per-player formats, to a
+-- player. Singles/Fourball record a row per player (player_id set) — individual
+-- gross scores that also feed player stats. One-ball formats (alternate shot,
+-- scramble, mod-scotch) record one row per team per hole (player_id NULL), which
+-- keeps them out of individual stats. Partial unique indexes enforce the two grains.
 CREATE TABLE scores (
+    id SERIAL,
     match_id INTEGER NOT NULL,
-    player_id INTEGER NOT NULL,
+    team_id INTEGER NOT NULL,
+    player_id INTEGER,                   -- NULL for one-ball team scores
     course_id INTEGER NOT NULL,
     tee_color_id INTEGER NOT NULL,
     hole_number INTEGER NOT NULL,
     tenant_id UUID NOT NULL,
     strokes INTEGER NOT NULL,
-    CONSTRAINT pk__scores PRIMARY KEY (match_id, player_id, hole_number),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT pk__scores PRIMARY KEY (id),
+    CONSTRAINT fk__scores__team_id__teams
+        FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
+    -- Enforced only for per-player scores; NULL player_id skips it (MATCH SIMPLE).
     CONSTRAINT fk__scores__match_id_player_id__match_participants
         FOREIGN KEY (match_id, player_id)
         REFERENCES match_participants(match_id, player_id)
@@ -220,9 +239,6 @@ CREATE TABLE scores (
         FOREIGN KEY (match_id)
         REFERENCES matches(id)
         ON DELETE CASCADE,
-    CONSTRAINT fk__scores__player_id__players
-        FOREIGN KEY (player_id)
-        REFERENCES players(id),
     CONSTRAINT fk__scores__course_id__courses
         FOREIGN KEY (course_id)
         REFERENCES courses(id),
@@ -304,3 +320,10 @@ CREATE INDEX ix__scores__tenant_id__match_id__hole_number ON scores(tenant_id, m
 CREATE INDEX ix__team_members__tenant_id__tournament_id ON team_members(tenant_id, tournament_id);
 CREATE INDEX ix__team_members__tenant_id__team_id ON team_members(tenant_id, team_id);
 CREATE INDEX ix__match_participants__tenant_id__match_id ON match_participants(tenant_id, match_id);
+
+-- Score uniqueness has two grains: one row per player per hole (per-player formats)
+-- and one row per team per hole (one-ball formats, player_id NULL).
+CREATE UNIQUE INDEX uq__scores__match_id__hole_number__player_id
+    ON scores(match_id, hole_number, player_id) WHERE player_id IS NOT NULL;
+CREATE UNIQUE INDEX uq__scores__match_id__hole_number__team_id
+    ON scores(match_id, hole_number, team_id) WHERE player_id IS NULL;
