@@ -15,8 +15,8 @@ type MatchService struct {
 }
 
 // CalculateMatchScores returns the hole-by-hole match progression.
-func (s *MatchService) CalculateMatchScores(ctx context.Context, matchID int32) ([]MatchStatus, error) {
-	return []MatchStatus{}, nil // TODO(step 4): compute from materialized results
+func (s *MatchService) CalculateMatchScores(ctx context.Context, matchID int32) ([]HoleResult, error) {
+	return []HoleResult{}, nil // TODO(step 4): compute from materialized results
 }
 
 // IsFinished reports whether the match is complete.

@@ -135,12 +135,18 @@ type TeamMember struct {
 	Hdcp         float32
 }
 
-// MatchStatus represents the state of a match at a specific hole
-type MatchStatus struct {
-	MatchStatus   int    // Cumulative lead (+ = Red ahead, - = Blue ahead, 0 = All Square)
-	StatusText    string // Human-readable status: "2 UP", "AS", "3 & 2", etc.
-	RedTeamScore  int32  // Red team's score on this hole
-	BlueTeamScore int32  // Blue team's score on this hole
+// HoleResult is the match-play state after a scored hole. It is pure domain
+// state with no presentation — rendering "AS"/"2 UP"/"3 & 2" is a separate
+// concern (see FormatHoleStatus). Lead is cumulative (+ Red ahead, - Blue ahead,
+// 0 all square); Decided means the lead exceeds the holes remaining, so the match
+// is closed out at this hole.
+type HoleResult struct {
+	HoleNumber     int32
+	RedStrokes     int32
+	BlueStrokes    int32
+	Lead           int
+	HolesRemaining int
+	Decided        bool
 }
 
 // TeamData represents a team's summary for a tournament

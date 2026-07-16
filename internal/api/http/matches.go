@@ -11,7 +11,7 @@ import (
 type MatchService interface {
 	GetWinner(ctx context.Context, matchID int32) (string, error)
 	IsFinished(ctx context.Context, matchID int32) (bool, error)
-	CalculateMatchScores(ctx context.Context, matchID int32) ([]golf.MatchStatus, error)
+	CalculateMatchScores(ctx context.Context, matchID int32) ([]golf.HoleResult, error)
 }
 
 type MatchesHandler struct {
