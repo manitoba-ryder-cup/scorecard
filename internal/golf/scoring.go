@@ -66,21 +66,23 @@ func ComputeMatchProgress(scores []Score, teamAID, teamBID int32) []HoleResult {
 	return result
 }
 
-// ComputeMatchResult derives the overall outcome from the hole-by-hole progress.
-// A match is finished when it is closed out (last hole Decided) or all 18 holes
-// have been scored by both teams. The winner is the final leader, or nil for a tie.
-func ComputeMatchResult(scores []Score, teamAID, teamBID int32) MatchResult {
+// ComputeStoredResult derives a match's materialized state from the hole-by-hole
+// progress. A match is finished when it is closed out (last hole Decided) or all 18
+// holes have been scored by both teams; the leader/lead/holes-remaining come from the
+// final scored hole.
+func ComputeStoredResult(scores []Score, teamAID, teamBID int32) StoredResult {
 	progress := ComputeMatchProgress(scores, teamAID, teamBID)
 	if len(progress) == 0 {
-		return MatchResult{}
+		return StoredResult{HolesRemaining: 18}
 	}
 
 	last := progress[len(progress)-1]
-	if !last.Decided && len(progress) < 18 {
-		return MatchResult{} // still in progress
+	return StoredResult{
+		Finished:       last.Decided || len(progress) == 18,
+		LeaderTeamID:   last.LeaderTeamID,
+		Lead:           last.Lead,
+		HolesRemaining: last.HolesRemaining,
 	}
-
-	return MatchResult{Finished: true, WinnerTeamID: last.LeaderTeamID}
 }
 
 // minStrokesByHole returns the minimum strokes the given team recorded on each

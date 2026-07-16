@@ -60,10 +60,12 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 	teamsDB := postgres.NewTeamsDB(db)
 	teamMembersDB := postgres.NewTeamMembersDB(db)
 	tournamentsDB := postgres.NewTournamentsDB(db)
+	resultsDB := postgres.NewResultsDB(db)
 
 	// Create domain services
 	playerService := &golf.PlayerService{
 		PlayerDB: playersDB,
+		ResultDB: resultsDB,
 		Logger:   config.Logger,
 	}
 
@@ -71,20 +73,19 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 		MatchDB:       matchesDB,
 		ParticipantDB: participantsDB,
 		ScoreDB:       scoresDB,
-		PlayerDB:      playersDB,
+		ResultDB:      resultsDB,
 		Logger:        config.Logger,
 	}
 
 	teamService := &golf.TeamService{
 		TeamDB:       teamsDB,
 		TeamMemberDB: teamMembersDB,
-		MatchService: matchService,
 		Logger:       config.Logger,
 	}
 
 	tournamentService := &golf.TournamentService{
 		TournamentDB: tournamentsDB,
-		MatchService: matchService,
+		ResultDB:     resultsDB,
 		TeamService:  teamService,
 		Logger:       config.Logger,
 	}

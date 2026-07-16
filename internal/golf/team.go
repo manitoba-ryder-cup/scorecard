@@ -5,19 +5,11 @@ import (
 	"fmt"
 )
 
-// TeamService handles team-related business logic
+// TeamService handles team reads.
 type TeamService struct {
 	TeamDB       teamDB
 	TeamMemberDB teamMemberDB
-	MatchService *MatchService
 	Logger       logger
-}
-
-// GetTeamPoints returns a team's Ryder-Cup points for a tournament (1 per win,
-// 0.5 per tie). TODO(step 4): read from materialized match results instead of
-// recomputing across every match/score.
-func (s *TeamService) GetTeamPoints(ctx context.Context, teamColor string, tournamentID int32) (float64, error) {
-	return 0, nil
 }
 
 // GetCaptain returns the captain of a team (teams.captain_id), or nil if unset.

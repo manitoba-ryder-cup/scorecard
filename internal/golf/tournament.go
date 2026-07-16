@@ -5,24 +5,32 @@ import (
 	"fmt"
 )
 
-// TournamentService handles tournament-related business logic
+// TournamentService handles tournament reads and standings, derived from the
+// materialized match_results.
 type TournamentService struct {
 	TournamentDB tournamentDB
-	MatchService *MatchService
+	ResultDB     resultDB
 	TeamService  *TeamService
 	Logger       logger
 }
 
 // IsFinished reports whether all of a tournament's matches are complete.
-// TODO(step 4): derive from materialized match results.
 func (s *TournamentService) IsFinished(ctx context.Context, tournamentID int32) (bool, error) {
-	return false, nil
+	return s.ResultDB.IsTournamentFinished(ctx, tournamentID)
 }
 
-// GetWinningTeam returns the tournament's winning team ID, or nil if undecided.
-// TODO(step 4): compare materialized team points.
+// GetWinningTeam returns the tournament's winning team ID, or nil if undecided
+// (not finished) or tied.
 func (s *TournamentService) GetWinningTeam(ctx context.Context, tournamentID int32) (*int32, error) {
-	return nil, nil
+	finished, err := s.IsFinished(ctx, tournamentID)
+	if err != nil || !finished {
+		return nil, err
+	}
+	points, err := s.ResultDB.ListTeamPoints(ctx, tournamentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list team points: %w", err)
+	}
+	return winnerFromPoints(points), nil
 }
 
 // GetTeamsData builds each team's summary (color, captain, points) for a tournament.
@@ -30,6 +38,10 @@ func (s *TournamentService) GetTeamsData(ctx context.Context, tournamentID int32
 	teams, err := s.TeamService.ListTeamsByTournament(ctx, tournamentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list teams: %w", err)
+	}
+	points, err := s.ResultDB.ListTeamPoints(ctx, tournamentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list team points: %w", err)
 	}
 
 	result := []TeamData{}
@@ -39,21 +51,13 @@ func (s *TournamentService) GetTeamsData(ctx context.Context, tournamentID int32
 			s.Logger.Error("failed to get captain for team", "team_id", team.ID, "error", err)
 			captain = nil
 		}
-
-		points, err := s.TeamService.GetTeamPoints(ctx, team.Color, tournamentID)
-		if err != nil {
-			s.Logger.Error("failed to get points for team", "team_color", team.Color, "error", err)
-			points = 0
-		}
-
 		result = append(result, TeamData{
 			ID:      team.ID,
 			Color:   team.Color,
 			Captain: captain,
-			Points:  points,
+			Points:  points[team.ID],
 		})
 	}
-
 	return result, nil
 }
 
@@ -73,4 +77,25 @@ func (s *TournamentService) ListTournaments(ctx context.Context) ([]Tournament, 
 		return nil, fmt.Errorf("failed to list tournaments: %w", err)
 	}
 	return tournaments, nil
+}
+
+// winnerFromPoints returns the team with the unique highest points, or nil on a tie.
+func winnerFromPoints(points map[int32]float64) *int32 {
+	var bestID int32
+	var best float64
+	count := 0
+	first := true
+	for id, p := range points {
+		switch {
+		case first || p > best:
+			best, bestID, count, first = p, id, 1, false
+		case p == best:
+			count++
+		}
+	}
+	if count != 1 {
+		return nil
+	}
+	id := bestID
+	return &id
 }

@@ -5,9 +5,10 @@ import (
 	"fmt"
 )
 
-// PlayerService handles player-related business logic
+// PlayerService handles player reads.
 type PlayerService struct {
 	PlayerDB playerDB
+	ResultDB resultDB
 	Logger   logger
 }
 
@@ -27,4 +28,13 @@ func (s *PlayerService) ListPlayers(ctx context.Context) ([]Player, error) {
 		return nil, fmt.Errorf("failed to list players: %w", err)
 	}
 	return players, nil
+}
+
+// GetPlayerRecord returns a player's win/loss/tie record, derived from match_results.
+func (s *PlayerService) GetPlayerRecord(ctx context.Context, playerID int32) (PlayerRecord, error) {
+	record, err := s.ResultDB.GetPlayerRecord(ctx, playerID)
+	if err != nil {
+		return PlayerRecord{}, fmt.Errorf("failed to get player record: %w", err)
+	}
+	return record, nil
 }

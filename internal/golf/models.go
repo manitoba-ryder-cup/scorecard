@@ -137,11 +137,23 @@ type TeamHoleScore struct {
 	Strokes int32
 }
 
-// MatchResult is the decided outcome of a match. WinnerTeamID is nil for a tie
-// (all square through 18); both fields are zero-valued while the match is unfinished.
-type MatchResult struct {
-	Finished     bool
-	WinnerTeamID *int32
+// PlayerRecord is a player's win/loss/tie tally across finished matches, derived
+// on read from match_results.
+type PlayerRecord struct {
+	Wins   int32
+	Losses int32
+	Ties   int32
+}
+
+// StoredResult is a match's materialized state, persisted to match_results and
+// recomputed on each score write. LeaderTeamID is the current leader (nil = all
+// square); the winner is LeaderTeamID once Finished. Lead and HolesRemaining give
+// the margin (e.g. a "3 & 2" finish is Lead 3, HolesRemaining 2).
+type StoredResult struct {
+	Finished       bool
+	LeaderTeamID   *int32
+	Lead           int
+	HolesRemaining int
 }
 
 // HoleResult is the match-play state after a scored hole. It refers to the two

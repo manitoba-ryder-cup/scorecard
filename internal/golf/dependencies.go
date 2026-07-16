@@ -49,3 +49,13 @@ type tournamentDB interface {
 	GetTournament(ctx context.Context, id int32) (*Tournament, error)
 	ListTournaments(ctx context.Context) ([]Tournament, error)
 }
+
+// resultDB reads/writes the materialized match_results and the aggregates derived
+// from it (team points, tournament-finished, player records).
+type resultDB interface {
+	UpsertMatchResult(ctx context.Context, matchID, tournamentID int32, r StoredResult) error
+	GetMatchResult(ctx context.Context, matchID int32) (*StoredResult, error)
+	ListTeamPoints(ctx context.Context, tournamentID int32) (map[int32]float64, error)
+	IsTournamentFinished(ctx context.Context, tournamentID int32) (bool, error)
+	GetPlayerRecord(ctx context.Context, playerID int32) (PlayerRecord, error)
+}
