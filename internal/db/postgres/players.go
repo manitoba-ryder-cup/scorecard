@@ -82,10 +82,6 @@ func toDomainPlayer(p sqlc.Player) golf.Player {
 		FirstName: p.FirstName,
 		LastName:  p.LastName,
 		PhotoPath: p.PhotoPath,
-		Cups:      p.Cups,
-		Wins:      p.Wins,
-		Ties:      p.Ties,
-		Losses:    p.Losses,
 	}
 }
 

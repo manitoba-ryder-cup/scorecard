@@ -52,6 +52,17 @@ type MatchParticipant struct {
 	TenantID     uuid.UUID `json:"tenant_id"`
 }
 
+type MatchResult struct {
+	MatchID        int32              `json:"match_id"`
+	TournamentID   int32              `json:"tournament_id"`
+	TenantID       uuid.UUID          `json:"tenant_id"`
+	Finished       bool               `json:"finished"`
+	LeaderTeamID   *int32             `json:"leader_team_id"`
+	Lead           int32              `json:"lead"`
+	HolesRemaining int32              `json:"holes_remaining"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Player struct {
 	ID        int32              `json:"id"`
 	TenantID  uuid.UUID          `json:"tenant_id"`
@@ -60,10 +71,6 @@ type Player struct {
 	FirstName string             `json:"first_name"`
 	LastName  string             `json:"last_name"`
 	PhotoPath string             `json:"photo_path"`
-	Cups      int32              `json:"cups"`
-	Wins      int32              `json:"wins"`
-	Ties      int32              `json:"ties"`
-	Losses    int32              `json:"losses"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }

@@ -35,17 +35,6 @@ SET
 WHERE id = $1 AND tenant_id = $2
 RETURNING *;
 
--- name: UpdatePlayerStats :one
-UPDATE players
-SET
-    wins = $3,
-    losses = $4,
-    ties = $5,
-    cups = $6,
-    updated_at = now()
-WHERE id = $1 AND tenant_id = $2
-RETURNING *;
-
 -- name: DeletePlayer :exec
 DELETE FROM players
 WHERE id = $1 AND tenant_id = $2;

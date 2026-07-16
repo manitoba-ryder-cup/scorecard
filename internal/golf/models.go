@@ -22,10 +22,6 @@ type Player struct {
 	FirstName string
 	LastName  string
 	PhotoPath string
-	Cups      int32
-	Wins      int32
-	Ties      int32
-	Losses    int32
 }
 
 // Team represents one of a tournament's two sides.

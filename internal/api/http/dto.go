@@ -21,10 +21,6 @@ func toPlayerDTO(p golf.Player) sdk.Player {
 		FirstName: p.FirstName,
 		LastName:  p.LastName,
 		PhotoPath: p.PhotoPath,
-		Cups:      p.Cups,
-		Wins:      p.Wins,
-		Ties:      p.Ties,
-		Losses:    p.Losses,
 	}
 }
 

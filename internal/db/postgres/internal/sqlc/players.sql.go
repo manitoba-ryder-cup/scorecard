@@ -22,7 +22,7 @@ INSERT INTO players (
     photo_path
 ) VALUES (
     $1, $2, $3, $4, $5, $6
-) RETURNING id, tenant_id, user_id, email, first_name, last_name, photo_path, cups, wins, ties, losses, created_at, updated_at
+) RETURNING id, tenant_id, user_id, email, first_name, last_name, photo_path, created_at, updated_at
 `
 
 type CreatePlayerParams struct {
@@ -52,10 +52,6 @@ func (q *Queries) CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Pla
 		&i.FirstName,
 		&i.LastName,
 		&i.PhotoPath,
-		&i.Cups,
-		&i.Wins,
-		&i.Ties,
-		&i.Losses,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -78,7 +74,7 @@ func (q *Queries) DeletePlayer(ctx context.Context, arg DeletePlayerParams) erro
 }
 
 const getPlayer = `-- name: GetPlayer :one
-SELECT id, tenant_id, user_id, email, first_name, last_name, photo_path, cups, wins, ties, losses, created_at, updated_at FROM players
+SELECT id, tenant_id, user_id, email, first_name, last_name, photo_path, created_at, updated_at FROM players
 WHERE id = $1 AND tenant_id = $2
 `
 
@@ -98,10 +94,6 @@ func (q *Queries) GetPlayer(ctx context.Context, arg GetPlayerParams) (Player, e
 		&i.FirstName,
 		&i.LastName,
 		&i.PhotoPath,
-		&i.Cups,
-		&i.Wins,
-		&i.Ties,
-		&i.Losses,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -109,7 +101,7 @@ func (q *Queries) GetPlayer(ctx context.Context, arg GetPlayerParams) (Player, e
 }
 
 const getPlayerByEmail = `-- name: GetPlayerByEmail :one
-SELECT id, tenant_id, user_id, email, first_name, last_name, photo_path, cups, wins, ties, losses, created_at, updated_at FROM players
+SELECT id, tenant_id, user_id, email, first_name, last_name, photo_path, created_at, updated_at FROM players
 WHERE email = $1 AND tenant_id = $2
 `
 
@@ -129,10 +121,6 @@ func (q *Queries) GetPlayerByEmail(ctx context.Context, arg GetPlayerByEmailPara
 		&i.FirstName,
 		&i.LastName,
 		&i.PhotoPath,
-		&i.Cups,
-		&i.Wins,
-		&i.Ties,
-		&i.Losses,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -140,7 +128,7 @@ func (q *Queries) GetPlayerByEmail(ctx context.Context, arg GetPlayerByEmailPara
 }
 
 const listPlayers = `-- name: ListPlayers :many
-SELECT id, tenant_id, user_id, email, first_name, last_name, photo_path, cups, wins, ties, losses, created_at, updated_at FROM players
+SELECT id, tenant_id, user_id, email, first_name, last_name, photo_path, created_at, updated_at FROM players
 WHERE tenant_id = $1
 ORDER BY last_name, first_name
 `
@@ -162,10 +150,6 @@ func (q *Queries) ListPlayers(ctx context.Context, tenantID uuid.UUID) ([]Player
 			&i.FirstName,
 			&i.LastName,
 			&i.PhotoPath,
-			&i.Cups,
-			&i.Wins,
-			&i.Ties,
-			&i.Losses,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -189,7 +173,7 @@ SET
     photo_path = $7,
     updated_at = now()
 WHERE id = $1 AND tenant_id = $2
-RETURNING id, tenant_id, user_id, email, first_name, last_name, photo_path, cups, wins, ties, losses, created_at, updated_at
+RETURNING id, tenant_id, user_id, email, first_name, last_name, photo_path, created_at, updated_at
 `
 
 type UpdatePlayerParams struct {
@@ -221,59 +205,6 @@ func (q *Queries) UpdatePlayer(ctx context.Context, arg UpdatePlayerParams) (Pla
 		&i.FirstName,
 		&i.LastName,
 		&i.PhotoPath,
-		&i.Cups,
-		&i.Wins,
-		&i.Ties,
-		&i.Losses,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const updatePlayerStats = `-- name: UpdatePlayerStats :one
-UPDATE players
-SET
-    wins = $3,
-    losses = $4,
-    ties = $5,
-    cups = $6,
-    updated_at = now()
-WHERE id = $1 AND tenant_id = $2
-RETURNING id, tenant_id, user_id, email, first_name, last_name, photo_path, cups, wins, ties, losses, created_at, updated_at
-`
-
-type UpdatePlayerStatsParams struct {
-	ID       int32     `json:"id"`
-	TenantID uuid.UUID `json:"tenant_id"`
-	Wins     int32     `json:"wins"`
-	Losses   int32     `json:"losses"`
-	Ties     int32     `json:"ties"`
-	Cups     int32     `json:"cups"`
-}
-
-func (q *Queries) UpdatePlayerStats(ctx context.Context, arg UpdatePlayerStatsParams) (Player, error) {
-	row := q.db.QueryRow(ctx, updatePlayerStats,
-		arg.ID,
-		arg.TenantID,
-		arg.Wins,
-		arg.Losses,
-		arg.Ties,
-		arg.Cups,
-	)
-	var i Player
-	err := row.Scan(
-		&i.ID,
-		&i.TenantID,
-		&i.UserID,
-		&i.Email,
-		&i.FirstName,
-		&i.LastName,
-		&i.PhotoPath,
-		&i.Cups,
-		&i.Wins,
-		&i.Ties,
-		&i.Losses,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

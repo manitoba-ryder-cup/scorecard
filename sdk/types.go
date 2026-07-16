@@ -29,10 +29,6 @@ type Player struct {
 	FirstName string     `json:"first_name"`
 	LastName  string     `json:"last_name"`
 	PhotoPath string     `json:"photo_path"`
-	Cups      int32      `json:"cups"`
-	Wins      int32      `json:"wins"`
-	Ties      int32      `json:"ties"`
-	Losses    int32      `json:"losses"`
 }
 
 // PlayerSummary is a lightweight player reference (e.g. a team captain).

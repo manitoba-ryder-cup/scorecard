@@ -75,7 +75,7 @@ func (q *Queries) DeleteTeamMember(ctx context.Context, arg DeleteTeamMemberPara
 }
 
 const getTeamCaptain = `-- name: GetTeamCaptain :one
-SELECT p.id, p.tenant_id, p.user_id, p.email, p.first_name, p.last_name, p.photo_path, p.cups, p.wins, p.ties, p.losses, p.created_at, p.updated_at
+SELECT p.id, p.tenant_id, p.user_id, p.email, p.first_name, p.last_name, p.photo_path, p.created_at, p.updated_at
 FROM teams t
 JOIN players p ON t.captain_id = p.id
 WHERE t.id = $1 AND t.tenant_id = $2
@@ -97,10 +97,6 @@ func (q *Queries) GetTeamCaptain(ctx context.Context, arg GetTeamCaptainParams) 
 		&i.FirstName,
 		&i.LastName,
 		&i.PhotoPath,
-		&i.Cups,
-		&i.Wins,
-		&i.Ties,
-		&i.Losses,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
