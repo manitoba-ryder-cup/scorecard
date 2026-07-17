@@ -119,8 +119,8 @@ func (c *Client) GetTournamentTeams(ctx context.Context, id uuid.UUID) ([]Tourna
 	return out, c.do(ctx, http.MethodGet, pathID(RouteV1TournamentTeams, id), nil, &out)
 }
 
-func (c *Client) GetTournamentWinner(ctx context.Context, id uuid.UUID) (*TournamentWinnerResponse, error) {
-	var out TournamentWinnerResponse
+func (c *Client) GetTournamentWinner(ctx context.Context, id uuid.UUID) (*WinnerResponse, error) {
+	var out WinnerResponse
 	return &out, c.do(ctx, http.MethodGet, pathID(RouteV1TournamentWinner, id), nil, &out)
 }
 
@@ -173,8 +173,8 @@ func (c *Client) GetMatchScores(ctx context.Context, matchID uuid.UUID) ([]HoleS
 	return out, c.do(ctx, http.MethodGet, pathID(RouteV1MatchScores, matchID), nil, &out)
 }
 
-func (c *Client) GetMatchWinner(ctx context.Context, matchID uuid.UUID) (*MatchWinnerResponse, error) {
-	var out MatchWinnerResponse
+func (c *Client) GetMatchWinner(ctx context.Context, matchID uuid.UUID) (*WinnerResponse, error) {
+	var out WinnerResponse
 	return &out, c.do(ctx, http.MethodGet, pathID(RouteV1MatchWinner, matchID), nil, &out)
 }
 

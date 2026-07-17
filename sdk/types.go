@@ -221,14 +221,9 @@ type HoleStatus struct {
 	Decided        bool            `json:"decided"`
 }
 
-// MatchWinnerResponse reports a match's outcome by team id (null = tie/undecided).
-type MatchWinnerResponse struct {
-	Finished     bool       `json:"finished"`
-	WinnerTeamID *uuid.UUID `json:"winner_team_id"`
-}
-
-// TournamentWinnerResponse reports a tournament's winning side by team id.
-type TournamentWinnerResponse struct {
+// WinnerResponse reports a winning team by id (null = tie/undecided), used for both
+// match and tournament outcomes. winner_team_id is meaningful only once finished.
+type WinnerResponse struct {
 	Finished     bool       `json:"finished"`
 	WinnerTeamID *uuid.UUID `json:"winner_team_id"`
 }

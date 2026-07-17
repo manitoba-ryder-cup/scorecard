@@ -121,7 +121,7 @@ func (h *TournamentsHandler) GetTournamentWinner(w http.ResponseWriter, r *http.
 		respondError(w, http.StatusInternalServerError, "Failed to get tournament winner", err)
 		return
 	}
-	respondJSON(w, http.StatusOK, sdk.TournamentWinnerResponse{Finished: finished, WinnerTeamID: winnerID})
+	respondJSON(w, http.StatusOK, sdk.WinnerResponse{Finished: finished, WinnerTeamID: winnerID})
 }
 
 // GET /v1/tournaments/{id}/status

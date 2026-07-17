@@ -90,7 +90,7 @@ func (h *MatchesHandler) GetMatchWinner(w http.ResponseWriter, r *http.Request) 
 		respondError(w, http.StatusInternalServerError, "Failed to get match winner", err)
 		return
 	}
-	respondJSON(w, http.StatusOK, sdk.MatchWinnerResponse{Finished: finished, WinnerTeamID: winnerID})
+	respondJSON(w, http.StatusOK, sdk.WinnerResponse{Finished: finished, WinnerTeamID: winnerID})
 }
 
 // GET /v1/matches/{id}/status
