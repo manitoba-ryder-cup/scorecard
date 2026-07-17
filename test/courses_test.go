@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
@@ -17,7 +18,7 @@ func TestCreateTeeColorAndCourse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create tee color: %v", err)
 	}
-	if tc.ID == 0 || tc.Color != "White" {
+	if tc.ID == uuid.Nil || tc.Color != "White" {
 		t.Fatalf("unexpected tee color: %+v", tc)
 	}
 
@@ -25,7 +26,7 @@ func TestCreateTeeColorAndCourse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create course: %v", err)
 	}
-	if course.ID == 0 || course.Name != "Pine Ridge" {
+	if course.ID == uuid.Nil || course.Name != "Pine Ridge" {
 		t.Fatalf("unexpected course: %+v", course)
 	}
 
@@ -86,7 +87,7 @@ func TestCreateTeeColorDuplicateConflicts(t *testing.T) {
 func TestGetNonexistentCourseReturns404(t *testing.T) {
 	client := freshClient(t)
 
-	_, err := client.GetCourse(context.Background(), 999999)
+	_, err := client.GetCourse(context.Background(), uuid.New())
 	var apiErr *sdk.APIError
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
 		t.Fatalf("want 404 APIError, got %v", err)

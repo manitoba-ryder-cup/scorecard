@@ -42,7 +42,7 @@ func TestCreateTournamentSeedsBothTeams(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create tournament: %v", err)
 	}
-	if tour.ID == 0 || tour.Name != "Manitoba Ryder Cup" || tour.StartDate != "2026-08-01" || tour.EndDate != "2026-08-03" {
+	if tour.ID == uuid.Nil || tour.Name != "Manitoba Ryder Cup" || tour.StartDate != "2026-08-01" || tour.EndDate != "2026-08-03" {
 		t.Fatalf("unexpected tournament: %+v", tour)
 	}
 
@@ -91,7 +91,7 @@ func TestWriteWithoutScopeForbidden(t *testing.T) {
 func TestGetNonexistentTournamentReturns404(t *testing.T) {
 	client := freshClient(t)
 
-	_, err := client.GetTournament(context.Background(), 999999)
+	_, err := client.GetTournament(context.Background(), uuid.New())
 	var apiErr *sdk.APIError
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
 		t.Fatalf("want 404 APIError, got %v", err)

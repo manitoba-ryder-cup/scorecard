@@ -125,6 +125,8 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 
 	rosterService := &golf.RosterService{
 		TournamentPlayerDB: tournamentPlayersDB,
+		TeamDB:             teamsDB,
+		TeamMemberDB:       teamMembersDB,
 		Logger:             config.Logger,
 	}
 

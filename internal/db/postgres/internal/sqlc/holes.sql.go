@@ -26,8 +26,8 @@ INSERT INTO holes (
 `
 
 type CreateHoleParams struct {
-	CourseID   int32     `json:"course_id"`
-	TeeColorID int32     `json:"tee_color_id"`
+	CourseID   uuid.UUID `json:"course_id"`
+	TeeColorID uuid.UUID `json:"tee_color_id"`
 	Number     int32     `json:"number"`
 	TenantID   uuid.UUID `json:"tenant_id"`
 	Par        int32     `json:"par"`
@@ -64,8 +64,8 @@ WHERE course_id = $1 AND tee_color_id = $2 AND number = $3 AND tenant_id = $4
 `
 
 type DeleteHoleParams struct {
-	CourseID   int32     `json:"course_id"`
-	TeeColorID int32     `json:"tee_color_id"`
+	CourseID   uuid.UUID `json:"course_id"`
+	TeeColorID uuid.UUID `json:"tee_color_id"`
 	Number     int32     `json:"number"`
 	TenantID   uuid.UUID `json:"tenant_id"`
 }
@@ -86,8 +86,8 @@ WHERE course_id = $1 AND tee_color_id = $2 AND number = $3 AND tenant_id = $4
 `
 
 type GetHoleParams struct {
-	CourseID   int32     `json:"course_id"`
-	TeeColorID int32     `json:"tee_color_id"`
+	CourseID   uuid.UUID `json:"course_id"`
+	TeeColorID uuid.UUID `json:"tee_color_id"`
 	Number     int32     `json:"number"`
 	TenantID   uuid.UUID `json:"tenant_id"`
 }
@@ -119,8 +119,8 @@ ORDER BY number
 `
 
 type ListHolesByTeeSetParams struct {
-	CourseID   int32     `json:"course_id"`
-	TeeColorID int32     `json:"tee_color_id"`
+	CourseID   uuid.UUID `json:"course_id"`
+	TeeColorID uuid.UUID `json:"tee_color_id"`
 	TenantID   uuid.UUID `json:"tenant_id"`
 }
 
@@ -163,8 +163,8 @@ RETURNING course_id, tee_color_id, number, tenant_id, par, hdcp, yards
 `
 
 type UpdateHoleParams struct {
-	CourseID   int32     `json:"course_id"`
-	TeeColorID int32     `json:"tee_color_id"`
+	CourseID   uuid.UUID `json:"course_id"`
+	TeeColorID uuid.UUID `json:"tee_color_id"`
 	Number     int32     `json:"number"`
 	TenantID   uuid.UUID `json:"tenant_id"`
 	Par        int32     `json:"par"`

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres/internal/sqlc"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/travisbale/knowhere/identity"
@@ -17,7 +18,7 @@ func NewTeamsDB(db *DB) *TeamsDB {
 	return &TeamsDB{db: db}
 }
 
-func (t *TeamsDB) GetTeam(ctx context.Context, id int32) (*golf.Team, error) {
+func (t *TeamsDB) GetTeam(ctx context.Context, id uuid.UUID) (*golf.Team, error) {
 	tenantID, err := identity.GetTenant(ctx)
 	if err != nil {
 		return nil, err
@@ -36,7 +37,7 @@ func (t *TeamsDB) GetTeam(ctx context.Context, id int32) (*golf.Team, error) {
 	return result, err
 }
 
-func (t *TeamsDB) ListTeamsByTournament(ctx context.Context, tournamentID int32) ([]golf.Team, error) {
+func (t *TeamsDB) ListTeamsByTournament(ctx context.Context, tournamentID uuid.UUID) ([]golf.Team, error) {
 	tenantID, err := identity.GetTenant(ctx)
 	if err != nil {
 		return nil, err

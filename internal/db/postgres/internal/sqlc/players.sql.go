@@ -63,7 +63,7 @@ WHERE id = $1 AND tenant_id = $2
 `
 
 type DeletePlayerParams struct {
-	ID       int32     `json:"id"`
+	ID       uuid.UUID `json:"id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
@@ -78,7 +78,7 @@ WHERE id = $1 AND tenant_id = $2
 `
 
 type GetPlayerParams struct {
-	ID       int32     `json:"id"`
+	ID       uuid.UUID `json:"id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
@@ -176,7 +176,7 @@ RETURNING id, tenant_id, user_id, email, first_name, last_name, photo_path, crea
 `
 
 type UpdatePlayerParams struct {
-	ID        int32      `json:"id"`
+	ID        uuid.UUID  `json:"id"`
 	TenantID  uuid.UUID  `json:"tenant_id"`
 	UserID    *uuid.UUID `json:"user_id"`
 	Email     *string    `json:"email"`

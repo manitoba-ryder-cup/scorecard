@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 	"github.com/manitoba-ryder-cup/scorecard/test/_util/request"
 )
@@ -62,9 +63,9 @@ func TestAddTeeSetUnknownTeeColorRejected(t *testing.T) {
 		t.Fatalf("create course: %v", err)
 	}
 
-	// tee_color_id 999999 doesn't exist -> FK violation -> 400.
+	// tee_color_id uuid.New() doesn't exist -> FK violation -> 400.
 	_, err = client.AddTeeSet(ctx, course.ID, sdk.CreateTeeSetRequest{
-		TeeColorID: 999999, Slope: 113, Rating: 71.2, Holes: eighteenHoles(),
+		TeeColorID: uuid.New(), Slope: 113, Rating: 71.2, Holes: eighteenHoles(),
 	})
 	var apiErr *sdk.APIError
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
@@ -75,8 +76,8 @@ func TestAddTeeSetUnknownTeeColorRejected(t *testing.T) {
 func TestAddTeeSetToNonexistentCourseReturns404(t *testing.T) {
 	client := freshClient(t)
 
-	_, err := client.AddTeeSet(context.Background(), 999999, sdk.CreateTeeSetRequest{
-		TeeColorID: 1, Slope: 113, Rating: 71.2, Holes: eighteenHoles(),
+	_, err := client.AddTeeSet(context.Background(), uuid.New(), sdk.CreateTeeSetRequest{
+		TeeColorID: uuid.New(), Slope: 113, Rating: 71.2, Holes: eighteenHoles(),
 	})
 	var apiErr *sdk.APIError
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
@@ -87,8 +88,9 @@ func TestAddTeeSetToNonexistentCourseReturns404(t *testing.T) {
 // Sent raw (bypassing the SDK client's validation) to confirm the server also
 // rejects a wrong hole count.
 func TestAddTeeSetWrongHoleCountRejectedByServer(t *testing.T) {
-	body := `{"tee_color_id":1,"slope":113,"rating":71.2,"holes":[]}`
-	status, _ := request.Raw(t, http.MethodPost, "/v1/courses/1/tees", body, freshToken(t))
+	// Valid UUID path + tee_color_id so the request reaches hole-count validation.
+	body := `{"tee_color_id":"11111111-1111-1111-1111-111111111111","slope":113,"rating":71.2,"holes":[]}`
+	status, _ := request.Raw(t, http.MethodPost, "/v1/courses/11111111-1111-1111-1111-111111111111/tees", body, freshToken(t))
 	if status != http.StatusBadRequest {
 		t.Fatalf("want 400, got %d", status)
 	}

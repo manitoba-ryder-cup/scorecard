@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
@@ -13,7 +14,7 @@ type fakeTournamentDB struct {
 	teamColors []string
 }
 
-func (f *fakeTournamentDB) GetTournament(ctx context.Context, id int32) (*Tournament, error) {
+func (f *fakeTournamentDB) GetTournament(ctx context.Context, id uuid.UUID) (*Tournament, error) {
 	return nil, nil
 }
 func (f *fakeTournamentDB) ListTournaments(ctx context.Context) ([]Tournament, error) {
@@ -22,7 +23,7 @@ func (f *fakeTournamentDB) ListTournaments(ctx context.Context) ([]Tournament, e
 func (f *fakeTournamentDB) CreateTournamentWithTeams(ctx context.Context, in CreateTournamentInput, teamColors []string) (*Tournament, error) {
 	f.created = &in
 	f.teamColors = teamColors
-	return &Tournament{ID: 1, Name: in.Name, StartDate: in.StartDate, EndDate: in.EndDate, Location: in.Location}, nil
+	return &Tournament{ID: tournamentID, Name: in.Name, StartDate: in.StartDate, EndDate: in.EndDate, Location: in.Location}, nil
 }
 
 func date(y int, m time.Month, d int) time.Time {
@@ -39,7 +40,7 @@ func TestCreateTournament_Valid(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateTournament: %v", err)
 	}
-	if got.ID != 1 || got.Name != "Manitoba Ryder Cup" {
+	if got.ID != tournamentID || got.Name != "Manitoba Ryder Cup" {
 		t.Errorf("unexpected result: %+v", got)
 	}
 	if db.created == nil || db.created.Location != "Winnipeg" {

@@ -17,7 +17,7 @@ WHERE match_id = $1 AND tenant_id = $2
 `
 
 type GetMatchResultParams struct {
-	MatchID  int32     `json:"match_id"`
+	MatchID  uuid.UUID `json:"match_id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
@@ -48,7 +48,7 @@ WHERE mp.player_id = $1 AND mp.tenant_id = $2
 `
 
 type GetPlayerRecordParams struct {
-	PlayerID int32     `json:"player_id"`
+	PlayerID uuid.UUID `json:"player_id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
@@ -78,7 +78,7 @@ SELECT
 `
 
 type IsTournamentFinishedParams struct {
-	TournamentID int32     `json:"tournament_id"`
+	TournamentID uuid.UUID `json:"tournament_id"`
 	TenantID     uuid.UUID `json:"tenant_id"`
 }
 
@@ -107,13 +107,13 @@ GROUP BY t.id
 `
 
 type ListTeamPointsParams struct {
-	TournamentID int32     `json:"tournament_id"`
+	TournamentID uuid.UUID `json:"tournament_id"`
 	TenantID     uuid.UUID `json:"tenant_id"`
 }
 
 type ListTeamPointsRow struct {
-	TeamID int32   `json:"team_id"`
-	Points float64 `json:"points"`
+	TeamID uuid.UUID `json:"team_id"`
+	Points float64   `json:"points"`
 }
 
 // Ryder-cup points per team for a tournament: 1 for a won match, 0.5 for a tie.
@@ -154,13 +154,13 @@ RETURNING match_id, tournament_id, tenant_id, finished, leader_team_id, lead, ho
 `
 
 type UpsertMatchResultParams struct {
-	MatchID        int32     `json:"match_id"`
-	TournamentID   int32     `json:"tournament_id"`
-	TenantID       uuid.UUID `json:"tenant_id"`
-	Finished       bool      `json:"finished"`
-	LeaderTeamID   *int32    `json:"leader_team_id"`
-	Lead           int32     `json:"lead"`
-	HolesRemaining int32     `json:"holes_remaining"`
+	MatchID        uuid.UUID  `json:"match_id"`
+	TournamentID   uuid.UUID  `json:"tournament_id"`
+	TenantID       uuid.UUID  `json:"tenant_id"`
+	Finished       bool       `json:"finished"`
+	LeaderTeamID   *uuid.UUID `json:"leader_team_id"`
+	Lead           int32      `json:"lead"`
+	HolesRemaining int32      `json:"holes_remaining"`
 }
 
 func (q *Queries) UpsertMatchResult(ctx context.Context, arg UpsertMatchResultParams) (MatchResult, error) {

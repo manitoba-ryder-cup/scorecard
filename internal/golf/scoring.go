@@ -1,5 +1,7 @@
 package golf
 
+import "github.com/google/uuid"
+
 // ComputeMatchProgress computes the hole-by-hole match-play state from the
 // recorded scores for a match between teamA and teamB (identified by ID; the
 // caller chooses the order). A team's gross score on a hole is the minimum strokes
@@ -11,7 +13,7 @@ package golf
 // The result is pure, color-free state: per-hole TeamScores tagged by ID, the
 // LeaderTeamID (nil = all square), and the Lead margin. Rendering it as text is
 // the frontend's concern.
-func ComputeMatchProgress(scores []Score, teamAID, teamBID int32) []HoleResult {
+func ComputeMatchProgress(scores []Score, teamAID, teamBID uuid.UUID) []HoleResult {
 	a := minStrokesByHole(scores, teamAID)
 	b := minStrokesByHole(scores, teamBID)
 
@@ -41,7 +43,7 @@ func ComputeMatchProgress(scores []Score, teamAID, teamBID int32) []HoleResult {
 		lead := abs(signed)
 		decided := lead > holesRemaining && n != 18
 
-		var leader *int32
+		var leader *uuid.UUID
 		if signed > 0 {
 			id := teamAID
 			leader = &id
@@ -70,7 +72,7 @@ func ComputeMatchProgress(scores []Score, teamAID, teamBID int32) []HoleResult {
 // progress. A match is finished when it is closed out (last hole Decided) or all 18
 // holes have been scored by both teams; the leader/lead/holes-remaining come from the
 // final scored hole.
-func ComputeStoredResult(scores []Score, teamAID, teamBID int32) StoredResult {
+func ComputeStoredResult(scores []Score, teamAID, teamBID uuid.UUID) StoredResult {
 	progress := ComputeMatchProgress(scores, teamAID, teamBID)
 	if len(progress) == 0 {
 		return StoredResult{HolesRemaining: 18}
@@ -87,7 +89,7 @@ func ComputeStoredResult(scores []Score, teamAID, teamBID int32) StoredResult {
 
 // minStrokesByHole returns the minimum strokes the given team recorded on each
 // hole (best-ball for two players; the single score for singles/one-ball).
-func minStrokesByHole(scores []Score, teamID int32) map[int32]int32 {
+func minStrokesByHole(scores []Score, teamID uuid.UUID) map[int32]int32 {
 	m := make(map[int32]int32)
 	for _, s := range scores {
 		if s.TeamID != teamID {

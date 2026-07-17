@@ -18,7 +18,7 @@ WHERE match_id = $1 AND tenant_id = $2
 `
 
 type DeleteScoresByMatchParams struct {
-	MatchID  int32     `json:"match_id"`
+	MatchID  uuid.UUID `json:"match_id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
@@ -42,25 +42,25 @@ ORDER BY s.hole_number
 `
 
 type ListScoresByMatchParams struct {
-	MatchID  int32     `json:"match_id"`
+	MatchID  uuid.UUID `json:"match_id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
 type ListScoresByMatchRow struct {
-	ID         int32     `json:"id"`
-	MatchID    int32     `json:"match_id"`
-	TeamID     int32     `json:"team_id"`
-	PlayerID   *int32    `json:"player_id"`
-	CourseID   int32     `json:"course_id"`
-	TeeColorID int32     `json:"tee_color_id"`
-	HoleNumber int32     `json:"hole_number"`
-	TenantID   uuid.UUID `json:"tenant_id"`
-	Strokes    int32     `json:"strokes"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
-	Par        int32     `json:"par"`
-	HoleHdcp   int32     `json:"hole_hdcp"`
-	Yards      int32     `json:"yards"`
+	ID         uuid.UUID  `json:"id"`
+	MatchID    uuid.UUID  `json:"match_id"`
+	TeamID     uuid.UUID  `json:"team_id"`
+	PlayerID   *uuid.UUID `json:"player_id"`
+	CourseID   uuid.UUID  `json:"course_id"`
+	TeeColorID uuid.UUID  `json:"tee_color_id"`
+	HoleNumber int32      `json:"hole_number"`
+	TenantID   uuid.UUID  `json:"tenant_id"`
+	Strokes    int32      `json:"strokes"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
+	Par        int32      `json:"par"`
+	HoleHdcp   int32      `json:"hole_hdcp"`
+	Yards      int32      `json:"yards"`
 }
 
 func (q *Queries) ListScoresByMatch(ctx context.Context, arg ListScoresByMatchParams) ([]ListScoresByMatchRow, error) {
@@ -110,14 +110,14 @@ RETURNING id, match_id, team_id, player_id, course_id, tee_color_id, hole_number
 `
 
 type UpsertPlayerScoreParams struct {
-	MatchID    int32     `json:"match_id"`
-	TeamID     int32     `json:"team_id"`
-	PlayerID   *int32    `json:"player_id"`
-	CourseID   int32     `json:"course_id"`
-	TeeColorID int32     `json:"tee_color_id"`
-	HoleNumber int32     `json:"hole_number"`
-	TenantID   uuid.UUID `json:"tenant_id"`
-	Strokes    int32     `json:"strokes"`
+	MatchID    uuid.UUID  `json:"match_id"`
+	TeamID     uuid.UUID  `json:"team_id"`
+	PlayerID   *uuid.UUID `json:"player_id"`
+	CourseID   uuid.UUID  `json:"course_id"`
+	TeeColorID uuid.UUID  `json:"tee_color_id"`
+	HoleNumber int32      `json:"hole_number"`
+	TenantID   uuid.UUID  `json:"tenant_id"`
+	Strokes    int32      `json:"strokes"`
 }
 
 // Per-player score (singles / fourball): one row per player per hole.
@@ -161,10 +161,10 @@ RETURNING id, match_id, team_id, player_id, course_id, tee_color_id, hole_number
 `
 
 type UpsertTeamScoreParams struct {
-	MatchID    int32     `json:"match_id"`
-	TeamID     int32     `json:"team_id"`
-	CourseID   int32     `json:"course_id"`
-	TeeColorID int32     `json:"tee_color_id"`
+	MatchID    uuid.UUID `json:"match_id"`
+	TeamID     uuid.UUID `json:"team_id"`
+	CourseID   uuid.UUID `json:"course_id"`
+	TeeColorID uuid.UUID `json:"tee_color_id"`
 	HoleNumber int32     `json:"hole_number"`
 	TenantID   uuid.UUID `json:"tenant_id"`
 	Strokes    int32     `json:"strokes"`

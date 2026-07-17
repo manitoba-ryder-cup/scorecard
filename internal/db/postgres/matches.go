@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres/internal/sqlc"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/travisbale/knowhere/identity"
@@ -20,7 +21,7 @@ func NewMatchesDB(db *DB) *MatchesDB {
 }
 
 // GetMatch retrieves a match by ID with tenant isolation
-func (m *MatchesDB) GetMatch(ctx context.Context, id int32) (*golf.Match, error) {
+func (m *MatchesDB) GetMatch(ctx context.Context, id uuid.UUID) (*golf.Match, error) {
 	tenantID, err := identity.GetTenant(ctx)
 	if err != nil {
 		return nil, err
@@ -41,7 +42,7 @@ func (m *MatchesDB) GetMatch(ctx context.Context, id int32) (*golf.Match, error)
 }
 
 // ListMatchesByTournament retrieves all matches for a tournament
-func (m *MatchesDB) ListMatchesByTournament(ctx context.Context, tournamentID int32) ([]golf.Match, error) {
+func (m *MatchesDB) ListMatchesByTournament(ctx context.Context, tournamentID uuid.UUID) ([]golf.Match, error) {
 	tenantID, err := identity.GetTenant(ctx)
 	if err != nil {
 		return nil, err

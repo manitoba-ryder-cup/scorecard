@@ -5,15 +5,16 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
 type MatchService interface {
-	GetWinner(ctx context.Context, matchID int32) (*int32, error)
-	IsFinished(ctx context.Context, matchID int32) (bool, error)
-	CalculateMatchScores(ctx context.Context, matchID int32) ([]golf.HoleResult, error)
-	SubmitScore(ctx context.Context, matchID int32, entry golf.ScoreEntry) error
+	GetWinner(ctx context.Context, matchID uuid.UUID) (*uuid.UUID, error)
+	IsFinished(ctx context.Context, matchID uuid.UUID) (bool, error)
+	CalculateMatchScores(ctx context.Context, matchID uuid.UUID) ([]golf.HoleResult, error)
+	SubmitScore(ctx context.Context, matchID uuid.UUID, entry golf.ScoreEntry) error
 }
 
 type MatchesHandler struct {
@@ -27,7 +28,7 @@ func NewMatchesHandler(matchService MatchService) *MatchesHandler {
 // GET /v1/matches/{id}/scores
 // Returns the hole-by-hole match-play state.
 func (h *MatchesHandler) GetMatchScores(w http.ResponseWriter, r *http.Request) {
-	id, err := pathInt(r, "id")
+	id, err := pathUUID(r, "id")
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid match ID", err)
 		return
@@ -43,7 +44,7 @@ func (h *MatchesHandler) GetMatchScores(w http.ResponseWriter, r *http.Request) 
 // POST /v1/matches/{id}/scores
 // Records one hole score and recomputes the match's materialized result.
 func (h *MatchesHandler) SubmitScore(w http.ResponseWriter, r *http.Request) {
-	id, err := pathInt(r, "id")
+	id, err := pathUUID(r, "id")
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid match ID", err)
 		return
@@ -74,7 +75,7 @@ func (h *MatchesHandler) SubmitScore(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/matches/{id}/winner
 func (h *MatchesHandler) GetMatchWinner(w http.ResponseWriter, r *http.Request) {
-	id, err := pathInt(r, "id")
+	id, err := pathUUID(r, "id")
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid match ID", err)
 		return
@@ -94,7 +95,7 @@ func (h *MatchesHandler) GetMatchWinner(w http.ResponseWriter, r *http.Request) 
 
 // GET /v1/matches/{id}/status
 func (h *MatchesHandler) GetMatchStatus(w http.ResponseWriter, r *http.Request) {
-	id, err := pathInt(r, "id")
+	id, err := pathUUID(r, "id")
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid match ID", err)
 		return

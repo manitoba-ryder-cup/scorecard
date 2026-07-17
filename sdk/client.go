@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Client is an HTTP client for the scorecard API. It is the public contract's
@@ -45,7 +46,7 @@ func (c *Client) ListPlayers(ctx context.Context) ([]Player, error) {
 	return out, c.do(ctx, http.MethodGet, RouteV1Players, nil, &out)
 }
 
-func (c *Client) GetPlayer(ctx context.Context, id int32) (*PlayerProfile, error) {
+func (c *Client) GetPlayer(ctx context.Context, id uuid.UUID) (*PlayerProfile, error) {
 	var out PlayerProfile
 	return &out, c.do(ctx, http.MethodGet, pathID(RouteV1Player, id), nil, &out)
 }
@@ -79,7 +80,7 @@ func (c *Client) ListCourses(ctx context.Context) ([]Course, error) {
 	return out, c.do(ctx, http.MethodGet, RouteV1Courses, nil, &out)
 }
 
-func (c *Client) GetCourse(ctx context.Context, id int32) (*Course, error) {
+func (c *Client) GetCourse(ctx context.Context, id uuid.UUID) (*Course, error) {
 	var out Course
 	return &out, c.do(ctx, http.MethodGet, pathID(RouteV1Course, id), nil, &out)
 }
@@ -90,7 +91,7 @@ func (c *Client) CreateCourse(ctx context.Context, req CreateCourseRequest) (*Co
 }
 
 // AddTeeSet adds a tee set and its 18 holes to a course.
-func (c *Client) AddTeeSet(ctx context.Context, courseID int32, req CreateTeeSetRequest) (*TeeSet, error) {
+func (c *Client) AddTeeSet(ctx context.Context, courseID uuid.UUID, req CreateTeeSetRequest) (*TeeSet, error) {
 	var out TeeSet
 	return &out, c.do(ctx, http.MethodPost, pathID(RouteV1CourseTees, courseID), req, &out)
 }
@@ -102,7 +103,7 @@ func (c *Client) ListTournaments(ctx context.Context) ([]Tournament, error) {
 	return out, c.do(ctx, http.MethodGet, RouteV1Tournaments, nil, &out)
 }
 
-func (c *Client) GetTournament(ctx context.Context, id int32) (*Tournament, error) {
+func (c *Client) GetTournament(ctx context.Context, id uuid.UUID) (*Tournament, error) {
 	var out Tournament
 	return &out, c.do(ctx, http.MethodGet, pathID(RouteV1Tournament, id), nil, &out)
 }
@@ -113,64 +114,78 @@ func (c *Client) CreateTournament(ctx context.Context, req CreateTournamentReque
 	return &out, c.do(ctx, http.MethodPost, RouteV1Tournaments, req, &out)
 }
 
-func (c *Client) GetTournamentTeams(ctx context.Context, id int32) ([]TournamentTeam, error) {
+func (c *Client) GetTournamentTeams(ctx context.Context, id uuid.UUID) ([]TournamentTeam, error) {
 	var out []TournamentTeam
 	return out, c.do(ctx, http.MethodGet, pathID(RouteV1TournamentTeams, id), nil, &out)
 }
 
-// --- Tournament roster ---
-
-func (c *Client) ListTournamentPlayers(ctx context.Context, tournamentID int32) ([]TournamentPlayerDetail, error) {
-	var out []TournamentPlayerDetail
-	return out, c.do(ctx, http.MethodGet, pathID(RouteV1TournamentPlayers, tournamentID), nil, &out)
-}
-
-func (c *Client) EnterTournamentPlayer(ctx context.Context, tournamentID int32, req EnterTournamentPlayerRequest) (*TournamentPlayer, error) {
-	var out TournamentPlayer
-	return &out, c.do(ctx, http.MethodPost, pathID(RouteV1TournamentPlayers, tournamentID), req, &out)
-}
-
-func (c *Client) UpdateTournamentPlayer(ctx context.Context, tournamentID, playerID int32, req UpdateTournamentPlayerRequest) (*TournamentPlayer, error) {
-	route := strings.Replace(pathID(RouteV1TournamentPlayer, tournamentID), "{playerId}", strconv.FormatInt(int64(playerID), 10), 1)
-	var out TournamentPlayer
-	return &out, c.do(ctx, http.MethodPut, route, req, &out)
-}
-
-func (c *Client) GetTournamentWinner(ctx context.Context, id int32) (*TournamentWinnerResponse, error) {
+func (c *Client) GetTournamentWinner(ctx context.Context, id uuid.UUID) (*TournamentWinnerResponse, error) {
 	var out TournamentWinnerResponse
 	return &out, c.do(ctx, http.MethodGet, pathID(RouteV1TournamentWinner, id), nil, &out)
 }
 
-func (c *Client) GetTournamentStatus(ctx context.Context, id int32) (*FinishedResponse, error) {
+func (c *Client) GetTournamentStatus(ctx context.Context, id uuid.UUID) (*FinishedResponse, error) {
 	var out FinishedResponse
 	return &out, c.do(ctx, http.MethodGet, pathID(RouteV1TournamentStatus, id), nil, &out)
+}
+
+// --- Tournament roster ---
+
+func (c *Client) ListTournamentPlayers(ctx context.Context, tournamentID uuid.UUID) ([]TournamentPlayer, error) {
+	var out []TournamentPlayer
+	return out, c.do(ctx, http.MethodGet, pathID(RouteV1TournamentPlayers, tournamentID), nil, &out)
+}
+
+func (c *Client) EnterTournamentPlayer(ctx context.Context, tournamentID uuid.UUID, req EnterTournamentPlayerRequest) (*TournamentPlayer, error) {
+	var out TournamentPlayer
+	return &out, c.do(ctx, http.MethodPost, pathID(RouteV1TournamentPlayers, tournamentID), req, &out)
+}
+
+func (c *Client) UpdateTournamentPlayer(ctx context.Context, tournamentID, playerID uuid.UUID, req UpdateTournamentPlayerRequest) (*TournamentPlayer, error) {
+	route := strings.Replace(pathID(RouteV1TournamentPlayer, tournamentID), "{playerId}", playerID.String(), 1)
+	var out TournamentPlayer
+	return &out, c.do(ctx, http.MethodPut, route, req, &out)
+}
+
+// --- Team draft ---
+
+// DraftPlayer assigns an entered player to a team.
+func (c *Client) DraftPlayer(ctx context.Context, teamID uuid.UUID, req DraftPlayerRequest) (*TeamMember, error) {
+	var out TeamMember
+	return &out, c.do(ctx, http.MethodPost, pathID(RouteV1TeamMembers, teamID), req, &out)
+}
+
+// ListTeamMembers lists a team's drafted players (the roster-entry view, filtered).
+func (c *Client) ListTeamMembers(ctx context.Context, teamID uuid.UUID) ([]TournamentPlayer, error) {
+	var out []TournamentPlayer
+	return out, c.do(ctx, http.MethodGet, pathID(RouteV1TeamMembers, teamID), nil, &out)
 }
 
 // --- Matches ---
 
 // SubmitScore records one hole score. A 204 (no body) is success.
-func (c *Client) SubmitScore(ctx context.Context, matchID int32, req ScoreSubmission) error {
+func (c *Client) SubmitScore(ctx context.Context, matchID uuid.UUID, req ScoreSubmission) error {
 	return c.do(ctx, http.MethodPost, pathID(RouteV1MatchScores, matchID), req, nil)
 }
 
-func (c *Client) GetMatchScores(ctx context.Context, matchID int32) ([]HoleStatus, error) {
+func (c *Client) GetMatchScores(ctx context.Context, matchID uuid.UUID) ([]HoleStatus, error) {
 	var out []HoleStatus
 	return out, c.do(ctx, http.MethodGet, pathID(RouteV1MatchScores, matchID), nil, &out)
 }
 
-func (c *Client) GetMatchWinner(ctx context.Context, matchID int32) (*MatchWinnerResponse, error) {
+func (c *Client) GetMatchWinner(ctx context.Context, matchID uuid.UUID) (*MatchWinnerResponse, error) {
 	var out MatchWinnerResponse
 	return &out, c.do(ctx, http.MethodGet, pathID(RouteV1MatchWinner, matchID), nil, &out)
 }
 
-func (c *Client) GetMatchStatus(ctx context.Context, matchID int32) (*FinishedResponse, error) {
+func (c *Client) GetMatchStatus(ctx context.Context, matchID uuid.UUID) (*FinishedResponse, error) {
 	var out FinishedResponse
 	return &out, c.do(ctx, http.MethodGet, pathID(RouteV1MatchStatus, matchID), nil, &out)
 }
 
 // pathID substitutes the {id} path parameter in a route template.
-func pathID(route string, id int32) string {
-	return strings.Replace(route, "{id}", strconv.FormatInt(int64(id), 10), 1)
+func pathID(route string, id uuid.UUID) string {
+	return strings.Replace(route, "{id}", id.String(), 1)
 }
 
 // do performs a request, attaching the bearer token, encoding req (if any) as JSON,

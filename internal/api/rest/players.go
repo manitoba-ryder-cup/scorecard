@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
 type PlayerService interface {
-	GetPlayer(ctx context.Context, playerID int32) (*golf.Player, error)
+	GetPlayer(ctx context.Context, playerID uuid.UUID) (*golf.Player, error)
 	ListPlayers(ctx context.Context) ([]golf.Player, error)
-	GetPlayerRecord(ctx context.Context, playerID int32) (golf.PlayerRecord, error)
+	GetPlayerRecord(ctx context.Context, playerID uuid.UUID) (golf.PlayerRecord, error)
 	CreatePlayer(ctx context.Context, in golf.CreatePlayerInput) (*golf.Player, error)
 }
 
@@ -62,7 +63,7 @@ func (h *PlayersHandler) CreatePlayer(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/players/{id}
 func (h *PlayersHandler) GetPlayer(w http.ResponseWriter, r *http.Request) {
-	id, err := pathInt(r, "id")
+	id, err := pathUUID(r, "id")
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid player ID", err)
 		return

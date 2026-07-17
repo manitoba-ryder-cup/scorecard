@@ -24,8 +24,8 @@ INSERT INTO tee_sets (
 `
 
 type CreateTeeSetParams struct {
-	CourseID   int32     `json:"course_id"`
-	TeeColorID int32     `json:"tee_color_id"`
+	CourseID   uuid.UUID `json:"course_id"`
+	TeeColorID uuid.UUID `json:"tee_color_id"`
 	TenantID   uuid.UUID `json:"tenant_id"`
 	Slope      int32     `json:"slope"`
 	Rating     float64   `json:"rating"`
@@ -56,8 +56,8 @@ WHERE course_id = $1 AND tee_color_id = $2 AND tenant_id = $3
 `
 
 type DeleteTeeSetParams struct {
-	CourseID   int32     `json:"course_id"`
-	TeeColorID int32     `json:"tee_color_id"`
+	CourseID   uuid.UUID `json:"course_id"`
+	TeeColorID uuid.UUID `json:"tee_color_id"`
 	TenantID   uuid.UUID `json:"tenant_id"`
 }
 
@@ -72,8 +72,8 @@ WHERE course_id = $1 AND tee_color_id = $2 AND tenant_id = $3
 `
 
 type GetTeeSetParams struct {
-	CourseID   int32     `json:"course_id"`
-	TeeColorID int32     `json:"tee_color_id"`
+	CourseID   uuid.UUID `json:"course_id"`
+	TeeColorID uuid.UUID `json:"tee_color_id"`
 	TenantID   uuid.UUID `json:"tenant_id"`
 }
 
@@ -99,13 +99,13 @@ ORDER BY tc.color
 `
 
 type ListTeeSetsByCourseParams struct {
-	CourseID int32     `json:"course_id"`
+	CourseID uuid.UUID `json:"course_id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
 type ListTeeSetsByCourseRow struct {
-	CourseID     int32     `json:"course_id"`
-	TeeColorID   int32     `json:"tee_color_id"`
+	CourseID     uuid.UUID `json:"course_id"`
+	TeeColorID   uuid.UUID `json:"tee_color_id"`
 	TenantID     uuid.UUID `json:"tenant_id"`
 	Slope        int32     `json:"slope"`
 	Rating       float64   `json:"rating"`
@@ -149,8 +149,8 @@ RETURNING course_id, tee_color_id, tenant_id, slope, rating
 `
 
 type UpdateTeeSetParams struct {
-	CourseID   int32     `json:"course_id"`
-	TeeColorID int32     `json:"tee_color_id"`
+	CourseID   uuid.UUID `json:"course_id"`
+	TeeColorID uuid.UUID `json:"tee_color_id"`
 	TenantID   uuid.UUID `json:"tenant_id"`
 	Slope      int32     `json:"slope"`
 	Rating     float64   `json:"rating"`

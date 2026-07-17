@@ -24,10 +24,10 @@ INSERT INTO match_participants (
 `
 
 type CreateMatchParticipantParams struct {
-	TournamentID int32     `json:"tournament_id"`
-	MatchID      int32     `json:"match_id"`
-	PlayerID     int32     `json:"player_id"`
-	TeamID       int32     `json:"team_id"`
+	TournamentID uuid.UUID `json:"tournament_id"`
+	MatchID      uuid.UUID `json:"match_id"`
+	PlayerID     uuid.UUID `json:"player_id"`
+	TeamID       uuid.UUID `json:"team_id"`
 	TenantID     uuid.UUID `json:"tenant_id"`
 }
 
@@ -56,8 +56,8 @@ WHERE match_id = $1 AND player_id = $2 AND tenant_id = $3
 `
 
 type DeleteMatchParticipantParams struct {
-	MatchID  int32     `json:"match_id"`
-	PlayerID int32     `json:"player_id"`
+	MatchID  uuid.UUID `json:"match_id"`
+	PlayerID uuid.UUID `json:"player_id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
@@ -72,8 +72,8 @@ WHERE match_id = $1 AND player_id = $2 AND tenant_id = $3
 `
 
 type GetMatchParticipantParams struct {
-	MatchID  int32     `json:"match_id"`
-	PlayerID int32     `json:"player_id"`
+	MatchID  uuid.UUID `json:"match_id"`
+	PlayerID uuid.UUID `json:"player_id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
@@ -97,7 +97,7 @@ ORDER BY team_id, player_id
 `
 
 type ListMatchParticipantsParams struct {
-	MatchID  int32     `json:"match_id"`
+	MatchID  uuid.UUID `json:"match_id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 

@@ -7,14 +7,15 @@ import (
 )
 
 // The domain layer holds no tenant_id — tenancy is a persistence/RLS concern
-// carried in context by the repositories, never a domain field. Dates are plain
-// time.Time; the repos map to/from the database driver's types.
+// carried in context by the repositories, never a domain field. Entity IDs are all
+// uuid.UUID (matching the schema); non-ID integers (hole number, par, strokes) stay
+// int. Dates are plain time.Time; the repos map to/from the database driver's types.
 
 // Player represents a golfer's stable identity. Per-tournament attributes (tier,
-// biography, handicap) live on TeamMember; win/loss records are derived from
+// biography, handicap) live on TournamentPlayer; win/loss records are derived from
 // match_results.
 type Player struct {
-	ID        int32
+	ID        uuid.UUID
 	UserID    *uuid.UUID // heimdall account link; nil for roster-only players
 	Email     *string
 	FirstName string
@@ -24,15 +25,15 @@ type Player struct {
 
 // Team represents one of a tournament's two sides.
 type Team struct {
-	ID           int32
-	TournamentID int32
+	ID           uuid.UUID
+	TournamentID uuid.UUID
 	Color        string
-	CaptainID    *int32
+	CaptainID    *uuid.UUID
 }
 
 // Tournament represents a golf tournament event
 type Tournament struct {
-	ID        int32
+	ID        uuid.UUID
 	Name      string
 	StartDate time.Time
 	EndDate   time.Time
@@ -41,46 +42,46 @@ type Tournament struct {
 
 // Match represents an individual golf match
 type Match struct {
-	ID            int32
-	TournamentID  int32
-	CourseID      int32
-	TeeColorID    int32
-	MatchFormatID int32
+	ID            uuid.UUID
+	TournamentID  uuid.UUID
+	CourseID      uuid.UUID
+	TeeColorID    uuid.UUID
+	MatchFormatID uuid.UUID
 	TeeTime       *time.Time
 	Handicapped   bool
 }
 
 // MatchParticipant links a player (on a team) to a match.
 type MatchParticipant struct {
-	TournamentID int32
-	MatchID      int32
-	PlayerID     int32
-	TeamID       int32
+	TournamentID uuid.UUID
+	MatchID      uuid.UUID
+	PlayerID     uuid.UUID
+	TeamID       uuid.UUID
 }
 
 // Score is a hole score attributed to a side (TeamID) and, for per-player formats,
 // to a player. PlayerID is nil for one-ball team scores (alt shot, scramble).
 type Score struct {
-	ID         int32
-	MatchID    int32
-	TeamID     int32
-	PlayerID   *int32
-	CourseID   int32
-	TeeColorID int32
+	ID         uuid.UUID
+	MatchID    uuid.UUID
+	TeamID     uuid.UUID
+	PlayerID   *uuid.UUID
+	CourseID   uuid.UUID
+	TeeColorID uuid.UUID
 	HoleNumber int32
 	Strokes    int32
 }
 
 // Course represents a golf course
 type Course struct {
-	ID   int32
+	ID   uuid.UUID
 	Name string
 }
 
 // Hole represents a hole on a golf course with specific tee
 type Hole struct {
-	CourseID   int32
-	TeeColorID int32
+	CourseID   uuid.UUID
+	TeeColorID uuid.UUID
 	Number     int32
 	Par        int32
 	Hdcp       int32
@@ -89,55 +90,51 @@ type Hole struct {
 
 // TeeColor represents tee marker colors
 type TeeColor struct {
-	ID    int32
+	ID    uuid.UUID
 	Color string
 }
 
 // TeeSet represents course rating and slope for a specific tee
 type TeeSet struct {
-	CourseID   int32
-	TeeColorID int32
+	CourseID   uuid.UUID
+	TeeColorID uuid.UUID
 	Slope      int32
 	Rating     float64
 }
 
 // MatchFormat represents the type of match
 type MatchFormat struct {
-	ID   int32
+	ID   uuid.UUID
 	Name string
 }
 
 // TeamMember is the draft outcome: a player assigned to a team for a tournament.
 // Per-tournament attributes live on TournamentPlayer, not here.
 type TeamMember struct {
-	TeamID       int32
-	PlayerID     int32
-	TournamentID int32
+	TeamID       uuid.UUID
+	PlayerID     uuid.UUID
+	TournamentID uuid.UUID
 }
 
-// TournamentPlayer is a player entered in a tournament with the per-tournament
-// attributes (tier, biography, handicap) set independently of the team draft.
+// TournamentPlayer is a player entered in a tournament: the per-tournament attributes
+// (tier, biography, handicap) set independently of the team draft, plus the player's
+// identity and their team assignment. TeamID is nil when entered but not yet drafted.
 type TournamentPlayer struct {
-	TournamentID int32
-	PlayerID     int32
+	TournamentID uuid.UUID
+	PlayerID     uuid.UUID
 	Tier         string
 	Biography    string
 	Hdcp         float32
-}
-
-// TournamentPlayerDetail is a tournament entry joined with the player's identity, for
-// roster listings.
-type TournamentPlayerDetail struct {
-	TournamentPlayer
-	FirstName string
-	LastName  string
-	Email     *string
-	PhotoPath string
+	FirstName    string
+	LastName     string
+	Email        *string
+	PhotoPath    string
+	TeamID       *uuid.UUID
 }
 
 // TeamHoleScore is one side's gross score on a hole, tagged by team ID.
 type TeamHoleScore struct {
-	TeamID  int32
+	TeamID  uuid.UUID
 	Strokes int32
 }
 
@@ -155,7 +152,7 @@ type PlayerRecord struct {
 // the margin (e.g. a "3 & 2" finish is Lead 3, HolesRemaining 2).
 type StoredResult struct {
 	Finished       bool
-	LeaderTeamID   *int32
+	LeaderTeamID   *uuid.UUID
 	Lead           int
 	HolesRemaining int
 }
@@ -169,7 +166,7 @@ type StoredResult struct {
 type HoleResult struct {
 	HoleNumber     int32
 	TeamScores     []TeamHoleScore // the two teams, in the order passed to ComputeMatchProgress
-	LeaderTeamID   *int32
+	LeaderTeamID   *uuid.UUID
 	Lead           int
 	HolesRemaining int
 	Decided        bool
@@ -177,7 +174,7 @@ type HoleResult struct {
 
 // TeamData represents a team's summary for a tournament
 type TeamData struct {
-	ID      int32
+	ID      uuid.UUID
 	Color   string
 	Captain *PlayerSummary
 	Points  float64
@@ -185,7 +182,7 @@ type TeamData struct {
 
 // PlayerSummary is a lightweight player representation
 type PlayerSummary struct {
-	ID        int32
+	ID        uuid.UUID
 	FirstName string
 	LastName  string
 	Email     *string

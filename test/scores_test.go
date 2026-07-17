@@ -180,8 +180,9 @@ func TestSubmitScoreUpsertsHole(t *testing.T) {
 // strokes with 400. Sent raw (bypassing the SDK client's validation); shape checks
 // run before any match lookup, so no seeded match is needed.
 func TestSubmitScoreRejectsInvalidStrokes(t *testing.T) {
-	body := `{"hole_number":1,"strokes":0,"team_id":1}`
-	status, _ := request.Raw(t, http.MethodPost, "/v1/matches/1/scores", body, freshToken(t))
+	// Valid UUID path + team_id so the request reaches strokes validation.
+	body := `{"hole_number":1,"strokes":0,"team_id":"11111111-1111-1111-1111-111111111111"}`
+	status, _ := request.Raw(t, http.MethodPost, "/v1/matches/11111111-1111-1111-1111-111111111111/scores", body, freshToken(t))
 	if status != http.StatusBadRequest {
 		t.Fatalf("want 400, got %d", status)
 	}
@@ -193,8 +194,8 @@ func TestSubmitScoreRejectsInvalidStrokes(t *testing.T) {
 func TestSubmitScoreToNonexistentMatchReturns404(t *testing.T) {
 	client := freshClient(t)
 
-	err := client.SubmitScore(context.Background(), 999999, sdk.ScoreSubmission{
-		HoleNumber: 1, Strokes: 4, TeamID: 1,
+	err := client.SubmitScore(context.Background(), uuid.New(), sdk.ScoreSubmission{
+		HoleNumber: 1, Strokes: 4, TeamID: uuid.New(),
 	})
 	var apiErr *sdk.APIError
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {

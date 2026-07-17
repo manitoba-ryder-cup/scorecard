@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres/internal/sqlc"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/travisbale/knowhere/identity"
@@ -48,7 +49,7 @@ func (p *PlayersDB) CreatePlayer(ctx context.Context, in golf.CreatePlayerInput)
 }
 
 // GetPlayer retrieves a player by ID with tenant isolation
-func (p *PlayersDB) GetPlayer(ctx context.Context, id int32) (*golf.Player, error) {
+func (p *PlayersDB) GetPlayer(ctx context.Context, id uuid.UUID) (*golf.Player, error) {
 	tenantID, err := identity.GetTenant(ctx)
 	if err != nil {
 		return nil, err

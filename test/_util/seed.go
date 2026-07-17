@@ -12,13 +12,13 @@ import (
 // per side, on an 18-hole course. Enough to exercise the score-entry loop end to end.
 type Fixture struct {
 	TenantID   uuid.UUID
-	CourseID   int32
-	TeeColorID int32
-	MatchID    int32
-	TeamRed    int32
-	TeamBlue   int32
-	RedPlayer  int32
-	BluePlayer int32
+	CourseID   uuid.UUID
+	TeeColorID uuid.UUID
+	MatchID    uuid.UUID
+	TeamRed    uuid.UUID
+	TeamBlue   uuid.UUID
+	RedPlayer  uuid.UUID
+	BluePlayer uuid.UUID
 }
 
 // Connect opens a single pgx connection for seeding. The caller closes it.
@@ -29,8 +29,8 @@ func Connect(ctx context.Context, databaseURL string) (*pgx.Conn, error) {
 // SeedPlayer inserts one player under the given tenant and returns its ID. Used to
 // stage data for anonymous public-read tests (which read a specific tenant with no
 // token).
-func SeedPlayer(ctx context.Context, conn *pgx.Conn, tenantID uuid.UUID, first, last string) (int32, error) {
-	var id int32
+func SeedPlayer(ctx context.Context, conn *pgx.Conn, tenantID uuid.UUID, first, last string) (uuid.UUID, error) {
+	var id uuid.UUID
 	err := conn.QueryRow(ctx,
 		`INSERT INTO players (tenant_id, first_name, last_name) VALUES ($1, $2, $3) RETURNING id`,
 		tenantID, first, last,
@@ -84,7 +84,7 @@ func SeedSinglesMatch(ctx context.Context, conn *pgx.Conn) (*Fixture, error) {
 		return nil, fmt.Errorf("seed blue player: %w", err)
 	}
 
-	var tournamentID int32
+	var tournamentID uuid.UUID
 	if err := conn.QueryRow(ctx,
 		`INSERT INTO tournaments (tenant_id, name, start_date, end_date, location)
 		 VALUES ($1, 'Test Cup', '2026-07-01', '2026-07-03', 'Winnipeg') RETURNING id`, t,
@@ -107,7 +107,7 @@ func SeedSinglesMatch(ctx context.Context, conn *pgx.Conn) (*Fixture, error) {
 
 	// Players must be entered in the tournament (tournament_players) before they can be
 	// drafted onto a team (team_members FK requires it).
-	for _, playerID := range []int32{f.RedPlayer, f.BluePlayer} {
+	for _, playerID := range []uuid.UUID{f.RedPlayer, f.BluePlayer} {
 		if _, err := conn.Exec(ctx,
 			`INSERT INTO tournament_players (tournament_id, player_id, tenant_id) VALUES ($1, $2, $3)`,
 			tournamentID, playerID, t,
@@ -131,7 +131,7 @@ func SeedSinglesMatch(ctx context.Context, conn *pgx.Conn) (*Fixture, error) {
 
 	// Match formats are global seeded reference data, not tenant-scoped — reference the
 	// pre-seeded 'Singles' format rather than inserting one.
-	var formatID int32
+	var formatID uuid.UUID
 	if err := conn.QueryRow(ctx,
 		`SELECT id FROM match_formats WHERE name = 'Singles'`,
 	).Scan(&formatID); err != nil {

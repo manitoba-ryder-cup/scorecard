@@ -3,6 +3,8 @@ package sdk
 import (
 	"context"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 func strptr(s string) *string { return &s }
@@ -83,7 +85,7 @@ func validHoles() []Hole {
 func TestCreateTeeSetRequest_Validate(t *testing.T) {
 	ctx := context.Background()
 
-	valid := CreateTeeSetRequest{TeeColorID: 1, Slope: 113, Rating: 71.2, Holes: validHoles()}
+	valid := CreateTeeSetRequest{TeeColorID: uuid.New(), Slope: 113, Rating: 71.2, Holes: validHoles()}
 	if err := valid.Validate(ctx); err != nil {
 		t.Fatalf("valid tee set should pass: %v", err)
 	}
@@ -113,7 +115,7 @@ func TestCreateTeeSetRequest_Validate(t *testing.T) {
 
 	// Missing tee color.
 	bad = valid
-	bad.TeeColorID = 0
+	bad.TeeColorID = uuid.Nil
 	if bad.Validate(ctx) == nil {
 		t.Error("missing tee_color_id should fail")
 	}
@@ -126,10 +128,10 @@ func TestScoreSubmission_Validate(t *testing.T) {
 		req     ScoreSubmission
 		wantErr bool
 	}{
-		{"valid", ScoreSubmission{HoleNumber: 1, Strokes: 4, TeamID: 1}, false},
-		{"hole too low", ScoreSubmission{HoleNumber: 0, Strokes: 4, TeamID: 1}, true},
-		{"hole too high", ScoreSubmission{HoleNumber: 19, Strokes: 4, TeamID: 1}, true},
-		{"non-positive strokes", ScoreSubmission{HoleNumber: 1, Strokes: 0, TeamID: 1}, true},
+		{"valid", ScoreSubmission{HoleNumber: 1, Strokes: 4, TeamID: uuid.New()}, false},
+		{"hole too low", ScoreSubmission{HoleNumber: 0, Strokes: 4, TeamID: uuid.New()}, true},
+		{"hole too high", ScoreSubmission{HoleNumber: 19, Strokes: 4, TeamID: uuid.New()}, true},
+		{"non-positive strokes", ScoreSubmission{HoleNumber: 1, Strokes: 0, TeamID: uuid.New()}, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

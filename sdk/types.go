@@ -23,7 +23,7 @@ func (e *APIError) Error() string { return e.Message }
 // Player is a golfer's public profile. tenant_id is intentionally omitted — it is
 // an internal multi-tenancy detail clients never need.
 type Player struct {
-	ID        int32      `json:"id"`
+	ID        uuid.UUID  `json:"id"`
 	UserID    *uuid.UUID `json:"user_id"` // heimdall account link; null for roster-only players
 	Email     *string    `json:"email"`
 	FirstName string     `json:"first_name"`
@@ -50,8 +50,8 @@ type PlayerProfile struct {
 
 // TeeColor is a tenant-level tee marker (e.g. White, Blue), shared across courses.
 type TeeColor struct {
-	ID    int32  `json:"id"`
-	Color string `json:"color"`
+	ID    uuid.UUID `json:"id"`
+	Color string    `json:"color"`
 }
 
 // CreateTeeColorRequest is the body for POST /v1/tee-colors.
@@ -61,8 +61,8 @@ type CreateTeeColorRequest struct {
 
 // Course is a golf course (venue). Its tee sets and holes are added separately.
 type Course struct {
-	ID   int32  `json:"id"`
-	Name string `json:"name"`
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
 }
 
 // CreateCourseRequest is the body for POST /v1/courses.
@@ -73,8 +73,8 @@ type CreateCourseRequest struct {
 // MatchFormat is a code-defined scoring format (e.g. Singles, Fourball). Global,
 // seeded reference data — read-only over the API.
 type MatchFormat struct {
-	ID   int32  `json:"id"`
-	Name string `json:"name"`
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
 }
 
 // Hole is one hole's setup for a tee: par, stroke index (hdcp), and yardage.
@@ -88,21 +88,21 @@ type Hole struct {
 // TeeSet is a course's playable configuration for one tee color: rating/slope plus
 // its 18 holes.
 type TeeSet struct {
-	CourseID   int32   `json:"course_id"`
-	TeeColorID int32   `json:"tee_color_id"`
-	Slope      int32   `json:"slope"`
-	Rating     float64 `json:"rating"`
-	Holes      []Hole  `json:"holes"`
+	CourseID   uuid.UUID `json:"course_id"`
+	TeeColorID uuid.UUID `json:"tee_color_id"`
+	Slope      int32     `json:"slope"`
+	Rating     float64   `json:"rating"`
+	Holes      []Hole    `json:"holes"`
 }
 
 // CreateTeeSetRequest is the body for POST /v1/courses/{id}/tees. The course comes
 // from the path; tee_color_id references an existing tee color. Exactly 18 holes are
 // required, with unique numbers (1-18) and unique stroke indexes (hdcp, 1-18).
 type CreateTeeSetRequest struct {
-	TeeColorID int32   `json:"tee_color_id"`
-	Slope      int32   `json:"slope"`
-	Rating     float64 `json:"rating"`
-	Holes      []Hole  `json:"holes"`
+	TeeColorID uuid.UUID `json:"tee_color_id"`
+	Slope      int32     `json:"slope"`
+	Rating     float64   `json:"rating"`
+	Holes      []Hole    `json:"holes"`
 }
 
 // CreatePlayerRequest is the body for POST /v1/players. Email and user_id are
@@ -116,19 +116,19 @@ type CreatePlayerRequest struct {
 
 // PlayerSummary is a lightweight player reference (e.g. a team captain).
 type PlayerSummary struct {
-	ID        int32   `json:"id"`
-	FirstName string  `json:"first_name"`
-	LastName  string  `json:"last_name"`
-	Email     *string `json:"email"`
+	ID        uuid.UUID `json:"id"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+	Email     *string   `json:"email"`
 }
 
 // Tournament is a tournament event. Dates are ISO-8601 (YYYY-MM-DD).
 type Tournament struct {
-	ID        int32  `json:"id"`
-	Name      string `json:"name"`
-	StartDate string `json:"start_date"`
-	EndDate   string `json:"end_date"`
-	Location  string `json:"location"`
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	StartDate string    `json:"start_date"`
+	EndDate   string    `json:"end_date"`
+	Location  string    `json:"location"`
 }
 
 // CreateTournamentRequest is the body for POST /v1/tournaments. Dates are YYYY-MM-DD.
@@ -139,34 +139,30 @@ type CreateTournamentRequest struct {
 	Location  string `json:"location"`
 }
 
-// TournamentPlayer is a player's per-tournament attributes (their tournament entry),
-// returned from enter/update. Team assignment is separate (see the draft).
+// TournamentPlayer is a player entered in a tournament: the per-tournament attributes
+// (tier, biography, handicap) set independently of the draft, the player's identity,
+// and their team assignment. team_id is null when entered but not yet drafted.
 type TournamentPlayer struct {
-	TournamentID int32   `json:"tournament_id"`
-	PlayerID     int32   `json:"player_id"`
-	Tier         string  `json:"tier"`
-	Biography    string  `json:"biography"`
-	Hdcp         float32 `json:"hdcp"`
-}
-
-// TournamentPlayerDetail is a tournament entry joined with the player's identity, for
-// roster listings.
-type TournamentPlayerDetail struct {
-	TournamentPlayer
-	FirstName string  `json:"first_name"`
-	LastName  string  `json:"last_name"`
-	Email     *string `json:"email"`
-	PhotoPath string  `json:"photo_path"`
+	TournamentID uuid.UUID  `json:"tournament_id"`
+	PlayerID     uuid.UUID  `json:"player_id"`
+	Tier         string     `json:"tier"`
+	Biography    string     `json:"biography"`
+	Hdcp         float32    `json:"hdcp"`
+	FirstName    string     `json:"first_name"`
+	LastName     string     `json:"last_name"`
+	Email        *string    `json:"email"`
+	PhotoPath    string     `json:"photo_path"`
+	TeamID       *uuid.UUID `json:"team_id"`
 }
 
 // EnterTournamentPlayerRequest is the body for POST /v1/tournaments/{id}/players. The
 // tournament comes from the path; player_id references an existing player. Attributes
 // default sensibly if omitted (tier "white", empty bio, hdcp 0).
 type EnterTournamentPlayerRequest struct {
-	PlayerID  int32   `json:"player_id"`
-	Tier      string  `json:"tier"`
-	Biography string  `json:"biography"`
-	Hdcp      float32 `json:"hdcp"`
+	PlayerID  uuid.UUID `json:"player_id"`
+	Tier      string    `json:"tier"`
+	Biography string    `json:"biography"`
+	Hdcp      float32   `json:"hdcp"`
 }
 
 // UpdateTournamentPlayerRequest is the body for PUT /v1/tournaments/{id}/players/{playerId}.
@@ -176,9 +172,22 @@ type UpdateTournamentPlayerRequest struct {
 	Hdcp      float32 `json:"hdcp"`
 }
 
+// TeamMember is the draft outcome: a player assigned to a team for a tournament.
+type TeamMember struct {
+	TeamID       uuid.UUID `json:"team_id"`
+	PlayerID     uuid.UUID `json:"player_id"`
+	TournamentID uuid.UUID `json:"tournament_id"`
+}
+
+// DraftPlayerRequest is the body for POST /v1/teams/{id}/members. The team (and its
+// tournament) come from the path; the player must already be entered in the tournament.
+type DraftPlayerRequest struct {
+	PlayerID uuid.UUID `json:"player_id"`
+}
+
 // TournamentTeam is one of a tournament's two sides with its captain and points.
 type TournamentTeam struct {
-	ID      int32          `json:"id"`
+	ID      uuid.UUID      `json:"id"`
 	Color   string         `json:"color"`
 	Captain *PlayerSummary `json:"captain"`
 	Points  float64        `json:"points"`
@@ -188,16 +197,16 @@ type TournamentTeam struct {
 // score. course_id/tee_color_id are omitted: the server derives them from the match.
 // player_id is null for one-ball team formats (alt shot, scramble).
 type ScoreSubmission struct {
-	HoleNumber int32  `json:"hole_number"`
-	Strokes    int32  `json:"strokes"`
-	TeamID     int32  `json:"team_id"`
-	PlayerID   *int32 `json:"player_id"`
+	HoleNumber int32      `json:"hole_number"`
+	Strokes    int32      `json:"strokes"`
+	TeamID     uuid.UUID  `json:"team_id"`
+	PlayerID   *uuid.UUID `json:"player_id"`
 }
 
 // TeamHoleScore is a side's gross score on a hole, identified by team_id.
 type TeamHoleScore struct {
-	TeamID  int32 `json:"team_id"`
-	Strokes int32 `json:"strokes"`
+	TeamID  uuid.UUID `json:"team_id"`
+	Strokes int32     `json:"strokes"`
 }
 
 // HoleStatus is the match-play state after a scored hole. It refers to teams by
@@ -206,7 +215,7 @@ type TeamHoleScore struct {
 type HoleStatus struct {
 	HoleNumber     int32           `json:"hole_number"`
 	TeamScores     []TeamHoleScore `json:"team_scores"`
-	LeaderTeamID   *int32          `json:"leader_team_id"`
+	LeaderTeamID   *uuid.UUID      `json:"leader_team_id"`
 	Lead           int             `json:"lead"`
 	HolesRemaining int             `json:"holes_remaining"`
 	Decided        bool            `json:"decided"`
@@ -214,14 +223,14 @@ type HoleStatus struct {
 
 // MatchWinnerResponse reports a match's outcome by team id (null = tie/undecided).
 type MatchWinnerResponse struct {
-	Finished     bool   `json:"finished"`
-	WinnerTeamID *int32 `json:"winner_team_id"`
+	Finished     bool       `json:"finished"`
+	WinnerTeamID *uuid.UUID `json:"winner_team_id"`
 }
 
 // TournamentWinnerResponse reports a tournament's winning side by team id.
 type TournamentWinnerResponse struct {
-	Finished     bool   `json:"finished"`
-	WinnerTeamID *int32 `json:"winner_team_id"`
+	Finished     bool       `json:"finished"`
+	WinnerTeamID *uuid.UUID `json:"winner_team_id"`
 }
 
 // FinishedResponse reports whether a match or tournament is complete.

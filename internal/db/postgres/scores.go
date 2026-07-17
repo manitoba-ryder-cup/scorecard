@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres/internal/sqlc"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/travisbale/knowhere/identity"
@@ -59,7 +60,7 @@ func (s *ScoresDB) SaveScore(ctx context.Context, score golf.Score) error {
 	})
 }
 
-func (s *ScoresDB) ListScoresByMatch(ctx context.Context, matchID int32) ([]golf.Score, error) {
+func (s *ScoresDB) ListScoresByMatch(ctx context.Context, matchID uuid.UUID) ([]golf.Score, error) {
 	tenantID, err := identity.GetTenant(ctx)
 	if err != nil {
 		return nil, err

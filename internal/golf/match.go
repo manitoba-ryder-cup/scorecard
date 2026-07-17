@@ -3,6 +3,8 @@ package golf
 import (
 	"context"
 	"fmt"
+
+	"github.com/google/uuid"
 )
 
 // MatchService owns match scoring: computing the live progression, and recomputing
@@ -22,13 +24,13 @@ type MatchService struct {
 type ScoreEntry struct {
 	HoleNumber int32
 	Strokes    int32
-	TeamID     int32
-	PlayerID   *int32
+	TeamID     uuid.UUID
+	PlayerID   *uuid.UUID
 }
 
 // SubmitScore persists one hole score, then recomputes the match's materialized
 // result — the single write path that keeps match_results in sync.
-func (s *MatchService) SubmitScore(ctx context.Context, matchID int32, entry ScoreEntry) error {
+func (s *MatchService) SubmitScore(ctx context.Context, matchID uuid.UUID, entry ScoreEntry) error {
 	match, err := s.MatchDB.GetMatch(ctx, matchID)
 	if err != nil {
 		return fmt.Errorf("failed to get match: %w", err)
@@ -40,7 +42,7 @@ func (s *MatchService) SubmitScore(ctx context.Context, matchID int32, entry Sco
 		return err
 	}
 	if !ok || (entry.TeamID != teamA && entry.TeamID != teamB) {
-		return fmt.Errorf("%w: team %d is not in match %d", ErrInvalidInput, entry.TeamID, matchID)
+		return fmt.Errorf("%w: team %s is not in match %s", ErrInvalidInput, entry.TeamID, matchID)
 	}
 
 	// Course/tee come from the match — the score's holes constraint keys off them.
@@ -60,7 +62,7 @@ func (s *MatchService) SubmitScore(ctx context.Context, matchID int32, entry Sco
 }
 
 // CalculateMatchScores computes the live hole-by-hole match-play progression.
-func (s *MatchService) CalculateMatchScores(ctx context.Context, matchID int32) ([]HoleResult, error) {
+func (s *MatchService) CalculateMatchScores(ctx context.Context, matchID uuid.UUID) ([]HoleResult, error) {
 	teamA, teamB, ok, err := s.matchTeams(ctx, matchID)
 	if err != nil {
 		return nil, err
@@ -77,7 +79,7 @@ func (s *MatchService) CalculateMatchScores(ctx context.Context, matchID int32) 
 
 // RecomputeResult recomputes a match's result from its scores and persists it to
 // match_results. Called after any score write for the match.
-func (s *MatchService) RecomputeResult(ctx context.Context, matchID int32) error {
+func (s *MatchService) RecomputeResult(ctx context.Context, matchID uuid.UUID) error {
 	match, err := s.MatchDB.GetMatch(ctx, matchID)
 	if err != nil {
 		return fmt.Errorf("failed to get match: %w", err)
@@ -98,7 +100,7 @@ func (s *MatchService) RecomputeResult(ctx context.Context, matchID int32) error
 }
 
 // IsFinished reports whether the match is complete, from the stored result.
-func (s *MatchService) IsFinished(ctx context.Context, matchID int32) (bool, error) {
+func (s *MatchService) IsFinished(ctx context.Context, matchID uuid.UUID) (bool, error) {
 	r, err := s.ResultDB.GetMatchResult(ctx, matchID)
 	if err != nil {
 		return false, fmt.Errorf("failed to get match result: %w", err)
@@ -107,7 +109,7 @@ func (s *MatchService) IsFinished(ctx context.Context, matchID int32) (bool, err
 }
 
 // GetWinner returns the winning team's ID, or nil if the match is undecided.
-func (s *MatchService) GetWinner(ctx context.Context, matchID int32) (*int32, error) {
+func (s *MatchService) GetWinner(ctx context.Context, matchID uuid.UUID) (*uuid.UUID, error) {
 	r, err := s.ResultDB.GetMatchResult(ctx, matchID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get match result: %w", err)
@@ -119,12 +121,12 @@ func (s *MatchService) GetWinner(ctx context.Context, matchID int32) (*int32, er
 }
 
 // matchTeams returns the two distinct team IDs among a match's participants.
-func (s *MatchService) matchTeams(ctx context.Context, matchID int32) (int32, int32, bool, error) {
+func (s *MatchService) matchTeams(ctx context.Context, matchID uuid.UUID) (uuid.UUID, uuid.UUID, bool, error) {
 	ps, err := s.ParticipantDB.ListMatchParticipants(ctx, matchID)
 	if err != nil {
-		return 0, 0, false, fmt.Errorf("failed to list participants: %w", err)
+		return uuid.Nil, uuid.Nil, false, fmt.Errorf("failed to list participants: %w", err)
 	}
-	var ids []int32
+	var ids []uuid.UUID
 	for _, p := range ps {
 		seen := false
 		for _, id := range ids {
@@ -137,7 +139,7 @@ func (s *MatchService) matchTeams(ctx context.Context, matchID int32) (int32, in
 		}
 	}
 	if len(ids) != 2 {
-		return 0, 0, false, nil
+		return uuid.Nil, uuid.Nil, false, nil
 	}
 	return ids[0], ids[1], true, nil
 }

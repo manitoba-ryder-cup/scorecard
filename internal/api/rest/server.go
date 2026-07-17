@@ -93,6 +93,10 @@ func NewServer(config *Config) *Server {
 	public("GET", "/v1/tournaments/{id}/winner", tournamentsHandler.GetTournamentWinner)
 	public("GET", "/v1/tournaments/{id}/status", tournamentsHandler.GetTournamentStatus)
 
+	// Team draft routes
+	public("GET", "/v1/teams/{id}/members", rosterHandler.ListTeamMembers)
+	scoped("POST", "/v1/teams/{id}/members", sdk.ScopeTournamentsWrite, rosterHandler.DraftPlayer)
+
 	// Global middleware chain. Assembled inner-to-outer, so recoverMiddleware is
 	// outermost (wraps everything) and RequestID runs before ClientIP/UserAgent.
 	var handler http.Handler = mux

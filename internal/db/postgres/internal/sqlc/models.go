@@ -11,14 +11,14 @@ import (
 )
 
 type Course struct {
-	ID       int32     `json:"id"`
+	ID       uuid.UUID `json:"id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 	Name     string    `json:"name"`
 }
 
 type Hole struct {
-	CourseID   int32     `json:"course_id"`
-	TeeColorID int32     `json:"tee_color_id"`
+	CourseID   uuid.UUID `json:"course_id"`
+	TeeColorID uuid.UUID `json:"tee_color_id"`
 	Number     int32     `json:"number"`
 	TenantID   uuid.UUID `json:"tenant_id"`
 	Par        int32     `json:"par"`
@@ -27,11 +27,11 @@ type Hole struct {
 }
 
 type Match struct {
-	ID            int32      `json:"id"`
-	TournamentID  int32      `json:"tournament_id"`
-	CourseID      int32      `json:"course_id"`
-	TeeColorID    int32      `json:"tee_color_id"`
-	MatchFormatID int32      `json:"match_format_id"`
+	ID            uuid.UUID  `json:"id"`
+	TournamentID  uuid.UUID  `json:"tournament_id"`
+	CourseID      uuid.UUID  `json:"course_id"`
+	TeeColorID    uuid.UUID  `json:"tee_color_id"`
+	MatchFormatID uuid.UUID  `json:"match_format_id"`
 	TenantID      uuid.UUID  `json:"tenant_id"`
 	TeeTime       *time.Time `json:"tee_time"`
 	Handicapped   bool       `json:"handicapped"`
@@ -40,31 +40,31 @@ type Match struct {
 }
 
 type MatchFormat struct {
-	ID   int32  `json:"id"`
-	Name string `json:"name"`
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
 }
 
 type MatchParticipant struct {
-	TournamentID int32     `json:"tournament_id"`
-	MatchID      int32     `json:"match_id"`
-	PlayerID     int32     `json:"player_id"`
-	TeamID       int32     `json:"team_id"`
+	TournamentID uuid.UUID `json:"tournament_id"`
+	MatchID      uuid.UUID `json:"match_id"`
+	PlayerID     uuid.UUID `json:"player_id"`
+	TeamID       uuid.UUID `json:"team_id"`
 	TenantID     uuid.UUID `json:"tenant_id"`
 }
 
 type MatchResult struct {
-	MatchID        int32     `json:"match_id"`
-	TournamentID   int32     `json:"tournament_id"`
-	TenantID       uuid.UUID `json:"tenant_id"`
-	Finished       bool      `json:"finished"`
-	LeaderTeamID   *int32    `json:"leader_team_id"`
-	Lead           int32     `json:"lead"`
-	HolesRemaining int32     `json:"holes_remaining"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	MatchID        uuid.UUID  `json:"match_id"`
+	TournamentID   uuid.UUID  `json:"tournament_id"`
+	TenantID       uuid.UUID  `json:"tenant_id"`
+	Finished       bool       `json:"finished"`
+	LeaderTeamID   *uuid.UUID `json:"leader_team_id"`
+	Lead           int32      `json:"lead"`
+	HolesRemaining int32      `json:"holes_remaining"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
 type Player struct {
-	ID        int32      `json:"id"`
+	ID        uuid.UUID  `json:"id"`
 	TenantID  uuid.UUID  `json:"tenant_id"`
 	UserID    *uuid.UUID `json:"user_id"`
 	Email     *string    `json:"email"`
@@ -76,50 +76,50 @@ type Player struct {
 }
 
 type Score struct {
-	ID         int32     `json:"id"`
-	MatchID    int32     `json:"match_id"`
-	TeamID     int32     `json:"team_id"`
-	PlayerID   *int32    `json:"player_id"`
-	CourseID   int32     `json:"course_id"`
-	TeeColorID int32     `json:"tee_color_id"`
-	HoleNumber int32     `json:"hole_number"`
-	TenantID   uuid.UUID `json:"tenant_id"`
-	Strokes    int32     `json:"strokes"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ID         uuid.UUID  `json:"id"`
+	MatchID    uuid.UUID  `json:"match_id"`
+	TeamID     uuid.UUID  `json:"team_id"`
+	PlayerID   *uuid.UUID `json:"player_id"`
+	CourseID   uuid.UUID  `json:"course_id"`
+	TeeColorID uuid.UUID  `json:"tee_color_id"`
+	HoleNumber int32      `json:"hole_number"`
+	TenantID   uuid.UUID  `json:"tenant_id"`
+	Strokes    int32      `json:"strokes"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
 }
 
 type Team struct {
-	ID           int32     `json:"id"`
-	TenantID     uuid.UUID `json:"tenant_id"`
-	TournamentID int32     `json:"tournament_id"`
-	Color        string    `json:"color"`
-	CaptainID    *int32    `json:"captain_id"`
+	ID           uuid.UUID  `json:"id"`
+	TenantID     uuid.UUID  `json:"tenant_id"`
+	TournamentID uuid.UUID  `json:"tournament_id"`
+	Color        string     `json:"color"`
+	CaptainID    *uuid.UUID `json:"captain_id"`
 }
 
 type TeamMember struct {
-	TeamID       int32     `json:"team_id"`
-	PlayerID     int32     `json:"player_id"`
-	TournamentID int32     `json:"tournament_id"`
+	TeamID       uuid.UUID `json:"team_id"`
+	PlayerID     uuid.UUID `json:"player_id"`
+	TournamentID uuid.UUID `json:"tournament_id"`
 	TenantID     uuid.UUID `json:"tenant_id"`
 }
 
 type TeeColor struct {
-	ID       int32     `json:"id"`
+	ID       uuid.UUID `json:"id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 	Color    string    `json:"color"`
 }
 
 type TeeSet struct {
-	CourseID   int32     `json:"course_id"`
-	TeeColorID int32     `json:"tee_color_id"`
+	CourseID   uuid.UUID `json:"course_id"`
+	TeeColorID uuid.UUID `json:"tee_color_id"`
 	TenantID   uuid.UUID `json:"tenant_id"`
 	Slope      int32     `json:"slope"`
 	Rating     float64   `json:"rating"`
 }
 
 type Tournament struct {
-	ID        int32     `json:"id"`
+	ID        uuid.UUID `json:"id"`
 	TenantID  uuid.UUID `json:"tenant_id"`
 	Name      string    `json:"name"`
 	StartDate time.Time `json:"start_date"`
@@ -130,8 +130,8 @@ type Tournament struct {
 }
 
 type TournamentPlayer struct {
-	TournamentID int32     `json:"tournament_id"`
-	PlayerID     int32     `json:"player_id"`
+	TournamentID uuid.UUID `json:"tournament_id"`
+	PlayerID     uuid.UUID `json:"player_id"`
 	TenantID     uuid.UUID `json:"tenant_id"`
 	Tier         string    `json:"tier"`
 	Biography    string    `json:"biography"`

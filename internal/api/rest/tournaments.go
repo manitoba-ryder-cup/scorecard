@@ -5,17 +5,18 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
 type TournamentService interface {
-	GetTournament(ctx context.Context, tournamentID int32) (*golf.Tournament, error)
+	GetTournament(ctx context.Context, tournamentID uuid.UUID) (*golf.Tournament, error)
 	ListTournaments(ctx context.Context) ([]golf.Tournament, error)
 	CreateTournament(ctx context.Context, in golf.CreateTournamentInput) (*golf.Tournament, error)
-	IsFinished(ctx context.Context, tournamentID int32) (bool, error)
-	GetWinningTeam(ctx context.Context, tournamentID int32) (*int32, error)
-	GetTeamsData(ctx context.Context, tournamentID int32) ([]golf.TeamData, error)
+	IsFinished(ctx context.Context, tournamentID uuid.UUID) (bool, error)
+	GetWinningTeam(ctx context.Context, tournamentID uuid.UUID) (*uuid.UUID, error)
+	GetTeamsData(ctx context.Context, tournamentID uuid.UUID) ([]golf.TeamData, error)
 }
 
 type TournamentsHandler struct {
@@ -74,7 +75,7 @@ func (h *TournamentsHandler) CreateTournament(w http.ResponseWriter, r *http.Req
 
 // GET /v1/tournaments/{id}
 func (h *TournamentsHandler) GetTournament(w http.ResponseWriter, r *http.Request) {
-	id, err := pathInt(r, "id")
+	id, err := pathUUID(r, "id")
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid tournament ID", err)
 		return
@@ -90,7 +91,7 @@ func (h *TournamentsHandler) GetTournament(w http.ResponseWriter, r *http.Reques
 
 // GET /v1/tournaments/{id}/teams
 func (h *TournamentsHandler) GetTournamentTeams(w http.ResponseWriter, r *http.Request) {
-	id, err := pathInt(r, "id")
+	id, err := pathUUID(r, "id")
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid tournament ID", err)
 		return
@@ -105,7 +106,7 @@ func (h *TournamentsHandler) GetTournamentTeams(w http.ResponseWriter, r *http.R
 
 // GET /v1/tournaments/{id}/winner
 func (h *TournamentsHandler) GetTournamentWinner(w http.ResponseWriter, r *http.Request) {
-	id, err := pathInt(r, "id")
+	id, err := pathUUID(r, "id")
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid tournament ID", err)
 		return
@@ -125,7 +126,7 @@ func (h *TournamentsHandler) GetTournamentWinner(w http.ResponseWriter, r *http.
 
 // GET /v1/tournaments/{id}/status
 func (h *TournamentsHandler) GetTournamentStatus(w http.ResponseWriter, r *http.Request) {
-	id, err := pathInt(r, "id")
+	id, err := pathUUID(r, "id")
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid tournament ID", err)
 		return

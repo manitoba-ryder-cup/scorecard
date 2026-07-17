@@ -38,7 +38,7 @@ WHERE id = $1 AND tenant_id = $2
 `
 
 type DeleteCourseParams struct {
-	ID       int32     `json:"id"`
+	ID       uuid.UUID `json:"id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
@@ -53,7 +53,7 @@ WHERE id = $1 AND tenant_id = $2
 `
 
 type GetCourseParams struct {
-	ID       int32     `json:"id"`
+	ID       uuid.UUID `json:"id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
@@ -115,7 +115,7 @@ RETURNING id, tenant_id, name
 `
 
 type UpdateCourseParams struct {
-	ID       int32     `json:"id"`
+	ID       uuid.UUID `json:"id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 	Name     string    `json:"name"`
 }

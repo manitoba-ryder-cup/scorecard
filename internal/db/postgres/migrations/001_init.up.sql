@@ -1,11 +1,12 @@
--- tenant_id / user_id UUIDs are supplied by the application (from the JWT), never
--- generated in-database, so no uuid extension is needed — which also lets the
--- non-superuser application role run these migrations (CREATE EXTENSION needs
--- superuser; RLS requires the app role NOT be a superuser).
+-- All primary keys are UUIDs (gen_random_uuid(), built into Postgres 13+, no
+-- extension needed) so scorecard uses one ID convention everywhere and exposes
+-- non-enumerable identifiers. tenant_id / user_id are also UUIDs, supplied by the
+-- application from the JWT (heimdall). Non-ID integers (hole numbers, par, slope,
+-- strokes, lead) stay integers.
 
 -- Create tee_colors table
 CREATE TABLE tee_colors (
-    id SERIAL,
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     color VARCHAR(32) NOT NULL,
     CONSTRAINT pk__tee_colors PRIMARY KEY (id),
@@ -14,7 +15,7 @@ CREATE TABLE tee_colors (
 
 -- Create courses table
 CREATE TABLE courses (
-    id SERIAL,
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     name VARCHAR(255) NOT NULL,
     CONSTRAINT pk__courses PRIMARY KEY (id),
@@ -23,8 +24,8 @@ CREATE TABLE courses (
 
 -- Create tee_sets table (composite PK with course_id and tee_color_id)
 CREATE TABLE tee_sets (
-    course_id INTEGER NOT NULL,
-    tee_color_id INTEGER NOT NULL,
+    course_id UUID NOT NULL,
+    tee_color_id UUID NOT NULL,
     tenant_id UUID NOT NULL,
     slope INTEGER NOT NULL,
     rating NUMERIC(4, 1) NOT NULL,
@@ -36,8 +37,8 @@ CREATE TABLE tee_sets (
 
 -- Create holes table (composite PK with course_id, tee_color_id, number)
 CREATE TABLE holes (
-    course_id INTEGER NOT NULL,
-    tee_color_id INTEGER NOT NULL,
+    course_id UUID NOT NULL,
+    tee_color_id UUID NOT NULL,
     number INTEGER NOT NULL,
     tenant_id UUID NOT NULL,
     par INTEGER NOT NULL,
@@ -57,12 +58,12 @@ CREATE TABLE holes (
 
 -- Players hold stable identity only; win/loss/tie records are derived on read from
 -- match_results (never stored, so they can't go stale). Per-tournament attributes
--- (tier, biography, handicap) live on team_members, since they change year to year.
--- user_id links to a heimdall account when one exists; it is a distinct identifier
--- from players.id on purpose — the two services must not share an ID space, and
--- roster-only players (no login) simply leave it NULL.
+-- (tier, biography, handicap) live on tournament_players, since they change year to
+-- year. user_id links to a heimdall account when one exists; it is a distinct
+-- identifier from players.id on purpose — the two services must not share an ID
+-- space, and roster-only players (no login) simply leave it NULL.
 CREATE TABLE players (
-    id SERIAL,
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     user_id UUID,                        -- heimdall user; NULL for roster-only players
     email VARCHAR(255),                  -- optional contact; identity lives in heimdall
@@ -80,7 +81,7 @@ CREATE TABLE players (
 
 -- Create tournaments table (before teams, which reference it)
 CREATE TABLE tournaments (
-    id SERIAL,
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     name VARCHAR(255) NOT NULL,
     start_date DATE NOT NULL,
@@ -98,11 +99,11 @@ CREATE TABLE tournaments (
 -- Red and one Blue. captain_id is a first-class nullable FK to a player (the app
 -- additionally requires the captain to be a member of the team).
 CREATE TABLE teams (
-    id SERIAL,
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
-    tournament_id INTEGER NOT NULL,
+    tournament_id UUID NOT NULL,
     color VARCHAR(16) NOT NULL,
-    captain_id INTEGER,
+    captain_id UUID,
     CONSTRAINT pk__teams PRIMARY KEY (id),
     CONSTRAINT fk__teams__tournament_id__tournaments
         FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
@@ -119,8 +120,8 @@ CREATE TABLE teams (
 -- draft. Team assignment lives separately in team_members; these attributes do not
 -- depend on a team existing yet.
 CREATE TABLE tournament_players (
-    tournament_id INTEGER NOT NULL,
-    player_id INTEGER NOT NULL,
+    tournament_id UUID NOT NULL,
+    player_id UUID NOT NULL,
     tenant_id UUID NOT NULL,
     tier VARCHAR(32) NOT NULL DEFAULT 'white',
     biography TEXT NOT NULL DEFAULT '',
@@ -140,9 +141,9 @@ CREATE TABLE tournament_players (
 -- teams keeps tournament_id honest; UNIQUE(tournament_id, player_id) caps a player at
 -- one side per tournament.
 CREATE TABLE team_members (
-    team_id INTEGER NOT NULL,
-    player_id INTEGER NOT NULL,
-    tournament_id INTEGER NOT NULL,
+    team_id UUID NOT NULL,
+    player_id UUID NOT NULL,
+    tournament_id UUID NOT NULL,
     tenant_id UUID NOT NULL,
     CONSTRAINT pk__team_members PRIMARY KEY (team_id, player_id),
     CONSTRAINT fk__team_members__team_id_tournament_id__teams
@@ -160,7 +161,7 @@ CREATE TABLE team_members (
 -- implemented in the application, so they are global (no tenant_id, no RLS) and
 -- seeded (see 002_seed_match_formats) rather than created by users.
 CREATE TABLE match_formats (
-    id SERIAL,
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     CONSTRAINT pk__match_formats PRIMARY KEY (id),
     CONSTRAINT uq__match_formats__name UNIQUE (name)
@@ -168,11 +169,11 @@ CREATE TABLE match_formats (
 
 -- Create matches table (with composite unique constraints for foreign keys)
 CREATE TABLE matches (
-    id SERIAL,
-    tournament_id INTEGER NOT NULL,
-    course_id INTEGER NOT NULL,
-    tee_color_id INTEGER NOT NULL,
-    match_format_id INTEGER NOT NULL,
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    tournament_id UUID NOT NULL,
+    course_id UUID NOT NULL,
+    tee_color_id UUID NOT NULL,
+    match_format_id UUID NOT NULL,
     tenant_id UUID NOT NULL,
     tee_time TIMESTAMPTZ,
     handicapped BOOLEAN NOT NULL DEFAULT FALSE,
@@ -206,10 +207,10 @@ CREATE TABLE matches (
 -- match's tournament (team_id, tournament_id -> teams). The direct player FK is
 -- RESTRICT so a player who has played in a match cannot be deleted.
 CREATE TABLE match_participants (
-    tournament_id INTEGER NOT NULL,
-    match_id INTEGER NOT NULL,
-    player_id INTEGER NOT NULL,
-    team_id INTEGER NOT NULL,
+    tournament_id UUID NOT NULL,
+    match_id UUID NOT NULL,
+    player_id UUID NOT NULL,
+    team_id UUID NOT NULL,
     tenant_id UUID NOT NULL,
     CONSTRAINT pk__match_participants PRIMARY KEY (match_id, player_id),
     CONSTRAINT fk__match_participants__tournament_id_match_id__matches
@@ -233,12 +234,12 @@ CREATE TABLE match_participants (
 -- scramble, mod-scotch) record one row per team per hole (player_id NULL), which
 -- keeps them out of individual stats. Partial unique indexes enforce the two grains.
 CREATE TABLE scores (
-    id SERIAL,
-    match_id INTEGER NOT NULL,
-    team_id INTEGER NOT NULL,
-    player_id INTEGER,                   -- NULL for one-ball team scores
-    course_id INTEGER NOT NULL,
-    tee_color_id INTEGER NOT NULL,
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    match_id UUID NOT NULL,
+    team_id UUID NOT NULL,
+    player_id UUID,                      -- NULL for one-ball team scores
+    course_id UUID NOT NULL,
+    tee_color_id UUID NOT NULL,
     hole_number INTEGER NOT NULL,
     tenant_id UUID NOT NULL,
     strokes INTEGER NOT NULL,
@@ -278,11 +279,11 @@ CREATE TABLE scores (
 -- leader_team_id is the current leader (NULL = all square); the winner is
 -- leader_team_id once finished.
 CREATE TABLE match_results (
-    match_id INTEGER NOT NULL,
-    tournament_id INTEGER NOT NULL,
+    match_id UUID NOT NULL,
+    tournament_id UUID NOT NULL,
     tenant_id UUID NOT NULL,
     finished BOOLEAN NOT NULL DEFAULT FALSE,
-    leader_team_id INTEGER,
+    leader_team_id UUID,
     lead INTEGER NOT NULL DEFAULT 0,
     holes_remaining INTEGER NOT NULL DEFAULT 0,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),

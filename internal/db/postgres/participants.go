@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres/internal/sqlc"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/travisbale/knowhere/identity"
@@ -17,7 +18,7 @@ func NewParticipantsDB(db *DB) *ParticipantsDB {
 	return &ParticipantsDB{db: db}
 }
 
-func (p *ParticipantsDB) ListMatchParticipants(ctx context.Context, matchID int32) ([]golf.MatchParticipant, error) {
+func (p *ParticipantsDB) ListMatchParticipants(ctx context.Context, matchID uuid.UUID) ([]golf.MatchParticipant, error) {
 	tenantID, err := identity.GetTenant(ctx)
 	if err != nil {
 		return nil, err

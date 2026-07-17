@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
@@ -13,7 +14,7 @@ type CourseService interface {
 	CreateTeeColor(ctx context.Context, in golf.CreateTeeColorInput) (*golf.TeeColor, error)
 	ListTeeColors(ctx context.Context) ([]golf.TeeColor, error)
 	CreateCourse(ctx context.Context, in golf.CreateCourseInput) (*golf.Course, error)
-	GetCourse(ctx context.Context, id int32) (*golf.Course, error)
+	GetCourse(ctx context.Context, id uuid.UUID) (*golf.Course, error)
 	ListCourses(ctx context.Context) ([]golf.Course, error)
 	CreateTeeSet(ctx context.Context, in golf.CreateTeeSetInput) (*golf.TeeSetWithHoles, error)
 }
@@ -67,7 +68,7 @@ func (h *CoursesHandler) ListCourses(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/courses/{id}
 func (h *CoursesHandler) GetCourse(w http.ResponseWriter, r *http.Request) {
-	id, err := pathInt(r, "id")
+	id, err := pathUUID(r, "id")
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid course ID", err)
 		return
@@ -82,7 +83,7 @@ func (h *CoursesHandler) GetCourse(w http.ResponseWriter, r *http.Request) {
 
 // POST /v1/courses/{id}/tees
 func (h *CoursesHandler) AddTeeSet(w http.ResponseWriter, r *http.Request) {
-	courseID, err := pathInt(r, "id")
+	courseID, err := pathUUID(r, "id")
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid course ID", err)
 		return

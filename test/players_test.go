@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 	util "github.com/manitoba-ryder-cup/scorecard/test/_util"
 	"github.com/manitoba-ryder-cup/scorecard/test/_util/request"
@@ -22,7 +23,7 @@ func TestCreatePlayerAndReadBack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create player: %v", err)
 	}
-	if created.ID == 0 || created.FirstName != "Dustin" || created.LastName != "Johnson" {
+	if created.ID == uuid.Nil || created.FirstName != "Dustin" || created.LastName != "Johnson" {
 		t.Fatalf("unexpected player: %+v", created)
 	}
 
@@ -118,7 +119,7 @@ func TestAnonymousReadUsesPublicTenant(t *testing.T) {
 func TestGetNonexistentPlayerReturns404(t *testing.T) {
 	client := freshClient(t)
 
-	_, err := client.GetPlayer(context.Background(), 999999)
+	_, err := client.GetPlayer(context.Background(), uuid.New())
 	var apiErr *sdk.APIError
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
 		t.Fatalf("want 404 APIError, got %v", err)

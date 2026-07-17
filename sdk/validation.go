@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // DateFormat is the wire format for date-only fields (ISO-8601 calendar date).
@@ -60,7 +62,7 @@ const maxTierLen = 32
 
 // Validate checks a tournament-entry request: a player reference and a tier that fits.
 func (r EnterTournamentPlayerRequest) Validate(ctx context.Context) error {
-	if r.PlayerID <= 0 {
+	if r.PlayerID == uuid.Nil {
 		return fmt.Errorf("player_id is required")
 	}
 	if len(r.Tier) > maxTierLen {
@@ -77,10 +79,18 @@ func (r UpdateTournamentPlayerRequest) Validate(ctx context.Context) error {
 	return nil
 }
 
+// Validate checks a draft request: a player reference is required.
+func (r DraftPlayerRequest) Validate(ctx context.Context) error {
+	if r.PlayerID == uuid.Nil {
+		return fmt.Errorf("player_id is required")
+	}
+	return nil
+}
+
 // Validate checks a tee-set creation request: valid slope/rating and exactly 18
 // holes forming complete, non-duplicated hole-number and stroke-index (hdcp) sets.
 func (r CreateTeeSetRequest) Validate(ctx context.Context) error {
-	if r.TeeColorID <= 0 {
+	if r.TeeColorID == uuid.Nil {
 		return fmt.Errorf("tee_color_id is required")
 	}
 	if r.Slope < 55 || r.Slope > 155 {

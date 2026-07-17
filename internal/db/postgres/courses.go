@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres/internal/sqlc"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/travisbale/knowhere/identity"
@@ -36,7 +37,7 @@ func (c *CoursesDB) CreateCourse(ctx context.Context, in golf.CreateCourseInput)
 	return result, err
 }
 
-func (c *CoursesDB) GetCourse(ctx context.Context, id int32) (*golf.Course, error) {
+func (c *CoursesDB) GetCourse(ctx context.Context, id uuid.UUID) (*golf.Course, error) {
 	tenantID, err := identity.GetTenant(ctx)
 	if err != nil {
 		return nil, err

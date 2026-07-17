@@ -14,30 +14,48 @@ import (
 
 const createTournamentPlayer = `-- name: CreateTournamentPlayer :one
 
-INSERT INTO tournament_players (
-    tournament_id,
-    player_id,
-    tenant_id,
-    tier,
-    biography,
-    hdcp
-) VALUES (
-    $1, $2, $3, $4, $5, $6
-) RETURNING tournament_id, player_id, tenant_id, tier, biography, hdcp, created_at, updated_at
+WITH ins AS (
+    INSERT INTO tournament_players (tournament_id, player_id, tenant_id, tier, biography, hdcp)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    RETURNING tournament_id, player_id, tenant_id, tier, biography, hdcp, created_at, updated_at
+)
+SELECT ins.tournament_id, ins.player_id, ins.tenant_id, ins.tier, ins.biography, ins.hdcp, ins.created_at, ins.updated_at, p.first_name, p.last_name, p.email, p.photo_path, tm.team_id
+FROM ins
+JOIN players p ON ins.player_id = p.id
+LEFT JOIN team_members tm ON tm.tournament_id = ins.tournament_id AND tm.player_id = ins.player_id
 `
 
 type CreateTournamentPlayerParams struct {
-	TournamentID int32     `json:"tournament_id"`
-	PlayerID     int32     `json:"player_id"`
+	TournamentID uuid.UUID `json:"tournament_id"`
+	PlayerID     uuid.UUID `json:"player_id"`
 	TenantID     uuid.UUID `json:"tenant_id"`
 	Tier         string    `json:"tier"`
 	Biography    string    `json:"biography"`
 	Hdcp         float32   `json:"hdcp"`
 }
 
+type CreateTournamentPlayerRow struct {
+	TournamentID uuid.UUID  `json:"tournament_id"`
+	PlayerID     uuid.UUID  `json:"player_id"`
+	TenantID     uuid.UUID  `json:"tenant_id"`
+	Tier         string     `json:"tier"`
+	Biography    string     `json:"biography"`
+	Hdcp         float32    `json:"hdcp"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	FirstName    string     `json:"first_name"`
+	LastName     string     `json:"last_name"`
+	Email        *string    `json:"email"`
+	PhotoPath    string     `json:"photo_path"`
+	TeamID       *uuid.UUID `json:"team_id"`
+}
+
 // tournament_players holds a player's per-tournament attributes (tier, biography,
-// handicap), set independently of the team draft.
-func (q *Queries) CreateTournamentPlayer(ctx context.Context, arg CreateTournamentPlayerParams) (TournamentPlayer, error) {
+// handicap), set independently of the team draft. All reads/writes return the same
+// enriched shape: the entry plus the player's identity and team assignment (team_id
+// NULL when entered but undrafted).
+// CreateTournamentPlayer inserts the entry and returns it enriched with identity/team.
+func (q *Queries) CreateTournamentPlayer(ctx context.Context, arg CreateTournamentPlayerParams) (CreateTournamentPlayerRow, error) {
 	row := q.db.QueryRow(ctx, createTournamentPlayer,
 		arg.TournamentID,
 		arg.PlayerID,
@@ -46,7 +64,7 @@ func (q *Queries) CreateTournamentPlayer(ctx context.Context, arg CreateTourname
 		arg.Biography,
 		arg.Hdcp,
 	)
-	var i TournamentPlayer
+	var i CreateTournamentPlayerRow
 	err := row.Scan(
 		&i.TournamentID,
 		&i.PlayerID,
@@ -56,6 +74,11 @@ func (q *Queries) CreateTournamentPlayer(ctx context.Context, arg CreateTourname
 		&i.Hdcp,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.FirstName,
+		&i.LastName,
+		&i.Email,
+		&i.PhotoPath,
+		&i.TeamID,
 	)
 	return i, err
 }
@@ -66,8 +89,8 @@ WHERE tournament_id = $1 AND player_id = $2 AND tenant_id = $3
 `
 
 type DeleteTournamentPlayerParams struct {
-	TournamentID int32     `json:"tournament_id"`
-	PlayerID     int32     `json:"player_id"`
+	TournamentID uuid.UUID `json:"tournament_id"`
+	PlayerID     uuid.UUID `json:"player_id"`
 	TenantID     uuid.UUID `json:"tenant_id"`
 }
 
@@ -76,61 +99,37 @@ func (q *Queries) DeleteTournamentPlayer(ctx context.Context, arg DeleteTourname
 	return err
 }
 
-const getTournamentPlayer = `-- name: GetTournamentPlayer :one
-SELECT tournament_id, player_id, tenant_id, tier, biography, hdcp, created_at, updated_at FROM tournament_players
-WHERE tournament_id = $1 AND player_id = $2 AND tenant_id = $3
-`
-
-type GetTournamentPlayerParams struct {
-	TournamentID int32     `json:"tournament_id"`
-	PlayerID     int32     `json:"player_id"`
-	TenantID     uuid.UUID `json:"tenant_id"`
-}
-
-func (q *Queries) GetTournamentPlayer(ctx context.Context, arg GetTournamentPlayerParams) (TournamentPlayer, error) {
-	row := q.db.QueryRow(ctx, getTournamentPlayer, arg.TournamentID, arg.PlayerID, arg.TenantID)
-	var i TournamentPlayer
-	err := row.Scan(
-		&i.TournamentID,
-		&i.PlayerID,
-		&i.TenantID,
-		&i.Tier,
-		&i.Biography,
-		&i.Hdcp,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const listTournamentPlayers = `-- name: ListTournamentPlayers :many
-SELECT tp.tournament_id, tp.player_id, tp.tenant_id, tp.tier, tp.biography, tp.hdcp, tp.created_at, tp.updated_at, p.first_name, p.last_name, p.email, p.photo_path
+SELECT tp.tournament_id, tp.player_id, tp.tenant_id, tp.tier, tp.biography, tp.hdcp, tp.created_at, tp.updated_at, p.first_name, p.last_name, p.email, p.photo_path, tm.team_id
 FROM tournament_players tp
 JOIN players p ON tp.player_id = p.id
+LEFT JOIN team_members tm ON tm.tournament_id = tp.tournament_id AND tm.player_id = tp.player_id
 WHERE tp.tournament_id = $1 AND tp.tenant_id = $2
 ORDER BY p.last_name, p.first_name
 `
 
 type ListTournamentPlayersParams struct {
-	TournamentID int32     `json:"tournament_id"`
+	TournamentID uuid.UUID `json:"tournament_id"`
 	TenantID     uuid.UUID `json:"tenant_id"`
 }
 
 type ListTournamentPlayersRow struct {
-	TournamentID int32     `json:"tournament_id"`
-	PlayerID     int32     `json:"player_id"`
-	TenantID     uuid.UUID `json:"tenant_id"`
-	Tier         string    `json:"tier"`
-	Biography    string    `json:"biography"`
-	Hdcp         float32   `json:"hdcp"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
-	FirstName    string    `json:"first_name"`
-	LastName     string    `json:"last_name"`
-	Email        *string   `json:"email"`
-	PhotoPath    string    `json:"photo_path"`
+	TournamentID uuid.UUID  `json:"tournament_id"`
+	PlayerID     uuid.UUID  `json:"player_id"`
+	TenantID     uuid.UUID  `json:"tenant_id"`
+	Tier         string     `json:"tier"`
+	Biography    string     `json:"biography"`
+	Hdcp         float32    `json:"hdcp"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	FirstName    string     `json:"first_name"`
+	LastName     string     `json:"last_name"`
+	Email        *string    `json:"email"`
+	PhotoPath    string     `json:"photo_path"`
+	TeamID       *uuid.UUID `json:"team_id"`
 }
 
+// ListTournamentPlayers returns every entered player, enriched.
 func (q *Queries) ListTournamentPlayers(ctx context.Context, arg ListTournamentPlayersParams) ([]ListTournamentPlayersRow, error) {
 	rows, err := q.db.Query(ctx, listTournamentPlayers, arg.TournamentID, arg.TenantID)
 	if err != nil {
@@ -153,6 +152,73 @@ func (q *Queries) ListTournamentPlayers(ctx context.Context, arg ListTournamentP
 			&i.LastName,
 			&i.Email,
 			&i.PhotoPath,
+			&i.TeamID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTournamentPlayersByTeam = `-- name: ListTournamentPlayersByTeam :many
+SELECT tp.tournament_id, tp.player_id, tp.tenant_id, tp.tier, tp.biography, tp.hdcp, tp.created_at, tp.updated_at, p.first_name, p.last_name, p.email, p.photo_path, tm.team_id
+FROM tournament_players tp
+JOIN players p ON tp.player_id = p.id
+JOIN team_members tm ON tm.tournament_id = tp.tournament_id AND tm.player_id = tp.player_id
+WHERE tm.team_id = $1 AND tp.tenant_id = $2
+ORDER BY p.last_name, p.first_name
+`
+
+type ListTournamentPlayersByTeamParams struct {
+	TeamID   uuid.UUID `json:"team_id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+}
+
+type ListTournamentPlayersByTeamRow struct {
+	TournamentID uuid.UUID `json:"tournament_id"`
+	PlayerID     uuid.UUID `json:"player_id"`
+	TenantID     uuid.UUID `json:"tenant_id"`
+	Tier         string    `json:"tier"`
+	Biography    string    `json:"biography"`
+	Hdcp         float32   `json:"hdcp"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	FirstName    string    `json:"first_name"`
+	LastName     string    `json:"last_name"`
+	Email        *string   `json:"email"`
+	PhotoPath    string    `json:"photo_path"`
+	TeamID       uuid.UUID `json:"team_id"`
+}
+
+// ListTournamentPlayersByTeam returns the same rows filtered to one team's drafted
+// players.
+func (q *Queries) ListTournamentPlayersByTeam(ctx context.Context, arg ListTournamentPlayersByTeamParams) ([]ListTournamentPlayersByTeamRow, error) {
+	rows, err := q.db.Query(ctx, listTournamentPlayersByTeam, arg.TeamID, arg.TenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTournamentPlayersByTeamRow{}
+	for rows.Next() {
+		var i ListTournamentPlayersByTeamRow
+		if err := rows.Scan(
+			&i.TournamentID,
+			&i.PlayerID,
+			&i.TenantID,
+			&i.Tier,
+			&i.Biography,
+			&i.Hdcp,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.FirstName,
+			&i.LastName,
+			&i.Email,
+			&i.PhotoPath,
+			&i.TeamID,
 		); err != nil {
 			return nil, err
 		}
@@ -165,22 +231,47 @@ func (q *Queries) ListTournamentPlayers(ctx context.Context, arg ListTournamentP
 }
 
 const updateTournamentPlayer = `-- name: UpdateTournamentPlayer :one
-UPDATE tournament_players
-SET tier = $4, biography = $5, hdcp = $6, updated_at = now()
-WHERE tournament_id = $1 AND player_id = $2 AND tenant_id = $3
-RETURNING tournament_id, player_id, tenant_id, tier, biography, hdcp, created_at, updated_at
+WITH upd AS (
+    UPDATE tournament_players
+    SET tier = $4, biography = $5, hdcp = $6, updated_at = now()
+    WHERE tournament_players.tournament_id = $1
+      AND tournament_players.player_id = $2
+      AND tournament_players.tenant_id = $3
+    RETURNING tournament_id, player_id, tenant_id, tier, biography, hdcp, created_at, updated_at
+)
+SELECT upd.tournament_id, upd.player_id, upd.tenant_id, upd.tier, upd.biography, upd.hdcp, upd.created_at, upd.updated_at, p.first_name, p.last_name, p.email, p.photo_path, tm.team_id
+FROM upd
+JOIN players p ON upd.player_id = p.id
+LEFT JOIN team_members tm ON tm.tournament_id = upd.tournament_id AND tm.player_id = upd.player_id
 `
 
 type UpdateTournamentPlayerParams struct {
-	TournamentID int32     `json:"tournament_id"`
-	PlayerID     int32     `json:"player_id"`
+	TournamentID uuid.UUID `json:"tournament_id"`
+	PlayerID     uuid.UUID `json:"player_id"`
 	TenantID     uuid.UUID `json:"tenant_id"`
 	Tier         string    `json:"tier"`
 	Biography    string    `json:"biography"`
 	Hdcp         float32   `json:"hdcp"`
 }
 
-func (q *Queries) UpdateTournamentPlayer(ctx context.Context, arg UpdateTournamentPlayerParams) (TournamentPlayer, error) {
+type UpdateTournamentPlayerRow struct {
+	TournamentID uuid.UUID  `json:"tournament_id"`
+	PlayerID     uuid.UUID  `json:"player_id"`
+	TenantID     uuid.UUID  `json:"tenant_id"`
+	Tier         string     `json:"tier"`
+	Biography    string     `json:"biography"`
+	Hdcp         float32    `json:"hdcp"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	FirstName    string     `json:"first_name"`
+	LastName     string     `json:"last_name"`
+	Email        *string    `json:"email"`
+	PhotoPath    string     `json:"photo_path"`
+	TeamID       *uuid.UUID `json:"team_id"`
+}
+
+// UpdateTournamentPlayer updates attributes and returns the enriched entry.
+func (q *Queries) UpdateTournamentPlayer(ctx context.Context, arg UpdateTournamentPlayerParams) (UpdateTournamentPlayerRow, error) {
 	row := q.db.QueryRow(ctx, updateTournamentPlayer,
 		arg.TournamentID,
 		arg.PlayerID,
@@ -189,7 +280,7 @@ func (q *Queries) UpdateTournamentPlayer(ctx context.Context, arg UpdateTourname
 		arg.Biography,
 		arg.Hdcp,
 	)
-	var i TournamentPlayer
+	var i UpdateTournamentPlayerRow
 	err := row.Scan(
 		&i.TournamentID,
 		&i.PlayerID,
@@ -199,6 +290,11 @@ func (q *Queries) UpdateTournamentPlayer(ctx context.Context, arg UpdateTourname
 		&i.Hdcp,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.FirstName,
+		&i.LastName,
+		&i.Email,
+		&i.PhotoPath,
+		&i.TeamID,
 	)
 	return i, err
 }

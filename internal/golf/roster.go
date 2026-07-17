@@ -3,21 +3,25 @@ package golf
 import (
 	"context"
 	"fmt"
+
+	"github.com/google/uuid"
 )
 
 // RosterService manages a tournament's roster: entering players with their
-// per-tournament attributes (tier, biography, handicap). The team draft
-// (team_members) is a separate concern handled elsewhere.
+// per-tournament attributes (tier, biography, handicap), and the team draft
+// (assigning entered players to teams).
 type RosterService struct {
 	TournamentPlayerDB tournamentPlayerDB
+	TeamDB             teamDB
+	TeamMemberDB       teamMemberDB
 	Logger             logger
 }
 
 // EnterPlayerInput is the intent to enter a player in a tournament (or update their
 // per-tournament attributes). Shape validation happens at the API boundary.
 type EnterPlayerInput struct {
-	TournamentID int32
-	PlayerID     int32
+	TournamentID uuid.UUID
+	PlayerID     uuid.UUID
 	Tier         string
 	Biography    string
 	Hdcp         float32
@@ -44,10 +48,35 @@ func (s *RosterService) UpdatePlayer(ctx context.Context, in EnterPlayerInput) (
 }
 
 // ListPlayers returns the tournament's entered players with their identity.
-func (s *RosterService) ListPlayers(ctx context.Context, tournamentID int32) ([]TournamentPlayerDetail, error) {
+func (s *RosterService) ListPlayers(ctx context.Context, tournamentID uuid.UUID) ([]TournamentPlayer, error) {
 	entries, err := s.TournamentPlayerDB.ListTournamentPlayers(ctx, tournamentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list tournament players: %w", err)
 	}
 	return entries, nil
+}
+
+// DraftPlayer assigns an entered player to a team. The tournament is derived from the
+// team (loaded first, so a bad team is a clean 404). Drafting a player who isn't
+// entered surfaces as ErrInvalidInput; a player already drafted, as ErrConflict.
+func (s *RosterService) DraftPlayer(ctx context.Context, teamID, playerID uuid.UUID) (*TeamMember, error) {
+	team, err := s.TeamDB.GetTeam(ctx, teamID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load team: %w", err)
+	}
+	member, err := s.TeamMemberDB.CreateTeamMember(ctx, teamID, playerID, team.TournamentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to draft player: %w", err)
+	}
+	return member, nil
+}
+
+// ListTeamMembers returns a team's drafted players with their identity — the same
+// roster entry shape, filtered server-side to one team.
+func (s *RosterService) ListTeamMembers(ctx context.Context, teamID uuid.UUID) ([]TournamentPlayer, error) {
+	members, err := s.TournamentPlayerDB.ListTournamentPlayersByTeam(ctx, teamID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list team members: %w", err)
+	}
+	return members, nil
 }

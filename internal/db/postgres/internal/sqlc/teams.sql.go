@@ -23,10 +23,10 @@ INSERT INTO teams (
 `
 
 type CreateTeamParams struct {
-	TenantID     uuid.UUID `json:"tenant_id"`
-	TournamentID int32     `json:"tournament_id"`
-	Color        string    `json:"color"`
-	CaptainID    *int32    `json:"captain_id"`
+	TenantID     uuid.UUID  `json:"tenant_id"`
+	TournamentID uuid.UUID  `json:"tournament_id"`
+	Color        string     `json:"color"`
+	CaptainID    *uuid.UUID `json:"captain_id"`
 }
 
 func (q *Queries) CreateTeam(ctx context.Context, arg CreateTeamParams) (Team, error) {
@@ -53,7 +53,7 @@ WHERE id = $1 AND tenant_id = $2
 `
 
 type DeleteTeamParams struct {
-	ID       int32     `json:"id"`
+	ID       uuid.UUID `json:"id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
@@ -68,7 +68,7 @@ WHERE id = $1 AND tenant_id = $2
 `
 
 type GetTeamParams struct {
-	ID       int32     `json:"id"`
+	ID       uuid.UUID `json:"id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
@@ -91,7 +91,7 @@ WHERE tournament_id = $1 AND color = $2 AND tenant_id = $3
 `
 
 type GetTeamByColorParams struct {
-	TournamentID int32     `json:"tournament_id"`
+	TournamentID uuid.UUID `json:"tournament_id"`
 	Color        string    `json:"color"`
 	TenantID     uuid.UUID `json:"tenant_id"`
 }
@@ -116,7 +116,7 @@ ORDER BY color
 `
 
 type ListTeamsByTournamentParams struct {
-	TournamentID int32     `json:"tournament_id"`
+	TournamentID uuid.UUID `json:"tournament_id"`
 	TenantID     uuid.UUID `json:"tenant_id"`
 }
 
@@ -154,9 +154,9 @@ RETURNING id, tenant_id, tournament_id, color, captain_id
 `
 
 type SetTeamCaptainParams struct {
-	ID        int32     `json:"id"`
-	TenantID  uuid.UUID `json:"tenant_id"`
-	CaptainID *int32    `json:"captain_id"`
+	ID        uuid.UUID  `json:"id"`
+	TenantID  uuid.UUID  `json:"tenant_id"`
+	CaptainID *uuid.UUID `json:"captain_id"`
 }
 
 func (q *Queries) SetTeamCaptain(ctx context.Context, arg SetTeamCaptainParams) (Team, error) {

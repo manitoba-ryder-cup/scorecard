@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres/internal/sqlc"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
@@ -20,7 +21,7 @@ func NewResultsDB(db *DB) *ResultsDB {
 	return &ResultsDB{db: db}
 }
 
-func (r *ResultsDB) UpsertMatchResult(ctx context.Context, matchID, tournamentID int32, res golf.StoredResult) error {
+func (r *ResultsDB) UpsertMatchResult(ctx context.Context, matchID, tournamentID uuid.UUID, res golf.StoredResult) error {
 	tenantID, err := identity.GetTenant(ctx)
 	if err != nil {
 		return err
@@ -36,13 +37,13 @@ func (r *ResultsDB) UpsertMatchResult(ctx context.Context, matchID, tournamentID
 			HolesRemaining: int32(res.HolesRemaining),
 		})
 		if err != nil {
-			return fmt.Errorf("upserting match result %d: %w", matchID, err)
+			return fmt.Errorf("upserting match result %s: %w", matchID, err)
 		}
 		return nil
 	})
 }
 
-func (r *ResultsDB) GetMatchResult(ctx context.Context, matchID int32) (*golf.StoredResult, error) {
+func (r *ResultsDB) GetMatchResult(ctx context.Context, matchID uuid.UUID) (*golf.StoredResult, error) {
 	tenantID, err := identity.GetTenant(ctx)
 	if err != nil {
 		return nil, err
@@ -54,7 +55,7 @@ func (r *ResultsDB) GetMatchResult(ctx context.Context, matchID int32) (*golf.St
 			if errors.Is(err, pgx.ErrNoRows) {
 				return nil // no result yet
 			}
-			return fmt.Errorf("getting match result %d: %w", matchID, err)
+			return fmt.Errorf("getting match result %s: %w", matchID, err)
 		}
 		result = &golf.StoredResult{
 			Finished:       row.Finished,
@@ -67,12 +68,12 @@ func (r *ResultsDB) GetMatchResult(ctx context.Context, matchID int32) (*golf.St
 	return result, err
 }
 
-func (r *ResultsDB) ListTeamPoints(ctx context.Context, tournamentID int32) (map[int32]float64, error) {
+func (r *ResultsDB) ListTeamPoints(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]float64, error) {
 	tenantID, err := identity.GetTenant(ctx)
 	if err != nil {
 		return nil, err
 	}
-	points := make(map[int32]float64)
+	points := make(map[uuid.UUID]float64)
 	err = r.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
 		rows, err := q.ListTeamPoints(ctx, sqlc.ListTeamPointsParams{TournamentID: tournamentID, TenantID: tenantID})
 		if err != nil {
@@ -86,7 +87,7 @@ func (r *ResultsDB) ListTeamPoints(ctx context.Context, tournamentID int32) (map
 	return points, err
 }
 
-func (r *ResultsDB) IsTournamentFinished(ctx context.Context, tournamentID int32) (bool, error) {
+func (r *ResultsDB) IsTournamentFinished(ctx context.Context, tournamentID uuid.UUID) (bool, error) {
 	tenantID, err := identity.GetTenant(ctx)
 	if err != nil {
 		return false, err
@@ -105,7 +106,7 @@ func (r *ResultsDB) IsTournamentFinished(ctx context.Context, tournamentID int32
 	return finished, err
 }
 
-func (r *ResultsDB) GetPlayerRecord(ctx context.Context, playerID int32) (golf.PlayerRecord, error) {
+func (r *ResultsDB) GetPlayerRecord(ctx context.Context, playerID uuid.UUID) (golf.PlayerRecord, error) {
 	tenantID, err := identity.GetTenant(ctx)
 	if err != nil {
 		return golf.PlayerRecord{}, err

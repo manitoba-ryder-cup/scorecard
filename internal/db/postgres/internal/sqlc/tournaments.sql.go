@@ -60,7 +60,7 @@ WHERE id = $1 AND tenant_id = $2
 `
 
 type DeleteTournamentParams struct {
-	ID       int32     `json:"id"`
+	ID       uuid.UUID `json:"id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
@@ -75,7 +75,7 @@ WHERE id = $1 AND tenant_id = $2
 `
 
 type GetTournamentParams struct {
-	ID       int32     `json:"id"`
+	ID       uuid.UUID `json:"id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
@@ -185,7 +185,7 @@ RETURNING id, tenant_id, name, start_date, end_date, location, created_at, updat
 `
 
 type UpdateTournamentParams struct {
-	ID        int32     `json:"id"`
+	ID        uuid.UUID `json:"id"`
 	TenantID  uuid.UUID `json:"tenant_id"`
 	Name      string    `json:"name"`
 	StartDate time.Time `json:"start_date"`

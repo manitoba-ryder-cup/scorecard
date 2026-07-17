@@ -2,9 +2,9 @@ package rest
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
@@ -162,8 +162,7 @@ func parseDate(s string) (time.Time, error) {
 	return time.Parse("2006-01-02", s)
 }
 
-// pathInt parses an int32 path parameter.
-func pathInt(r *http.Request, name string) (int32, error) {
-	v, err := strconv.ParseInt(r.PathValue(name), 10, 32)
-	return int32(v), err
+// pathUUID parses a UUID path parameter.
+func pathUUID(r *http.Request, name string) (uuid.UUID, error) {
+	return uuid.Parse(r.PathValue(name))
 }

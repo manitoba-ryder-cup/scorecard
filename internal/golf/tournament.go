@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
@@ -43,13 +44,13 @@ type TournamentService struct {
 }
 
 // IsFinished reports whether all of a tournament's matches are complete.
-func (s *TournamentService) IsFinished(ctx context.Context, tournamentID int32) (bool, error) {
+func (s *TournamentService) IsFinished(ctx context.Context, tournamentID uuid.UUID) (bool, error) {
 	return s.ResultDB.IsTournamentFinished(ctx, tournamentID)
 }
 
 // GetWinningTeam returns the tournament's winning team ID, or nil if undecided
 // (not finished) or tied.
-func (s *TournamentService) GetWinningTeam(ctx context.Context, tournamentID int32) (*int32, error) {
+func (s *TournamentService) GetWinningTeam(ctx context.Context, tournamentID uuid.UUID) (*uuid.UUID, error) {
 	finished, err := s.IsFinished(ctx, tournamentID)
 	if err != nil || !finished {
 		return nil, err
@@ -62,7 +63,7 @@ func (s *TournamentService) GetWinningTeam(ctx context.Context, tournamentID int
 }
 
 // GetTeamsData builds each team's summary (color, captain, points) for a tournament.
-func (s *TournamentService) GetTeamsData(ctx context.Context, tournamentID int32) ([]TeamData, error) {
+func (s *TournamentService) GetTeamsData(ctx context.Context, tournamentID uuid.UUID) ([]TeamData, error) {
 	teams, err := s.TeamService.ListTeamsByTournament(ctx, tournamentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list teams: %w", err)
@@ -90,7 +91,7 @@ func (s *TournamentService) GetTeamsData(ctx context.Context, tournamentID int32
 }
 
 // GetTournament retrieves a tournament by ID
-func (s *TournamentService) GetTournament(ctx context.Context, tournamentID int32) (*Tournament, error) {
+func (s *TournamentService) GetTournament(ctx context.Context, tournamentID uuid.UUID) (*Tournament, error) {
 	tournament, err := s.TournamentDB.GetTournament(ctx, tournamentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tournament: %w", err)
@@ -108,8 +109,8 @@ func (s *TournamentService) ListTournaments(ctx context.Context) ([]Tournament, 
 }
 
 // winnerFromPoints returns the team with the unique highest points, or nil on a tie.
-func winnerFromPoints(points map[int32]float64) *int32 {
-	var bestID int32
+func winnerFromPoints(points map[uuid.UUID]float64) *uuid.UUID {
+	var bestID uuid.UUID
 	var best float64
 	count := 0
 	first := true

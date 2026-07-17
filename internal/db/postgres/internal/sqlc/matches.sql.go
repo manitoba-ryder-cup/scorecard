@@ -27,10 +27,10 @@ INSERT INTO matches (
 `
 
 type CreateMatchParams struct {
-	TournamentID  int32      `json:"tournament_id"`
-	CourseID      int32      `json:"course_id"`
-	TeeColorID    int32      `json:"tee_color_id"`
-	MatchFormatID int32      `json:"match_format_id"`
+	TournamentID  uuid.UUID  `json:"tournament_id"`
+	CourseID      uuid.UUID  `json:"course_id"`
+	TeeColorID    uuid.UUID  `json:"tee_color_id"`
+	MatchFormatID uuid.UUID  `json:"match_format_id"`
 	TenantID      uuid.UUID  `json:"tenant_id"`
 	TeeTime       *time.Time `json:"tee_time"`
 	Handicapped   bool       `json:"handicapped"`
@@ -68,7 +68,7 @@ WHERE id = $1 AND tenant_id = $2
 `
 
 type DeleteMatchParams struct {
-	ID       int32     `json:"id"`
+	ID       uuid.UUID `json:"id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
@@ -83,7 +83,7 @@ WHERE id = $1 AND tenant_id = $2
 `
 
 type GetMatchParams struct {
-	ID       int32     `json:"id"`
+	ID       uuid.UUID `json:"id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
@@ -121,16 +121,16 @@ WHERE m.id = $1 AND m.tenant_id = $2
 `
 
 type GetMatchWithDetailsParams struct {
-	ID       int32     `json:"id"`
+	ID       uuid.UUID `json:"id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
 type GetMatchWithDetailsRow struct {
-	ID              int32      `json:"id"`
-	TournamentID    int32      `json:"tournament_id"`
-	CourseID        int32      `json:"course_id"`
-	TeeColorID      int32      `json:"tee_color_id"`
-	MatchFormatID   int32      `json:"match_format_id"`
+	ID              uuid.UUID  `json:"id"`
+	TournamentID    uuid.UUID  `json:"tournament_id"`
+	CourseID        uuid.UUID  `json:"course_id"`
+	TeeColorID      uuid.UUID  `json:"tee_color_id"`
+	MatchFormatID   uuid.UUID  `json:"match_format_id"`
 	TenantID        uuid.UUID  `json:"tenant_id"`
 	TeeTime         *time.Time `json:"tee_time"`
 	Handicapped     bool       `json:"handicapped"`
@@ -177,16 +177,16 @@ ORDER BY m.tee_time
 `
 
 type ListMatchesByTournamentParams struct {
-	TournamentID int32     `json:"tournament_id"`
+	TournamentID uuid.UUID `json:"tournament_id"`
 	TenantID     uuid.UUID `json:"tenant_id"`
 }
 
 type ListMatchesByTournamentRow struct {
-	ID            int32      `json:"id"`
-	TournamentID  int32      `json:"tournament_id"`
-	CourseID      int32      `json:"course_id"`
-	TeeColorID    int32      `json:"tee_color_id"`
-	MatchFormatID int32      `json:"match_format_id"`
+	ID            uuid.UUID  `json:"id"`
+	TournamentID  uuid.UUID  `json:"tournament_id"`
+	CourseID      uuid.UUID  `json:"course_id"`
+	TeeColorID    uuid.UUID  `json:"tee_color_id"`
+	MatchFormatID uuid.UUID  `json:"match_format_id"`
 	TenantID      uuid.UUID  `json:"tenant_id"`
 	TeeTime       *time.Time `json:"tee_time"`
 	Handicapped   bool       `json:"handicapped"`
@@ -242,11 +242,11 @@ RETURNING id, tournament_id, course_id, tee_color_id, match_format_id, tenant_id
 `
 
 type UpdateMatchParams struct {
-	ID            int32      `json:"id"`
+	ID            uuid.UUID  `json:"id"`
 	TenantID      uuid.UUID  `json:"tenant_id"`
-	CourseID      int32      `json:"course_id"`
-	TeeColorID    int32      `json:"tee_color_id"`
-	MatchFormatID int32      `json:"match_format_id"`
+	CourseID      uuid.UUID  `json:"course_id"`
+	TeeColorID    uuid.UUID  `json:"tee_color_id"`
+	MatchFormatID uuid.UUID  `json:"match_format_id"`
 	TeeTime       *time.Time `json:"tee_time"`
 	Handicapped   bool       `json:"handicapped"`
 }

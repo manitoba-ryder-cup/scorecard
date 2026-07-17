@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres/internal/sqlc"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/travisbale/knowhere/identity"
@@ -54,7 +55,7 @@ func (t *TournamentsDB) CreateTournamentWithTeams(ctx context.Context, in golf.C
 	return result, err
 }
 
-func (t *TournamentsDB) GetTournament(ctx context.Context, id int32) (*golf.Tournament, error) {
+func (t *TournamentsDB) GetTournament(ctx context.Context, id uuid.UUID) (*golf.Tournament, error) {
 	tenantID, err := identity.GetTenant(ctx)
 	if err != nil {
 		return nil, err

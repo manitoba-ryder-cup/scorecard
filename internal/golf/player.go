@@ -36,7 +36,7 @@ type PlayerService struct {
 }
 
 // GetPlayer retrieves a player by ID
-func (s *PlayerService) GetPlayer(ctx context.Context, playerID int32) (*Player, error) {
+func (s *PlayerService) GetPlayer(ctx context.Context, playerID uuid.UUID) (*Player, error) {
 	player, err := s.PlayerDB.GetPlayer(ctx, playerID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get player: %w", err)
@@ -54,7 +54,7 @@ func (s *PlayerService) ListPlayers(ctx context.Context) ([]Player, error) {
 }
 
 // GetPlayerRecord returns a player's win/loss/tie record, derived from match_results.
-func (s *PlayerService) GetPlayerRecord(ctx context.Context, playerID int32) (PlayerRecord, error) {
+func (s *PlayerService) GetPlayerRecord(ctx context.Context, playerID uuid.UUID) (PlayerRecord, error) {
 	record, err := s.ResultDB.GetPlayerRecord(ctx, playerID)
 	if err != nil {
 		return PlayerRecord{}, fmt.Errorf("failed to get player record: %w", err)

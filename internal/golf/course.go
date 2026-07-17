@@ -3,6 +3,8 @@ package golf
 import (
 	"context"
 	"fmt"
+
+	"github.com/google/uuid"
 )
 
 // CourseService owns course setup reference data: tee colors (tenant-level markers),
@@ -37,8 +39,8 @@ type HoleInput struct {
 // 18-holes/uniqueness shape is validated at the API boundary; the database enforces
 // it too.
 type CreateTeeSetInput struct {
-	CourseID   int32
-	TeeColorID int32
+	CourseID   uuid.UUID
+	TeeColorID uuid.UUID
 	Slope      int32
 	Rating     float64
 	Holes      []HoleInput
@@ -75,7 +77,7 @@ func (s *CourseService) CreateCourse(ctx context.Context, in CreateCourseInput) 
 	return course, nil
 }
 
-func (s *CourseService) GetCourse(ctx context.Context, id int32) (*Course, error) {
+func (s *CourseService) GetCourse(ctx context.Context, id uuid.UUID) (*Course, error) {
 	course, err := s.CourseDB.GetCourse(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get course: %w", err)
