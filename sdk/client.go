@@ -163,6 +163,16 @@ func (c *Client) ListTeamMembers(ctx context.Context, teamID uuid.UUID) ([]Tourn
 
 // --- Matches ---
 
+func (c *Client) ListMatches(ctx context.Context, tournamentID uuid.UUID) ([]Match, error) {
+	var out []Match
+	return out, c.do(ctx, http.MethodGet, pathID(RouteV1TournamentMatches, tournamentID), nil, &out)
+}
+
+func (c *Client) CreateMatch(ctx context.Context, tournamentID uuid.UUID, req CreateMatchRequest) (*Match, error) {
+	var out Match
+	return &out, c.do(ctx, http.MethodPost, pathID(RouteV1TournamentMatches, tournamentID), req, &out)
+}
+
 // SubmitScore records one hole score. A 204 (no body) is success.
 func (c *Client) SubmitScore(ctx context.Context, matchID uuid.UUID, req ScoreSubmission) error {
 	return c.do(ctx, http.MethodPost, pathID(RouteV1MatchScores, matchID), req, nil)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
@@ -15,6 +16,8 @@ type MatchService interface {
 	IsFinished(ctx context.Context, matchID uuid.UUID) (bool, error)
 	CalculateMatchScores(ctx context.Context, matchID uuid.UUID) ([]golf.HoleResult, error)
 	SubmitScore(ctx context.Context, matchID uuid.UUID, entry golf.ScoreEntry) error
+	CreateMatch(ctx context.Context, in golf.CreateMatchInput) (*golf.Match, error)
+	ListMatches(ctx context.Context, tournamentID uuid.UUID) ([]golf.Match, error)
 }
 
 type MatchesHandler struct {
@@ -23,6 +26,83 @@ type MatchesHandler struct {
 
 func NewMatchesHandler(matchService MatchService) *MatchesHandler {
 	return &MatchesHandler{matchService: matchService}
+}
+
+// GET /v1/tournaments/{id}/matches
+func (h *MatchesHandler) ListMatches(w http.ResponseWriter, r *http.Request) {
+	tournamentID, err := pathUUID(r, "id")
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid tournament ID", err)
+		return
+	}
+	matches, err := h.matchService.ListMatches(r.Context(), tournamentID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to list matches", err)
+		return
+	}
+	respondJSON(w, http.StatusOK, toMatchDTOs(matches))
+}
+
+// POST /v1/tournaments/{id}/matches
+func (h *MatchesHandler) CreateMatch(w http.ResponseWriter, r *http.Request) {
+	tournamentID, err := pathUUID(r, "id")
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid tournament ID", err)
+		return
+	}
+	var req sdk.CreateMatchRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid request body", err)
+		return
+	}
+	if err := req.Validate(r.Context()); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
+	var teeTime *time.Time
+	if req.TeeTime != nil {
+		// Validate already confirmed it parses.
+		tt, _ := time.Parse(time.RFC3339, *req.TeeTime)
+		teeTime = &tt
+	}
+	match, err := h.matchService.CreateMatch(r.Context(), golf.CreateMatchInput{
+		TournamentID:  tournamentID,
+		CourseID:      req.CourseID,
+		TeeColorID:    req.TeeColorID,
+		MatchFormatID: req.MatchFormatID,
+		TeeTime:       teeTime,
+		Handicapped:   req.Handicapped,
+	})
+	if err != nil {
+		respondDomainError(w, "Failed to create match", err)
+		return
+	}
+	respondJSON(w, http.StatusCreated, toMatchDTO(*match))
+}
+
+func toMatchDTO(m golf.Match) sdk.Match {
+	var teeTime *string
+	if m.TeeTime != nil {
+		s := m.TeeTime.Format(time.RFC3339)
+		teeTime = &s
+	}
+	return sdk.Match{
+		ID:            m.ID,
+		TournamentID:  m.TournamentID,
+		CourseID:      m.CourseID,
+		TeeColorID:    m.TeeColorID,
+		MatchFormatID: m.MatchFormatID,
+		TeeTime:       teeTime,
+		Handicapped:   m.Handicapped,
+	}
+}
+
+func toMatchDTOs(matches []golf.Match) []sdk.Match {
+	out := make([]sdk.Match, len(matches))
+	for i, m := range matches {
+		out[i] = toMatchDTO(m)
+	}
+	return out
 }
 
 // GET /v1/matches/{id}/scores

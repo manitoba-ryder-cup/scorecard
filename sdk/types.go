@@ -193,6 +193,30 @@ type TournamentTeam struct {
 	Points  float64        `json:"points"`
 }
 
+// Match is a scheduled match within a tournament. tee_time is RFC3339 (null if
+// unscheduled); handicapped toggles net scoring for this match.
+type Match struct {
+	ID            uuid.UUID `json:"id"`
+	TournamentID  uuid.UUID `json:"tournament_id"`
+	CourseID      uuid.UUID `json:"course_id"`
+	TeeColorID    uuid.UUID `json:"tee_color_id"`
+	MatchFormatID uuid.UUID `json:"match_format_id"`
+	TeeTime       *string   `json:"tee_time"`
+	Handicapped   bool      `json:"handicapped"`
+}
+
+// CreateMatchRequest is the body for POST /v1/tournaments/{id}/matches. The tournament
+// comes from the path; course_id/tee_color_id must reference a configured tee set, and
+// match_format_id one of the seeded formats. tee_time (RFC3339) and handicapped are
+// optional.
+type CreateMatchRequest struct {
+	CourseID      uuid.UUID `json:"course_id"`
+	TeeColorID    uuid.UUID `json:"tee_color_id"`
+	MatchFormatID uuid.UUID `json:"match_format_id"`
+	TeeTime       *string   `json:"tee_time"`
+	Handicapped   bool      `json:"handicapped"`
+}
+
 // ScoreSubmission is the request body for POST /v1/matches/{id}/scores — one hole
 // score. course_id/tee_color_id are omitted: the server derives them from the match.
 // player_id is null for one-ball team formats (alt shot, scramble).

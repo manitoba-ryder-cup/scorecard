@@ -20,6 +20,9 @@ func (f *fakeMatchDB) GetMatch(ctx context.Context, id uuid.UUID) (*Match, error
 func (f *fakeMatchDB) ListMatchesByTournament(ctx context.Context, tournamentID uuid.UUID) ([]Match, error) {
 	return nil, nil
 }
+func (f *fakeMatchDB) CreateMatch(ctx context.Context, in CreateMatchInput) (*Match, error) {
+	return nil, nil
+}
 
 type fakeParticipantDB struct {
 	participants []MatchParticipant

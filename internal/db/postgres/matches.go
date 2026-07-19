@@ -20,6 +20,35 @@ func NewMatchesDB(db *DB) *MatchesDB {
 	return &MatchesDB{db: db}
 }
 
+// CreateMatch inserts a new match. Unknown course/tee/format references (or a tee not
+// configured for the course) surface as ErrInvalidInput via mapWriteErr (FK violation).
+func (m *MatchesDB) CreateMatch(ctx context.Context, in golf.CreateMatchInput) (*golf.Match, error) {
+	tenantID, err := identity.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var result *golf.Match
+	err = m.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
+		match, err := q.CreateMatch(ctx, sqlc.CreateMatchParams{
+			TournamentID:  in.TournamentID,
+			CourseID:      in.CourseID,
+			TeeColorID:    in.TeeColorID,
+			MatchFormatID: in.MatchFormatID,
+			TenantID:      tenantID,
+			TeeTime:       in.TeeTime,
+			Handicapped:   in.Handicapped,
+		})
+		if err != nil {
+			return fmt.Errorf("creating match: %w", mapWriteErr(err))
+		}
+		dm := toDomainMatch(match)
+		result = &dm
+		return nil
+	})
+	return result, err
+}
+
 // GetMatch retrieves a match by ID with tenant isolation
 func (m *MatchesDB) GetMatch(ctx context.Context, id uuid.UUID) (*golf.Match, error) {
 	tenantID, err := identity.GetTenant(ctx)

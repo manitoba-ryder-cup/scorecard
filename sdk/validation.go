@@ -79,6 +79,26 @@ func (r UpdateTournamentPlayerRequest) Validate(ctx context.Context) error {
 	return nil
 }
 
+// Validate checks a match creation request: the three references are required, and
+// tee_time (when given) must be RFC3339.
+func (r CreateMatchRequest) Validate(ctx context.Context) error {
+	if r.CourseID == uuid.Nil {
+		return fmt.Errorf("course_id is required")
+	}
+	if r.TeeColorID == uuid.Nil {
+		return fmt.Errorf("tee_color_id is required")
+	}
+	if r.MatchFormatID == uuid.Nil {
+		return fmt.Errorf("match_format_id is required")
+	}
+	if r.TeeTime != nil {
+		if _, err := time.Parse(time.RFC3339, *r.TeeTime); err != nil {
+			return fmt.Errorf("tee_time must be RFC3339 (e.g. 2026-08-01T08:00:00Z)")
+		}
+	}
+	return nil
+}
+
 // Validate checks a draft request: a player reference is required.
 func (r DraftPlayerRequest) Validate(ctx context.Context) error {
 	if r.PlayerID == uuid.Nil {

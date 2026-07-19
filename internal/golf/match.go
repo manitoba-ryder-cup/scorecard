@@ -3,18 +3,50 @@ package golf
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 )
 
-// MatchService owns match scoring: computing the live progression, and recomputing
-// and persisting the materialized result on score writes.
+// MatchService owns match setup (creating matches) and scoring (the live progression,
+// and recomputing/persisting the materialized result on score writes).
 type MatchService struct {
 	MatchDB       matchDB
 	ParticipantDB participantDB
 	ScoreDB       scoreDB
 	ResultDB      resultDB
 	Logger        logger
+}
+
+// CreateMatchInput is the intent to create a match within a tournament. The FK to
+// tee_sets(course_id, tee_color_id) means the tee must be configured for the course.
+// TeeTime is optional (an unscheduled match). Request-shape validation is at the API
+// boundary; unknown references surface as ErrInvalidInput from the repository.
+type CreateMatchInput struct {
+	TournamentID  uuid.UUID
+	CourseID      uuid.UUID
+	TeeColorID    uuid.UUID
+	MatchFormatID uuid.UUID
+	TeeTime       *time.Time
+	Handicapped   bool
+}
+
+// CreateMatch persists a new match.
+func (s *MatchService) CreateMatch(ctx context.Context, in CreateMatchInput) (*Match, error) {
+	match, err := s.MatchDB.CreateMatch(ctx, in)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create match: %w", err)
+	}
+	return match, nil
+}
+
+// ListMatches returns a tournament's matches.
+func (s *MatchService) ListMatches(ctx context.Context, tournamentID uuid.UUID) ([]Match, error) {
+	matches, err := s.MatchDB.ListMatchesByTournament(ctx, tournamentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list matches: %w", err)
+	}
+	return matches, nil
 }
 
 // ScoreEntry is a client-supplied hole score. CourseID/TeeColorID are intentionally
