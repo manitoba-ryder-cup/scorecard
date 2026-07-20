@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres/internal/sqlc"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
-	"github.com/travisbale/knowhere/identity"
 )
 
 type TournamentsDB struct {
@@ -19,15 +18,9 @@ func NewTournamentsDB(db *DB) *TournamentsDB {
 }
 
 func (t *TournamentsDB) CreateTournamentWithTeams(ctx context.Context, in golf.CreateTournamentInput, teamColors []string) (*golf.Tournament, error) {
-	tenantID, err := identity.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var result *golf.Tournament
-	// A single WithTenantContext closure is one transaction, so the tournament and its
-	// teams commit together or not at all — no tournament ever exists half-created.
-	err = t.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
+	// A single withTenant closure is one transaction, so the tournament and its teams
+	// commit together or not at all — no tournament ever exists half-created.
+	return withTenant(ctx, t.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Tournament, error) {
 		tournament, err := q.CreateTournament(ctx, sqlc.CreateTournamentParams{
 			TenantID:  tenantID,
 			Name:      in.Name,
@@ -36,7 +29,7 @@ func (t *TournamentsDB) CreateTournamentWithTeams(ctx context.Context, in golf.C
 			Location:  in.Location,
 		})
 		if err != nil {
-			return fmt.Errorf("creating tournament: %w", mapWriteErr(err))
+			return nil, fmt.Errorf("creating tournament: %w", mapWriteErr(err))
 		}
 		for _, color := range teamColors {
 			if _, err := q.CreateTeam(ctx, sqlc.CreateTeamParams{
@@ -45,54 +38,33 @@ func (t *TournamentsDB) CreateTournamentWithTeams(ctx context.Context, in golf.C
 				Color:        color,
 				CaptainID:    nil, // captain is assigned later, once the roster is set
 			}); err != nil {
-				return fmt.Errorf("creating %s team: %w", color, mapWriteErr(err))
+				return nil, fmt.Errorf("creating %s team: %w", color, mapWriteErr(err))
 			}
 		}
 		td := toDomainTournament(tournament)
-		result = &td
-		return nil
+		return &td, nil
 	})
-	return result, err
 }
 
 func (t *TournamentsDB) GetTournament(ctx context.Context, id uuid.UUID) (*golf.Tournament, error) {
-	tenantID, err := identity.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var result *golf.Tournament
-	err = t.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
+	return withTenant(ctx, t.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Tournament, error) {
 		tournament, err := q.GetTournament(ctx, sqlc.GetTournamentParams{ID: id, TenantID: tenantID})
 		if err != nil {
-			return fmt.Errorf("getting tournament %s: %w", id, mapReadErr(err))
+			return nil, fmt.Errorf("getting tournament %s: %w", id, mapReadErr(err))
 		}
 		td := toDomainTournament(tournament)
-		result = &td
-		return nil
+		return &td, nil
 	})
-	return result, err
 }
 
 func (t *TournamentsDB) ListTournaments(ctx context.Context) ([]golf.Tournament, error) {
-	tenantID, err := identity.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var result []golf.Tournament
-	err = t.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
+	return withTenant(ctx, t.db, func(q *sqlc.Queries, tenantID uuid.UUID) ([]golf.Tournament, error) {
 		tournaments, err := q.ListTournaments(ctx, tenantID)
 		if err != nil {
-			return fmt.Errorf("listing tournaments: %w", err)
+			return nil, fmt.Errorf("listing tournaments: %w", err)
 		}
-		result = make([]golf.Tournament, len(tournaments))
-		for i, tournament := range tournaments {
-			result[i] = toDomainTournament(tournament)
-		}
-		return nil
+		return mapSlice(tournaments, toDomainTournament), nil
 	})
-	return result, err
 }
 
 func toDomainTournament(t sqlc.Tournament) golf.Tournament {

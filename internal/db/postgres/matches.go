@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres/internal/sqlc"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
-	"github.com/travisbale/knowhere/identity"
 )
 
 // MatchesDB handles match database operations
@@ -23,13 +22,7 @@ func NewMatchesDB(db *DB) *MatchesDB {
 // CreateMatch inserts a new match. Unknown course/tee/format references (or a tee not
 // configured for the course) surface as ErrInvalidInput via mapWriteErr (FK violation).
 func (m *MatchesDB) CreateMatch(ctx context.Context, in golf.CreateMatchInput) (*golf.Match, error) {
-	tenantID, err := identity.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var result *golf.Match
-	err = m.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
+	return withTenant(ctx, m.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Match, error) {
 		match, err := q.CreateMatch(ctx, sqlc.CreateMatchParams{
 			TournamentID:  in.TournamentID,
 			CourseID:      in.CourseID,
@@ -40,68 +33,37 @@ func (m *MatchesDB) CreateMatch(ctx context.Context, in golf.CreateMatchInput) (
 			Handicapped:   in.Handicapped,
 		})
 		if err != nil {
-			return fmt.Errorf("creating match: %w", mapWriteErr(err))
+			return nil, fmt.Errorf("creating match: %w", mapWriteErr(err))
 		}
 		dm := toDomainMatch(match)
-		result = &dm
-		return nil
+		return &dm, nil
 	})
-	return result, err
 }
 
 // GetMatch retrieves a match by ID with tenant isolation
 func (m *MatchesDB) GetMatch(ctx context.Context, id uuid.UUID) (*golf.Match, error) {
-	tenantID, err := identity.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var result *golf.Match
-	err = m.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
+	return withTenant(ctx, m.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Match, error) {
 		match, err := q.GetMatch(ctx, sqlc.GetMatchParams{ID: id, TenantID: tenantID})
 		if err != nil {
-			return fmt.Errorf("getting match %s: %w", id, mapReadErr(err))
+			return nil, fmt.Errorf("getting match %s: %w", id, mapReadErr(err))
 		}
 		dm := toDomainMatch(match)
-		result = &dm
-		return nil
+		return &dm, nil
 	})
-
-	return result, err
 }
 
 // ListMatchesByTournament retrieves all matches for a tournament
 func (m *MatchesDB) ListMatchesByTournament(ctx context.Context, tournamentID uuid.UUID) ([]golf.Match, error) {
-	tenantID, err := identity.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var result []golf.Match
-	err = m.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
+	return withTenant(ctx, m.db, func(q *sqlc.Queries, tenantID uuid.UUID) ([]golf.Match, error) {
 		matches, err := q.ListMatchesByTournament(ctx, sqlc.ListMatchesByTournamentParams{
 			TournamentID: tournamentID,
 			TenantID:     tenantID,
 		})
 		if err != nil {
-			return fmt.Errorf("listing matches for tournament %s: %w", tournamentID, err)
+			return nil, fmt.Errorf("listing matches for tournament %s: %w", tournamentID, err)
 		}
-		result = make([]golf.Match, len(matches))
-		for i, match := range matches {
-			result[i] = golf.Match{
-				ID:            match.ID,
-				TournamentID:  match.TournamentID,
-				CourseID:      match.CourseID,
-				TeeColorID:    match.TeeColorID,
-				MatchFormatID: match.MatchFormatID,
-				TeeTime:       match.TeeTime,
-				Handicapped:   match.Handicapped,
-			}
-		}
-		return nil
+		return mapSlice(matches, toDomainMatch), nil
 	})
-
-	return result, err
 }
 
 // toDomainMatch converts a sqlc Match to a domain Match

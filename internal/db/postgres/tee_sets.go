@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres/internal/sqlc"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
-	"github.com/travisbale/knowhere/identity"
 )
 
 type TeeSetsDB struct {
@@ -21,13 +21,7 @@ func NewTeeSetsDB(db *DB) *TeeSetsDB {
 // course's tee is never left with a partial hole list. A bad tee_color_id surfaces as
 // ErrInvalidInput (FK violation) via mapWriteErr.
 func (t *TeeSetsDB) CreateTeeSet(ctx context.Context, in golf.CreateTeeSetInput) (*golf.TeeSetWithHoles, error) {
-	tenantID, err := identity.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var result *golf.TeeSetWithHoles
-	err = t.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
+	return withTenant(ctx, t.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.TeeSetWithHoles, error) {
 		teeSet, err := q.CreateTeeSet(ctx, sqlc.CreateTeeSetParams{
 			CourseID:   in.CourseID,
 			TeeColorID: in.TeeColorID,
@@ -36,7 +30,7 @@ func (t *TeeSetsDB) CreateTeeSet(ctx context.Context, in golf.CreateTeeSetInput)
 			Rating:     in.Rating,
 		})
 		if err != nil {
-			return fmt.Errorf("creating tee set: %w", mapWriteErr(err))
+			return nil, fmt.Errorf("creating tee set: %w", mapWriteErr(err))
 		}
 
 		holes := make([]golf.Hole, len(in.Holes))
@@ -51,15 +45,13 @@ func (t *TeeSetsDB) CreateTeeSet(ctx context.Context, in golf.CreateTeeSetInput)
 				Yards:      h.Yards,
 			})
 			if err != nil {
-				return fmt.Errorf("creating hole %d: %w", h.Number, mapWriteErr(err))
+				return nil, fmt.Errorf("creating hole %d: %w", h.Number, mapWriteErr(err))
 			}
 			holes[i] = toDomainHole(hole)
 		}
 
-		result = &golf.TeeSetWithHoles{TeeSet: toDomainTeeSet(teeSet), Holes: holes}
-		return nil
+		return &golf.TeeSetWithHoles{TeeSet: toDomainTeeSet(teeSet), Holes: holes}, nil
 	})
-	return result, err
 }
 
 func toDomainTeeSet(ts sqlc.TeeSet) golf.TeeSet {
