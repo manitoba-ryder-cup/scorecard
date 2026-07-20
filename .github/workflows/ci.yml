@@ -1,0 +1,212 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  fmt:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Check formatting
+        run: |
+          make fmt
+          if ! git diff --exit-code; then
+            echo "Code is not formatted. Run 'make fmt' and commit the changes."
+            exit 1
+          fi
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # make lint runs golangci-lint via Docker, so CI and local use the same version.
+      - name: Run golangci-lint
+        run: make lint
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build binary
+        run: make dev
+
+      - name: Verify binary works
+        run: ./bin/scorecard version
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run unit tests
+        run: make test
+
+      - name: Start test infrastructure
+        run: make test-setup
+
+      - name: Run integration tests
+        run: make integration
+
+      - name: Upload scorecard logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scorecard-test-logs
+          path: test/scorecard.log
+          if-no-files-found: ignore
+
+      - name: Tear down test infrastructure
+        if: always()
+        run: make test-teardown
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+  codegen:
+    name: Code Generation Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # sqlc runs via Docker (see the sqlc target); no local install needed.
+      - name: Regenerate sqlc
+        run: make sqlc
+
+      - name: Check for uncommitted changes
+        run: |
+          if ! git diff --exit-code; then
+            echo "Generated code is out of date. Run 'make sqlc' and commit the changes."
+            exit 1
+          fi
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: scorecard:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  migrations:
+    name: SQL Migrations
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: scorecard
+          POSTGRES_PASSWORD: scorecard_password
+          POSTGRES_DB: scorecard
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DATABASE_URL: postgres://scorecard:scorecard_password@localhost:5432/scorecard?sslmode=disable
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build binary
+        run: make dev
+
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -p 5432 -U scorecard; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+
+      - name: Run migrations up
+        run: ./bin/scorecard migrate up
+
+      - name: Verify tables applied
+        run: PGPASSWORD=scorecard_password psql -h localhost -U scorecard -d scorecard -c "\dt"
+
+      - name: Roll the last migration back
+        run: ./bin/scorecard migrate down
+
+      - name: Run migrations up again (idempotency check)
+        run: ./bin/scorecard migrate up
+
+      - name: Check migration version
+        run: ./bin/scorecard migrate version
