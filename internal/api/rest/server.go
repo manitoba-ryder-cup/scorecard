@@ -14,6 +14,13 @@ import (
 	"github.com/travisbale/knowhere/jwt"
 )
 
+// HealthChecker reports whether a dependency (the database) is reachable. Satisfied by
+// knowhere's generic *postgres.DB, so /healthz can verify readiness without this
+// package importing the persistence layer.
+type HealthChecker interface {
+	Health(ctx context.Context) error
+}
+
 type Config struct {
 	Address          string
 	JWTValidator     *jwt.Validator
@@ -22,6 +29,7 @@ type Config struct {
 	// (e.g. manitobarydercup.com): reads without a token resolve to this tenant. Nil
 	// on a multi-tenant deployment, where every request must carry a token.
 	PublicTenantID    *uuid.UUID
+	DB                HealthChecker
 	PlayerService     *golf.PlayerService
 	MatchService      *golf.MatchService
 	TournamentService *golf.TournamentService
@@ -48,8 +56,8 @@ func NewServer(config *Config) *Server {
 
 	mux := http.NewServeMux()
 
-	// Health check (public, no auth, no tenant)
-	mux.HandleFunc("GET /healthz", HandleHealth)
+	// Health check (public, no auth, no tenant) — verifies DB readiness.
+	mux.HandleFunc("GET "+sdk.RouteHealth, HandleHealth(config.DB))
 
 	// Match formats are global seeded reference data — truly public, no tenant needed.
 	mux.HandleFunc("GET "+sdk.RouteV1MatchFormats, formatsHandler.ListMatchFormats)
@@ -136,7 +144,7 @@ func optionalAuth(m *jwt.HTTPMiddleware, publicTenantID *uuid.UUID, next http.Ha
 			return
 		}
 		if publicTenantID == nil {
-			respondError(w, http.StatusUnauthorized, "authentication required", nil)
+			respondError(r.Context(), w, http.StatusUnauthorized, "authentication required", nil)
 			return
 		}
 		ctx := identity.WithTenant(r.Context(), *publicTenantID)
@@ -151,7 +159,7 @@ func recoverMiddleware(next http.Handler) http.Handler {
 		defer func() {
 			if err := recover(); err != nil {
 				// Log with a stack so a recovered panic leaves a diagnosable trail.
-				slog.Error("panic recovered", "error", err, "stack", string(debug.Stack()))
+				slog.ErrorContext(r.Context(), "panic recovered", "error", err, "stack", string(debug.Stack()))
 				w.WriteHeader(http.StatusInternalServerError)
 			}
 		}()

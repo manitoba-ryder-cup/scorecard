@@ -9,7 +9,6 @@ import (
 // data, not user content, so this is read-only.
 type FormatService struct {
 	FormatDB formatDB
-	Logger   logger
 }
 
 func (s *FormatService) ListFormats(ctx context.Context) ([]MatchFormat, error) {

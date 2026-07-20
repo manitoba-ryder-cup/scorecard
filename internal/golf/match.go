@@ -15,7 +15,6 @@ type MatchService struct {
 	ParticipantDB participantDB
 	ScoreDB       scoreDB
 	ResultDB      resultDB
-	Logger        logger
 }
 
 // CreateMatchInput is the intent to create a match within a tournament. The FK to

@@ -6,12 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// logger interface for logging operations
-type logger interface {
-	Info(msg string, args ...any)
-	Error(msg string, args ...any)
-}
-
 // playerDB interface defines database operations for players
 type playerDB interface {
 	GetPlayer(ctx context.Context, id uuid.UUID) (*Player, error)

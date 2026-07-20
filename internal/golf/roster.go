@@ -14,7 +14,6 @@ type RosterService struct {
 	TournamentPlayerDB tournamentPlayerDB
 	TeamDB             teamDB
 	TeamMemberDB       teamMemberDB
-	Logger             logger
 }
 
 // EnterPlayerInput is the intent to enter a player in a tournament (or update their

@@ -31,7 +31,7 @@ func NewCoursesHandler(courseService CourseService) *CoursesHandler {
 func (h *CoursesHandler) ListTeeColors(w http.ResponseWriter, r *http.Request) {
 	teeColors, err := h.courseService.ListTeeColors(r.Context())
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to list tee colors", err)
+		respondError(r.Context(), w, http.StatusInternalServerError, "Failed to list tee colors", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toTeeColorDTOs(teeColors))
@@ -41,16 +41,16 @@ func (h *CoursesHandler) ListTeeColors(w http.ResponseWriter, r *http.Request) {
 func (h *CoursesHandler) CreateTeeColor(w http.ResponseWriter, r *http.Request) {
 	var req sdk.CreateTeeColorRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
 		return
 	}
 	if err := req.Validate(r.Context()); err != nil {
-		respondError(w, http.StatusBadRequest, err.Error(), nil)
+		respondError(r.Context(), w, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
 	teeColor, err := h.courseService.CreateTeeColor(r.Context(), golf.CreateTeeColorInput{Color: req.Color})
 	if err != nil {
-		respondDomainError(w, "Failed to create tee color", err)
+		respondDomainError(r.Context(), w, "Failed to create tee color", err)
 		return
 	}
 	respondJSON(w, http.StatusCreated, toTeeColorDTO(*teeColor))
@@ -60,7 +60,7 @@ func (h *CoursesHandler) CreateTeeColor(w http.ResponseWriter, r *http.Request) 
 func (h *CoursesHandler) ListCourses(w http.ResponseWriter, r *http.Request) {
 	courses, err := h.courseService.ListCourses(r.Context())
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to list courses", err)
+		respondError(r.Context(), w, http.StatusInternalServerError, "Failed to list courses", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toCourseDTOs(courses))
@@ -70,12 +70,12 @@ func (h *CoursesHandler) ListCourses(w http.ResponseWriter, r *http.Request) {
 func (h *CoursesHandler) GetCourse(w http.ResponseWriter, r *http.Request) {
 	id, err := pathUUID(r, "id")
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid course ID", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid course ID", err)
 		return
 	}
 	course, err := h.courseService.GetCourse(r.Context(), id)
 	if err != nil {
-		respondDomainError(w, "Failed to get course", err)
+		respondDomainError(r.Context(), w, "Failed to get course", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toCourseDTO(*course))
@@ -85,16 +85,16 @@ func (h *CoursesHandler) GetCourse(w http.ResponseWriter, r *http.Request) {
 func (h *CoursesHandler) AddTeeSet(w http.ResponseWriter, r *http.Request) {
 	courseID, err := pathUUID(r, "id")
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid course ID", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid course ID", err)
 		return
 	}
 	var req sdk.CreateTeeSetRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
 		return
 	}
 	if err := req.Validate(r.Context()); err != nil {
-		respondError(w, http.StatusBadRequest, err.Error(), nil)
+		respondError(r.Context(), w, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
 	holes := make([]golf.HoleInput, len(req.Holes))
@@ -109,7 +109,7 @@ func (h *CoursesHandler) AddTeeSet(w http.ResponseWriter, r *http.Request) {
 		Holes:      holes,
 	})
 	if err != nil {
-		respondDomainError(w, "Failed to add tee set", err)
+		respondDomainError(r.Context(), w, "Failed to add tee set", err)
 		return
 	}
 	respondJSON(w, http.StatusCreated, toTeeSetDTO(*teeSet))
@@ -119,16 +119,16 @@ func (h *CoursesHandler) AddTeeSet(w http.ResponseWriter, r *http.Request) {
 func (h *CoursesHandler) CreateCourse(w http.ResponseWriter, r *http.Request) {
 	var req sdk.CreateCourseRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
 		return
 	}
 	if err := req.Validate(r.Context()); err != nil {
-		respondError(w, http.StatusBadRequest, err.Error(), nil)
+		respondError(r.Context(), w, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
 	course, err := h.courseService.CreateCourse(r.Context(), golf.CreateCourseInput{Name: req.Name})
 	if err != nil {
-		respondDomainError(w, "Failed to create course", err)
+		respondDomainError(r.Context(), w, "Failed to create course", err)
 		return
 	}
 	respondJSON(w, http.StatusCreated, toCourseDTO(*course))

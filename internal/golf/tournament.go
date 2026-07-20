@@ -40,7 +40,6 @@ type TournamentService struct {
 	TournamentDB tournamentDB
 	ResultDB     resultDB
 	TeamService  *TeamService
-	Logger       logger
 }
 
 // IsFinished reports whether all of a tournament's matches are complete.

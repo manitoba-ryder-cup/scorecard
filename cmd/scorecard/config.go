@@ -1,8 +1,6 @@
 package main
 
 import (
-	"log/slog"
-
 	"github.com/manitoba-ryder-cup/scorecard/internal/app"
 )
 
@@ -10,6 +8,9 @@ import (
 type Config struct {
 	// Debug
 	Debug bool
+
+	// LogFormat selects the slog handler: "json" (default) or "text"
+	LogFormat string
 
 	// Database
 	DatabaseURL string
@@ -43,6 +44,5 @@ func (c *Config) ToAppConfig() *app.Config {
 		Environment:      c.Environment,
 		TrustedProxyMode: c.TrustedProxyMode,
 		PublicTenantID:   c.PublicTenantID,
-		Logger:           slog.Default(),
 	}
 }

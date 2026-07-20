@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -26,7 +27,7 @@ func TestRespondDomainError_StatusMapping(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			respondDomainError(rec, "message", tc.err)
+			respondDomainError(context.Background(), rec, "message", tc.err)
 			if rec.Code != tc.want {
 				t.Fatalf("want status %d, got %d", tc.want, rec.Code)
 			}

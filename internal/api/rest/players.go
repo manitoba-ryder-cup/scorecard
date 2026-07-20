@@ -29,7 +29,7 @@ func NewPlayersHandler(playerService PlayerService) *PlayersHandler {
 func (h *PlayersHandler) ListPlayers(w http.ResponseWriter, r *http.Request) {
 	players, err := h.playerService.ListPlayers(r.Context())
 	if err != nil {
-		respondDomainError(w, "Failed to list players", err)
+		respondDomainError(r.Context(), w, "Failed to list players", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toPlayerDTOs(players))
@@ -39,13 +39,13 @@ func (h *PlayersHandler) ListPlayers(w http.ResponseWriter, r *http.Request) {
 func (h *PlayersHandler) CreatePlayer(w http.ResponseWriter, r *http.Request) {
 	var req sdk.CreatePlayerRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
 		return
 	}
 	// Server-side shape validation guards non-SDK callers (the SDK client also runs
 	// this before sending). Domain invariants are enforced separately below.
 	if err := req.Validate(r.Context()); err != nil {
-		respondError(w, http.StatusBadRequest, err.Error(), nil)
+		respondError(r.Context(), w, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
 	player, err := h.playerService.CreatePlayer(r.Context(), golf.CreatePlayerInput{
@@ -55,7 +55,7 @@ func (h *PlayersHandler) CreatePlayer(w http.ResponseWriter, r *http.Request) {
 		UserID:    req.UserID,
 	})
 	if err != nil {
-		respondDomainError(w, "Failed to create player", err)
+		respondDomainError(r.Context(), w, "Failed to create player", err)
 		return
 	}
 	respondJSON(w, http.StatusCreated, toPlayerDTO(*player))
@@ -65,19 +65,19 @@ func (h *PlayersHandler) CreatePlayer(w http.ResponseWriter, r *http.Request) {
 func (h *PlayersHandler) GetPlayer(w http.ResponseWriter, r *http.Request) {
 	id, err := pathUUID(r, "id")
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid player ID", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid player ID", err)
 		return
 	}
 	player, err := h.playerService.GetPlayer(r.Context(), id)
 	if err != nil {
 		// ErrNotFound -> 404; a real DB failure -> 500 (not masked as "not found").
-		respondDomainError(w, "Failed to get player", err)
+		respondDomainError(r.Context(), w, "Failed to get player", err)
 		return
 	}
 	// The detail view carries the derived W/L/T record; the list view does not.
 	record, err := h.playerService.GetPlayerRecord(r.Context(), id)
 	if err != nil {
-		respondDomainError(w, "Failed to get player record", err)
+		respondDomainError(r.Context(), w, "Failed to get player record", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toPlayerProfileDTO(*player, record))

@@ -14,6 +14,15 @@ var (
 		Destination: &config.Debug,
 	}
 
+	// LogFormatFlag selects the log output format (global flag)
+	LogFormatFlag = &cli.StringFlag{
+		Name:        "log-format",
+		Usage:       "Log format: json (default, for log aggregation) or text (human-readable)",
+		Value:       "json",
+		EnvVars:     []string{"LOG_FORMAT"},
+		Destination: &config.LogFormat,
+	}
+
 	// DatabaseURLFlag defines the PostgreSQL connection URL (global flag)
 	DatabaseURLFlag = &cli.StringFlag{
 		Name:        "database-url",

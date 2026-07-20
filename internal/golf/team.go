@@ -10,7 +10,6 @@ import (
 // TeamService handles team reads and captain assignment.
 type TeamService struct {
 	TeamDB teamDB
-	Logger logger
 }
 
 // SetCaptain assigns a team's captain. The captain must be an existing player (enforced

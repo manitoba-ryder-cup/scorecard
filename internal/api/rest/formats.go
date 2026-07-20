@@ -25,7 +25,7 @@ func NewFormatsHandler(formatService FormatService) *FormatsHandler {
 func (h *FormatsHandler) ListMatchFormats(w http.ResponseWriter, r *http.Request) {
 	formats, err := h.formatService.ListFormats(r.Context())
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to list match formats", err)
+		respondError(r.Context(), w, http.StatusInternalServerError, "Failed to list match formats", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toMatchFormatDTOs(formats))

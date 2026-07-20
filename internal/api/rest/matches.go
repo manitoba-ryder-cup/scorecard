@@ -34,12 +34,12 @@ func NewMatchesHandler(matchService MatchService) *MatchesHandler {
 func (h *MatchesHandler) ListMatches(w http.ResponseWriter, r *http.Request) {
 	tournamentID, err := pathUUID(r, "id")
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid tournament ID", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid tournament ID", err)
 		return
 	}
 	matches, err := h.matchService.ListMatches(r.Context(), tournamentID)
 	if err != nil {
-		respondDomainError(w, "Failed to list matches", err)
+		respondDomainError(r.Context(), w, "Failed to list matches", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toMatchDTOs(matches))
@@ -49,16 +49,16 @@ func (h *MatchesHandler) ListMatches(w http.ResponseWriter, r *http.Request) {
 func (h *MatchesHandler) CreateMatch(w http.ResponseWriter, r *http.Request) {
 	tournamentID, err := pathUUID(r, "id")
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid tournament ID", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid tournament ID", err)
 		return
 	}
 	var req sdk.CreateMatchRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
 		return
 	}
 	if err := req.Validate(r.Context()); err != nil {
-		respondError(w, http.StatusBadRequest, err.Error(), nil)
+		respondError(r.Context(), w, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
 	var teeTime *time.Time
@@ -76,7 +76,7 @@ func (h *MatchesHandler) CreateMatch(w http.ResponseWriter, r *http.Request) {
 		Handicapped:   req.Handicapped,
 	})
 	if err != nil {
-		respondDomainError(w, "Failed to create match", err)
+		respondDomainError(r.Context(), w, "Failed to create match", err)
 		return
 	}
 	respondJSON(w, http.StatusCreated, toMatchDTO(*match))
@@ -111,12 +111,12 @@ func toMatchDTOs(matches []golf.Match) []sdk.Match {
 func (h *MatchesHandler) ListParticipants(w http.ResponseWriter, r *http.Request) {
 	id, err := pathUUID(r, "id")
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid match ID", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid match ID", err)
 		return
 	}
 	participants, err := h.matchService.ListParticipants(r.Context(), id)
 	if err != nil {
-		respondDomainError(w, "Failed to list participants", err)
+		respondDomainError(r.Context(), w, "Failed to list participants", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toMatchParticipantDTOs(participants))
@@ -126,21 +126,21 @@ func (h *MatchesHandler) ListParticipants(w http.ResponseWriter, r *http.Request
 func (h *MatchesHandler) AddParticipant(w http.ResponseWriter, r *http.Request) {
 	id, err := pathUUID(r, "id")
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid match ID", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid match ID", err)
 		return
 	}
 	var req sdk.AddParticipantRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
 		return
 	}
 	if err := req.Validate(r.Context()); err != nil {
-		respondError(w, http.StatusBadRequest, err.Error(), nil)
+		respondError(r.Context(), w, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
 	participant, err := h.matchService.AddParticipant(r.Context(), id, req.PlayerID, req.TeamID)
 	if err != nil {
-		respondDomainError(w, "Failed to add participant", err)
+		respondDomainError(r.Context(), w, "Failed to add participant", err)
 		return
 	}
 	respondJSON(w, http.StatusCreated, toMatchParticipantDTO(*participant))
@@ -168,12 +168,12 @@ func toMatchParticipantDTOs(participants []golf.MatchParticipant) []sdk.MatchPar
 func (h *MatchesHandler) GetMatchScores(w http.ResponseWriter, r *http.Request) {
 	id, err := pathUUID(r, "id")
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid match ID", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid match ID", err)
 		return
 	}
 	scores, err := h.matchService.CalculateMatchScores(r.Context(), id)
 	if err != nil {
-		respondDomainError(w, "Failed to calculate match scores", err)
+		respondDomainError(r.Context(), w, "Failed to calculate match scores", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toHoleStatusDTOs(scores))
@@ -184,16 +184,16 @@ func (h *MatchesHandler) GetMatchScores(w http.ResponseWriter, r *http.Request) 
 func (h *MatchesHandler) SubmitScore(w http.ResponseWriter, r *http.Request) {
 	id, err := pathUUID(r, "id")
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid match ID", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid match ID", err)
 		return
 	}
 	var req sdk.ScoreSubmission
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
 		return
 	}
 	if err := req.Validate(r.Context()); err != nil {
-		respondError(w, http.StatusBadRequest, err.Error(), nil)
+		respondError(r.Context(), w, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
 	entry := golf.ScoreEntry{
@@ -205,7 +205,7 @@ func (h *MatchesHandler) SubmitScore(w http.ResponseWriter, r *http.Request) {
 	// Shape is validated above; the domain still enforces its invariant (the team must
 	// be in the match) -> 400, while a real failure (DB, etc.) -> 500.
 	if err := h.matchService.SubmitScore(r.Context(), id, entry); err != nil {
-		respondDomainError(w, "Failed to submit score", err)
+		respondDomainError(r.Context(), w, "Failed to submit score", err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -215,17 +215,17 @@ func (h *MatchesHandler) SubmitScore(w http.ResponseWriter, r *http.Request) {
 func (h *MatchesHandler) GetMatchWinner(w http.ResponseWriter, r *http.Request) {
 	id, err := pathUUID(r, "id")
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid match ID", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid match ID", err)
 		return
 	}
 	finished, err := h.matchService.IsFinished(r.Context(), id)
 	if err != nil {
-		respondDomainError(w, "Failed to check match status", err)
+		respondDomainError(r.Context(), w, "Failed to check match status", err)
 		return
 	}
 	winnerID, err := h.matchService.GetWinner(r.Context(), id)
 	if err != nil {
-		respondDomainError(w, "Failed to get match winner", err)
+		respondDomainError(r.Context(), w, "Failed to get match winner", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, sdk.WinnerResponse{Finished: finished, WinnerTeamID: winnerID})
@@ -235,12 +235,12 @@ func (h *MatchesHandler) GetMatchWinner(w http.ResponseWriter, r *http.Request) 
 func (h *MatchesHandler) GetMatchStatus(w http.ResponseWriter, r *http.Request) {
 	id, err := pathUUID(r, "id")
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid match ID", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid match ID", err)
 		return
 	}
 	finished, err := h.matchService.IsFinished(r.Context(), id)
 	if err != nil {
-		respondDomainError(w, "Failed to check match status", err)
+		respondDomainError(r.Context(), w, "Failed to check match status", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, sdk.FinishedResponse{Finished: finished})

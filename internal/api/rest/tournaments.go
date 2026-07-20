@@ -31,7 +31,7 @@ func NewTournamentsHandler(tournamentService TournamentService) *TournamentsHand
 func (h *TournamentsHandler) ListTournaments(w http.ResponseWriter, r *http.Request) {
 	tournaments, err := h.tournamentService.ListTournaments(r.Context())
 	if err != nil {
-		respondDomainError(w, "Failed to list tournaments", err)
+		respondDomainError(r.Context(), w, "Failed to list tournaments", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toTournamentDTOs(tournaments))
@@ -41,23 +41,23 @@ func (h *TournamentsHandler) ListTournaments(w http.ResponseWriter, r *http.Requ
 func (h *TournamentsHandler) CreateTournament(w http.ResponseWriter, r *http.Request) {
 	var req sdk.CreateTournamentRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
 		return
 	}
 	if err := req.Validate(r.Context()); err != nil {
-		respondError(w, http.StatusBadRequest, err.Error(), nil)
+		respondError(r.Context(), w, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
 	// Validate already confirmed the dates parse; the errors here are unreachable in
 	// practice but kept so a future format skew can't silently produce zero dates.
 	start, err := parseDate(req.StartDate)
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid start_date (want YYYY-MM-DD)", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid start_date (want YYYY-MM-DD)", err)
 		return
 	}
 	end, err := parseDate(req.EndDate)
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid end_date (want YYYY-MM-DD)", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid end_date (want YYYY-MM-DD)", err)
 		return
 	}
 	tournament, err := h.tournamentService.CreateTournament(r.Context(), golf.CreateTournamentInput{
@@ -67,7 +67,7 @@ func (h *TournamentsHandler) CreateTournament(w http.ResponseWriter, r *http.Req
 		Location:  req.Location,
 	})
 	if err != nil {
-		respondDomainError(w, "Failed to create tournament", err)
+		respondDomainError(r.Context(), w, "Failed to create tournament", err)
 		return
 	}
 	respondJSON(w, http.StatusCreated, toTournamentDTO(*tournament))
@@ -77,13 +77,13 @@ func (h *TournamentsHandler) CreateTournament(w http.ResponseWriter, r *http.Req
 func (h *TournamentsHandler) GetTournament(w http.ResponseWriter, r *http.Request) {
 	id, err := pathUUID(r, "id")
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid tournament ID", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid tournament ID", err)
 		return
 	}
 	tournament, err := h.tournamentService.GetTournament(r.Context(), id)
 	if err != nil {
 		// ErrNotFound -> 404; a real DB failure -> 500 (not masked as "not found").
-		respondDomainError(w, "Failed to get tournament", err)
+		respondDomainError(r.Context(), w, "Failed to get tournament", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toTournamentDTO(*tournament))
@@ -93,12 +93,12 @@ func (h *TournamentsHandler) GetTournament(w http.ResponseWriter, r *http.Reques
 func (h *TournamentsHandler) GetTournamentTeams(w http.ResponseWriter, r *http.Request) {
 	id, err := pathUUID(r, "id")
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid tournament ID", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid tournament ID", err)
 		return
 	}
 	teams, err := h.tournamentService.GetTeamsData(r.Context(), id)
 	if err != nil {
-		respondDomainError(w, "Failed to get teams data", err)
+		respondDomainError(r.Context(), w, "Failed to get teams data", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toTournamentTeamDTOs(teams))
@@ -108,17 +108,17 @@ func (h *TournamentsHandler) GetTournamentTeams(w http.ResponseWriter, r *http.R
 func (h *TournamentsHandler) GetTournamentWinner(w http.ResponseWriter, r *http.Request) {
 	id, err := pathUUID(r, "id")
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid tournament ID", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid tournament ID", err)
 		return
 	}
 	finished, err := h.tournamentService.IsFinished(r.Context(), id)
 	if err != nil {
-		respondDomainError(w, "Failed to check tournament status", err)
+		respondDomainError(r.Context(), w, "Failed to check tournament status", err)
 		return
 	}
 	winnerID, err := h.tournamentService.GetWinningTeam(r.Context(), id)
 	if err != nil {
-		respondDomainError(w, "Failed to get tournament winner", err)
+		respondDomainError(r.Context(), w, "Failed to get tournament winner", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, sdk.WinnerResponse{Finished: finished, WinnerTeamID: winnerID})
@@ -128,12 +128,12 @@ func (h *TournamentsHandler) GetTournamentWinner(w http.ResponseWriter, r *http.
 func (h *TournamentsHandler) GetTournamentStatus(w http.ResponseWriter, r *http.Request) {
 	id, err := pathUUID(r, "id")
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid tournament ID", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid tournament ID", err)
 		return
 	}
 	finished, err := h.tournamentService.IsFinished(r.Context(), id)
 	if err != nil {
-		respondDomainError(w, "Failed to check tournament status", err)
+		respondDomainError(r.Context(), w, "Failed to check tournament status", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, sdk.FinishedResponse{Finished: finished})

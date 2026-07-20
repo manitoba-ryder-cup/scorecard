@@ -14,7 +14,6 @@ type CourseService struct {
 	TeeColorDB teeColorDB
 	CourseDB   courseDB
 	TeeSetDB   teeSetDB
-	Logger     logger
 }
 
 // CreateTeeColorInput is the intent to add a tenant-level tee color.

@@ -26,21 +26,21 @@ func NewTeamsHandler(teamService TeamService) *TeamsHandler {
 func (h *TeamsHandler) SetCaptain(w http.ResponseWriter, r *http.Request) {
 	teamID, err := pathUUID(r, "id")
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid team ID", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid team ID", err)
 		return
 	}
 	var req sdk.SetTeamCaptainRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body", err)
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
 		return
 	}
 	if err := req.Validate(r.Context()); err != nil {
-		respondError(w, http.StatusBadRequest, err.Error(), nil)
+		respondError(r.Context(), w, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
 	// Unknown team -> 404, unknown player -> 400 (FK), both via respondDomainError.
 	if _, err := h.teamService.SetCaptain(r.Context(), teamID, req.CaptainID); err != nil {
-		respondDomainError(w, "Failed to set team captain", err)
+		respondDomainError(r.Context(), w, "Failed to set team captain", err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

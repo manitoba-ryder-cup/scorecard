@@ -32,7 +32,6 @@ func (s *PlayerService) CreatePlayer(ctx context.Context, in CreatePlayerInput) 
 type PlayerService struct {
 	PlayerDB playerDB
 	ResultDB resultDB
-	Logger   logger
 }
 
 // GetPlayer retrieves a player by ID

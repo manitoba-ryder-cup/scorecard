@@ -11,11 +11,6 @@ import (
 	"github.com/travisbale/knowhere/jwt"
 )
 
-type logger interface {
-	Info(msg string, args ...any)
-	Error(msg string, args ...any)
-}
-
 // Config holds the configuration for creating a new server
 type Config struct {
 	HTTPAddress      string
@@ -26,7 +21,6 @@ type Config struct {
 	// PublicTenantID, when set, enables anonymous read access scoped to that tenant
 	// (a single-tenant public site). Empty on a multi-tenant deployment.
 	PublicTenantID string
-	Logger         logger
 }
 
 // Server wraps the HTTP server and its dependencies
@@ -87,7 +81,6 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 	playerService := &golf.PlayerService{
 		PlayerDB: playersDB,
 		ResultDB: resultsDB,
-		Logger:   config.Logger,
 	}
 
 	matchService := &golf.MatchService{
@@ -95,38 +88,32 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 		ParticipantDB: participantsDB,
 		ScoreDB:       scoresDB,
 		ResultDB:      resultsDB,
-		Logger:        config.Logger,
 	}
 
 	teamService := &golf.TeamService{
 		TeamDB: teamsDB,
-		Logger: config.Logger,
 	}
 
 	tournamentService := &golf.TournamentService{
 		TournamentDB: tournamentsDB,
 		ResultDB:     resultsDB,
 		TeamService:  teamService,
-		Logger:       config.Logger,
 	}
 
 	courseService := &golf.CourseService{
 		TeeColorDB: teeColorsDB,
 		CourseDB:   coursesDB,
 		TeeSetDB:   teeSetsDB,
-		Logger:     config.Logger,
 	}
 
 	formatService := &golf.FormatService{
 		FormatDB: matchFormatsDB,
-		Logger:   config.Logger,
 	}
 
 	rosterService := &golf.RosterService{
 		TournamentPlayerDB: tournamentPlayersDB,
 		TeamDB:             teamsDB,
 		TeamMemberDB:       teamMembersDB,
-		Logger:             config.Logger,
 	}
 
 	// Create HTTP server
@@ -135,6 +122,7 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 		JWTValidator:      jwtValidator,
 		TrustedProxyMode:  config.TrustedProxyMode,
 		PublicTenantID:    publicTenantID,
+		DB:                db,
 		PlayerService:     playerService,
 		MatchService:      matchService,
 		TournamentService: tournamentService,
