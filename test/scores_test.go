@@ -26,7 +26,7 @@ func TestMain(m *testing.M) {
 		fmt.Printf("SKIP: cannot reach test database (%v). Run `make test-setup` first.\n", err)
 		os.Exit(0)
 	}
-	conn.Close(ctx)
+	_ = conn.Close(ctx)
 
 	if _, err := http.Get(cfg.BaseURL + sdk.RouteHealth); err != nil {
 		fmt.Printf("SKIP: cannot reach scorecard at %s (%v). Run `make test-setup` first.\n", cfg.BaseURL, err)
@@ -47,7 +47,7 @@ func authedClient(t *testing.T) (*sdk.Client, *util.Fixture) {
 	if err != nil {
 		t.Fatalf("connect: %v", err)
 	}
-	t.Cleanup(func() { conn.Close(ctx) })
+	t.Cleanup(func() { _ = conn.Close(ctx) })
 
 	fix, err := util.SeedSinglesMatch(ctx, conn)
 	if err != nil {

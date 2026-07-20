@@ -39,7 +39,7 @@ func (h *MatchesHandler) ListMatches(w http.ResponseWriter, r *http.Request) {
 	}
 	matches, err := h.matchService.ListMatches(r.Context(), tournamentID)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to list matches", err)
+		respondDomainError(w, "Failed to list matches", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toMatchDTOs(matches))
@@ -116,7 +116,7 @@ func (h *MatchesHandler) ListParticipants(w http.ResponseWriter, r *http.Request
 	}
 	participants, err := h.matchService.ListParticipants(r.Context(), id)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to list participants", err)
+		respondDomainError(w, "Failed to list participants", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toMatchParticipantDTOs(participants))
@@ -173,7 +173,7 @@ func (h *MatchesHandler) GetMatchScores(w http.ResponseWriter, r *http.Request) 
 	}
 	scores, err := h.matchService.CalculateMatchScores(r.Context(), id)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to calculate match scores", err)
+		respondDomainError(w, "Failed to calculate match scores", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toHoleStatusDTOs(scores))
@@ -220,12 +220,12 @@ func (h *MatchesHandler) GetMatchWinner(w http.ResponseWriter, r *http.Request) 
 	}
 	finished, err := h.matchService.IsFinished(r.Context(), id)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to check match status", err)
+		respondDomainError(w, "Failed to check match status", err)
 		return
 	}
 	winnerID, err := h.matchService.GetWinner(r.Context(), id)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to get match winner", err)
+		respondDomainError(w, "Failed to get match winner", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, sdk.WinnerResponse{Finished: finished, WinnerTeamID: winnerID})
@@ -240,7 +240,7 @@ func (h *MatchesHandler) GetMatchStatus(w http.ResponseWriter, r *http.Request) 
 	}
 	finished, err := h.matchService.IsFinished(r.Context(), id)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to check match status", err)
+		respondDomainError(w, "Failed to check match status", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, sdk.FinishedResponse{Finished: finished})

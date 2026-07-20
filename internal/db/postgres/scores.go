@@ -40,7 +40,8 @@ func (s *ScoresDB) SaveScore(ctx context.Context, score golf.Score) error {
 				Strokes:    score.Strokes,
 			})
 			if err != nil {
-				return fmt.Errorf("upserting player score: %w", err)
+				// A bad player_id (not a participant) trips the composite FK -> 400, not 500.
+				return fmt.Errorf("upserting player score: %w", mapWriteErr(err))
 			}
 			return nil
 		}
@@ -54,7 +55,7 @@ func (s *ScoresDB) SaveScore(ctx context.Context, score golf.Score) error {
 			Strokes:    score.Strokes,
 		})
 		if err != nil {
-			return fmt.Errorf("upserting team score: %w", err)
+			return fmt.Errorf("upserting team score: %w", mapWriteErr(err))
 		}
 		return nil
 	})
@@ -73,7 +74,7 @@ func (s *ScoresDB) ListScoresByMatch(ctx context.Context, matchID uuid.UUID) ([]
 			TenantID: tenantID,
 		})
 		if err != nil {
-			return fmt.Errorf("listing scores for match %d: %w", matchID, err)
+			return fmt.Errorf("listing scores for match %s: %w", matchID, err)
 		}
 		result = make([]golf.Score, len(scores))
 		for i, score := range scores {

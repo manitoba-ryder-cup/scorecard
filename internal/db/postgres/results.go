@@ -37,7 +37,7 @@ func (r *ResultsDB) UpsertMatchResult(ctx context.Context, matchID, tournamentID
 			HolesRemaining: int32(res.HolesRemaining),
 		})
 		if err != nil {
-			return fmt.Errorf("upserting match result %s: %w", matchID, err)
+			return fmt.Errorf("upserting match result %s: %w", matchID, mapWriteErr(err))
 		}
 		return nil
 	})
@@ -115,7 +115,7 @@ func (r *ResultsDB) GetPlayerRecord(ctx context.Context, playerID uuid.UUID) (go
 	err = r.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
 		row, err := q.GetPlayerRecord(ctx, sqlc.GetPlayerRecordParams{PlayerID: playerID, TenantID: tenantID})
 		if err != nil {
-			return fmt.Errorf("getting player record %d: %w", playerID, err)
+			return fmt.Errorf("getting player record %s: %w", playerID, err)
 		}
 		record = golf.PlayerRecord{
 			Wins:   int32(row.Wins),

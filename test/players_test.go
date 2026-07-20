@@ -97,7 +97,7 @@ func TestAnonymousReadUsesPublicTenant(t *testing.T) {
 	if err != nil {
 		t.Fatalf("connect: %v", err)
 	}
-	t.Cleanup(func() { conn.Close(ctx) })
+	t.Cleanup(func() { _ = conn.Close(ctx) })
 
 	// Seed a player directly under the public tenant (not via a tokened request).
 	id, err := util.SeedPlayer(ctx, conn, util.PublicTenantID, "Public", "Viewer")

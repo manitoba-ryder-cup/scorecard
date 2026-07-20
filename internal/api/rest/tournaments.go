@@ -31,7 +31,7 @@ func NewTournamentsHandler(tournamentService TournamentService) *TournamentsHand
 func (h *TournamentsHandler) ListTournaments(w http.ResponseWriter, r *http.Request) {
 	tournaments, err := h.tournamentService.ListTournaments(r.Context())
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to list tournaments", err)
+		respondDomainError(w, "Failed to list tournaments", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toTournamentDTOs(tournaments))
@@ -98,7 +98,7 @@ func (h *TournamentsHandler) GetTournamentTeams(w http.ResponseWriter, r *http.R
 	}
 	teams, err := h.tournamentService.GetTeamsData(r.Context(), id)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to get teams data", err)
+		respondDomainError(w, "Failed to get teams data", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toTournamentTeamDTOs(teams))
@@ -113,12 +113,12 @@ func (h *TournamentsHandler) GetTournamentWinner(w http.ResponseWriter, r *http.
 	}
 	finished, err := h.tournamentService.IsFinished(r.Context(), id)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to check tournament status", err)
+		respondDomainError(w, "Failed to check tournament status", err)
 		return
 	}
 	winnerID, err := h.tournamentService.GetWinningTeam(r.Context(), id)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to get tournament winner", err)
+		respondDomainError(w, "Failed to get tournament winner", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, sdk.WinnerResponse{Finished: finished, WinnerTeamID: winnerID})
@@ -133,7 +133,7 @@ func (h *TournamentsHandler) GetTournamentStatus(w http.ResponseWriter, r *http.
 	}
 	finished, err := h.tournamentService.IsFinished(r.Context(), id)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to check tournament status", err)
+		respondDomainError(w, "Failed to check tournament status", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, sdk.FinishedResponse{Finished: finished})

@@ -43,7 +43,7 @@ func (h *RosterHandler) ListPlayers(w http.ResponseWriter, r *http.Request) {
 	}
 	players, err := h.rosterService.ListPlayers(r.Context(), tournamentID)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to list tournament players", err)
+		respondDomainError(w, "Failed to list tournament players", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toTournamentPlayerDTOs(players))
@@ -148,7 +148,7 @@ func (h *RosterHandler) ListTeamMembers(w http.ResponseWriter, r *http.Request) 
 	}
 	members, err := h.rosterService.ListTeamMembers(r.Context(), teamID)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to list team members", err)
+		respondDomainError(w, "Failed to list team members", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toTournamentPlayerDTOs(members))

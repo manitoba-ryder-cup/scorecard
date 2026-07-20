@@ -1,0 +1,9 @@
+Files needed:
+- matches.go
+- teams.go
+- tournaments.go  
+- scores.go
+- participants.go
+- team_members.go
+
+These will implement the golf package interfaces

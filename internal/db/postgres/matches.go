@@ -60,7 +60,7 @@ func (m *MatchesDB) GetMatch(ctx context.Context, id uuid.UUID) (*golf.Match, er
 	err = m.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
 		match, err := q.GetMatch(ctx, sqlc.GetMatchParams{ID: id, TenantID: tenantID})
 		if err != nil {
-			return fmt.Errorf("getting match %d: %w", id, mapReadErr(err))
+			return fmt.Errorf("getting match %s: %w", id, mapReadErr(err))
 		}
 		dm := toDomainMatch(match)
 		result = &dm
@@ -84,7 +84,7 @@ func (m *MatchesDB) ListMatchesByTournament(ctx context.Context, tournamentID uu
 			TenantID:     tenantID,
 		})
 		if err != nil {
-			return fmt.Errorf("listing matches for tournament %d: %w", tournamentID, err)
+			return fmt.Errorf("listing matches for tournament %s: %w", tournamentID, err)
 		}
 		result = make([]golf.Match, len(matches))
 		for i, match := range matches {

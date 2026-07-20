@@ -65,7 +65,7 @@ func (t *TournamentsDB) GetTournament(ctx context.Context, id uuid.UUID) (*golf.
 	err = t.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
 		tournament, err := q.GetTournament(ctx, sqlc.GetTournamentParams{ID: id, TenantID: tenantID})
 		if err != nil {
-			return fmt.Errorf("getting tournament %d: %w", id, mapReadErr(err))
+			return fmt.Errorf("getting tournament %s: %w", id, mapReadErr(err))
 		}
 		td := toDomainTournament(tournament)
 		result = &td

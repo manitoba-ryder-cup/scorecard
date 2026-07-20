@@ -29,7 +29,7 @@ func NewPlayersHandler(playerService PlayerService) *PlayersHandler {
 func (h *PlayersHandler) ListPlayers(w http.ResponseWriter, r *http.Request) {
 	players, err := h.playerService.ListPlayers(r.Context())
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to list players", err)
+		respondDomainError(w, "Failed to list players", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toPlayerDTOs(players))
@@ -77,7 +77,7 @@ func (h *PlayersHandler) GetPlayer(w http.ResponseWriter, r *http.Request) {
 	// The detail view carries the derived W/L/T record; the list view does not.
 	record, err := h.playerService.GetPlayerRecord(r.Context(), id)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to get player record", err)
+		respondDomainError(w, "Failed to get player record", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toPlayerProfileDTO(*player, record))

@@ -28,7 +28,7 @@ func (t *TeamsDB) GetTeam(ctx context.Context, id uuid.UUID) (*golf.Team, error)
 	err = t.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
 		team, err := q.GetTeam(ctx, sqlc.GetTeamParams{ID: id, TenantID: tenantID})
 		if err != nil {
-			return fmt.Errorf("getting team %d: %w", id, mapReadErr(err))
+			return fmt.Errorf("getting team %s: %w", id, mapReadErr(err))
 		}
 		team2 := toDomainTeam(team)
 		result = &team2
@@ -50,7 +50,7 @@ func (t *TeamsDB) ListTeamsByTournament(ctx context.Context, tournamentID uuid.U
 			TenantID:     tenantID,
 		})
 		if err != nil {
-			return fmt.Errorf("listing teams for tournament %d: %w", tournamentID, err)
+			return fmt.Errorf("listing teams for tournament %s: %w", tournamentID, err)
 		}
 		result = make([]golf.Team, len(teams))
 		for i, team := range teams {

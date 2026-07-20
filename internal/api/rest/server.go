@@ -2,7 +2,9 @@ package rest
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
+	"runtime/debug"
 	"time"
 
 	"github.com/google/uuid"
@@ -132,7 +134,7 @@ func optionalAuth(m *jwt.HTTPMiddleware, publicTenantID *uuid.UUID, next http.Ha
 			return
 		}
 		if publicTenantID == nil {
-			http.Error(w, `{"error":"authentication required"}`, http.StatusUnauthorized)
+			respondError(w, http.StatusUnauthorized, "authentication required", nil)
 			return
 		}
 		ctx := identity.WithTenant(r.Context(), *publicTenantID)
@@ -146,6 +148,8 @@ func recoverMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
+				// Log with a stack so a recovered panic leaves a diagnosable trail.
+				slog.Error("panic recovered", "error", err, "stack", string(debug.Stack()))
 				w.WriteHeader(http.StatusInternalServerError)
 			}
 		}()
