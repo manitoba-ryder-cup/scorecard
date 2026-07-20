@@ -2,7 +2,6 @@ package rest
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -34,18 +33,13 @@ func (h *CoursesHandler) ListTeeColors(w http.ResponseWriter, r *http.Request) {
 		respondError(r.Context(), w, http.StatusInternalServerError, "Failed to list tee colors", err)
 		return
 	}
-	respondJSON(w, http.StatusOK, toTeeColorDTOs(teeColors))
+	respondJSON(w, http.StatusOK, mapSlice(teeColors, toTeeColorDTO))
 }
 
 // POST /v1/tee-colors
 func (h *CoursesHandler) CreateTeeColor(w http.ResponseWriter, r *http.Request) {
-	var req sdk.CreateTeeColorRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
-		return
-	}
-	if err := req.Validate(r.Context()); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, err.Error(), nil)
+	req, ok := decodeAndValidate[sdk.CreateTeeColorRequest](w, r)
+	if !ok {
 		return
 	}
 	teeColor, err := h.courseService.CreateTeeColor(r.Context(), golf.CreateTeeColorInput{Color: req.Color})
@@ -63,7 +57,7 @@ func (h *CoursesHandler) ListCourses(w http.ResponseWriter, r *http.Request) {
 		respondError(r.Context(), w, http.StatusInternalServerError, "Failed to list courses", err)
 		return
 	}
-	respondJSON(w, http.StatusOK, toCourseDTOs(courses))
+	respondJSON(w, http.StatusOK, mapSlice(courses, toCourseDTO))
 }
 
 // GET /v1/courses/{id}
@@ -88,13 +82,8 @@ func (h *CoursesHandler) AddTeeSet(w http.ResponseWriter, r *http.Request) {
 		respondError(r.Context(), w, http.StatusBadRequest, "Invalid course ID", err)
 		return
 	}
-	var req sdk.CreateTeeSetRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
-		return
-	}
-	if err := req.Validate(r.Context()); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, err.Error(), nil)
+	req, ok := decodeAndValidate[sdk.CreateTeeSetRequest](w, r)
+	if !ok {
 		return
 	}
 	holes := make([]golf.HoleInput, len(req.Holes))
@@ -117,13 +106,8 @@ func (h *CoursesHandler) AddTeeSet(w http.ResponseWriter, r *http.Request) {
 
 // POST /v1/courses
 func (h *CoursesHandler) CreateCourse(w http.ResponseWriter, r *http.Request) {
-	var req sdk.CreateCourseRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
-		return
-	}
-	if err := req.Validate(r.Context()); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, err.Error(), nil)
+	req, ok := decodeAndValidate[sdk.CreateCourseRequest](w, r)
+	if !ok {
 		return
 	}
 	course, err := h.courseService.CreateCourse(r.Context(), golf.CreateCourseInput{Name: req.Name})

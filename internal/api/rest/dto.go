@@ -13,6 +13,16 @@ import (
 // structs directly — the wire format is the SDK's deliberate contract, and internal
 // fields (e.g. tenant_id) are dropped here.
 
+// mapSlice converts a slice by applying f to each element — used to lift a per-item
+// DTO mapper over a list without a bespoke loop per type.
+func mapSlice[T, U any](in []T, f func(T) U) []U {
+	out := make([]U, len(in))
+	for i, v := range in {
+		out[i] = f(v)
+	}
+	return out
+}
+
 func toPlayerDTO(p golf.Player) sdk.Player {
 	return sdk.Player{
 		ID:        p.ID,
@@ -36,14 +46,6 @@ func toPlayerProfileDTO(p golf.Player, rec golf.PlayerRecord) sdk.PlayerProfile 
 	}
 }
 
-func toPlayerDTOs(players []golf.Player) []sdk.Player {
-	out := make([]sdk.Player, len(players))
-	for i, p := range players {
-		out[i] = toPlayerDTO(p)
-	}
-	return out
-}
-
 func toTournamentDTO(t golf.Tournament) sdk.Tournament {
 	return sdk.Tournament{
 		ID:        t.ID,
@@ -52,14 +54,6 @@ func toTournamentDTO(t golf.Tournament) sdk.Tournament {
 		EndDate:   dateString(t.EndDate),
 		Location:  t.Location,
 	}
-}
-
-func toTournamentDTOs(tournaments []golf.Tournament) []sdk.Tournament {
-	out := make([]sdk.Tournament, len(tournaments))
-	for i, t := range tournaments {
-		out[i] = toTournamentDTO(t)
-	}
-	return out
 }
 
 func toTournamentTeamDTO(td golf.TeamData) sdk.TournamentTeam {
@@ -80,14 +74,6 @@ func toTournamentTeamDTO(td golf.TeamData) sdk.TournamentTeam {
 	}
 }
 
-func toTournamentTeamDTOs(teams []golf.TeamData) []sdk.TournamentTeam {
-	out := make([]sdk.TournamentTeam, len(teams))
-	for i, td := range teams {
-		out[i] = toTournamentTeamDTO(td)
-	}
-	return out
-}
-
 func toHoleStatusDTO(h golf.HoleResult) sdk.HoleStatus {
 	scores := make([]sdk.TeamHoleScore, len(h.TeamScores))
 	for i, ts := range h.TeamScores {
@@ -103,24 +89,8 @@ func toHoleStatusDTO(h golf.HoleResult) sdk.HoleStatus {
 	}
 }
 
-func toHoleStatusDTOs(holes []golf.HoleResult) []sdk.HoleStatus {
-	out := make([]sdk.HoleStatus, len(holes))
-	for i, h := range holes {
-		out[i] = toHoleStatusDTO(h)
-	}
-	return out
-}
-
 func toTeeColorDTO(tc golf.TeeColor) sdk.TeeColor {
 	return sdk.TeeColor{ID: tc.ID, Color: tc.Color}
-}
-
-func toTeeColorDTOs(teeColors []golf.TeeColor) []sdk.TeeColor {
-	out := make([]sdk.TeeColor, len(teeColors))
-	for i, tc := range teeColors {
-		out[i] = toTeeColorDTO(tc)
-	}
-	return out
 }
 
 func toTeeSetDTO(ts golf.TeeSetWithHoles) sdk.TeeSet {
@@ -139,14 +109,6 @@ func toTeeSetDTO(ts golf.TeeSetWithHoles) sdk.TeeSet {
 
 func toCourseDTO(c golf.Course) sdk.Course {
 	return sdk.Course{ID: c.ID, Name: c.Name}
-}
-
-func toCourseDTOs(courses []golf.Course) []sdk.Course {
-	out := make([]sdk.Course, len(courses))
-	for i, c := range courses {
-		out[i] = toCourseDTO(c)
-	}
-	return out
 }
 
 // dateString formats a date as YYYY-MM-DD, or "" if unset.

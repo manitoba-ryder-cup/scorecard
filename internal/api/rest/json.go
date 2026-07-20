@@ -11,6 +11,32 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
+// maxRequestBody caps decoded request bodies to guard against a client streaming an
+// unbounded payload into memory.
+const maxRequestBody = 1 << 20 // 1 MiB
+
+// validatable is implemented by the SDK request types (Validate runs client-side too).
+type validatable interface {
+	Validate(ctx context.Context) error
+}
+
+// decodeAndValidate reads a size-limited JSON body into a T and validates its shape,
+// writing a 400 and returning ok=false on any failure. It collapses the identical
+// decode -> validate -> respond preamble every write handler shared.
+func decodeAndValidate[T validatable](w http.ResponseWriter, r *http.Request) (T, bool) {
+	var req T
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBody)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
+		return req, false
+	}
+	if err := req.Validate(r.Context()); err != nil {
+		respondError(r.Context(), w, http.StatusBadRequest, err.Error(), nil)
+		return req, false
+	}
+	return req, true
+}
+
 // respondJSON sends a JSON response
 func respondJSON(writer http.ResponseWriter, status int, data any) {
 	writer.Header().Set("Content-Type", "application/json")

@@ -2,7 +2,6 @@ package rest
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -46,7 +45,7 @@ func (h *RosterHandler) ListPlayers(w http.ResponseWriter, r *http.Request) {
 		respondDomainError(r.Context(), w, "Failed to list tournament players", err)
 		return
 	}
-	respondJSON(w, http.StatusOK, toTournamentPlayerDTOs(players))
+	respondJSON(w, http.StatusOK, mapSlice(players, toTournamentPlayerDTO))
 }
 
 // POST /v1/tournaments/{id}/players
@@ -56,13 +55,8 @@ func (h *RosterHandler) EnterPlayer(w http.ResponseWriter, r *http.Request) {
 		respondError(r.Context(), w, http.StatusBadRequest, "Invalid tournament ID", err)
 		return
 	}
-	var req sdk.EnterTournamentPlayerRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
-		return
-	}
-	if err := req.Validate(r.Context()); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, err.Error(), nil)
+	req, ok := decodeAndValidate[sdk.EnterTournamentPlayerRequest](w, r)
+	if !ok {
 		return
 	}
 	entry, err := h.rosterService.EnterPlayer(r.Context(), golf.EnterPlayerInput{
@@ -91,13 +85,8 @@ func (h *RosterHandler) UpdatePlayer(w http.ResponseWriter, r *http.Request) {
 		respondError(r.Context(), w, http.StatusBadRequest, "Invalid player ID", err)
 		return
 	}
-	var req sdk.UpdateTournamentPlayerRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
-		return
-	}
-	if err := req.Validate(r.Context()); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, err.Error(), nil)
+	req, ok := decodeAndValidate[sdk.UpdateTournamentPlayerRequest](w, r)
+	if !ok {
 		return
 	}
 	entry, err := h.rosterService.UpdatePlayer(r.Context(), golf.EnterPlayerInput{
@@ -122,13 +111,8 @@ func (h *RosterHandler) DraftPlayer(w http.ResponseWriter, r *http.Request) {
 		respondError(r.Context(), w, http.StatusBadRequest, "Invalid team ID", err)
 		return
 	}
-	var req sdk.DraftPlayerRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
-		return
-	}
-	if err := req.Validate(r.Context()); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, err.Error(), nil)
+	req, ok := decodeAndValidate[sdk.DraftPlayerRequest](w, r)
+	if !ok {
 		return
 	}
 	member, err := h.rosterService.DraftPlayer(r.Context(), teamID, req.PlayerID)
@@ -151,7 +135,7 @@ func (h *RosterHandler) ListTeamMembers(w http.ResponseWriter, r *http.Request) 
 		respondDomainError(r.Context(), w, "Failed to list team members", err)
 		return
 	}
-	respondJSON(w, http.StatusOK, toTournamentPlayerDTOs(members))
+	respondJSON(w, http.StatusOK, mapSlice(members, toTournamentPlayerDTO))
 }
 
 func toTournamentPlayerDTO(tp golf.TournamentPlayer) sdk.TournamentPlayer {
@@ -167,14 +151,6 @@ func toTournamentPlayerDTO(tp golf.TournamentPlayer) sdk.TournamentPlayer {
 		PhotoPath:    tp.PhotoPath,
 		TeamID:       tp.TeamID,
 	}
-}
-
-func toTournamentPlayerDTOs(entries []golf.TournamentPlayer) []sdk.TournamentPlayer {
-	out := make([]sdk.TournamentPlayer, len(entries))
-	for i, e := range entries {
-		out[i] = toTournamentPlayerDTO(e)
-	}
-	return out
 }
 
 func toTeamMemberDTO(m golf.TeamMember) sdk.TeamMember {

@@ -2,7 +2,6 @@ package rest
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -42,7 +41,7 @@ func (h *MatchesHandler) ListMatches(w http.ResponseWriter, r *http.Request) {
 		respondDomainError(r.Context(), w, "Failed to list matches", err)
 		return
 	}
-	respondJSON(w, http.StatusOK, toMatchDTOs(matches))
+	respondJSON(w, http.StatusOK, mapSlice(matches, toMatchDTO))
 }
 
 // POST /v1/tournaments/{id}/matches
@@ -52,13 +51,8 @@ func (h *MatchesHandler) CreateMatch(w http.ResponseWriter, r *http.Request) {
 		respondError(r.Context(), w, http.StatusBadRequest, "Invalid tournament ID", err)
 		return
 	}
-	var req sdk.CreateMatchRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
-		return
-	}
-	if err := req.Validate(r.Context()); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, err.Error(), nil)
+	req, ok := decodeAndValidate[sdk.CreateMatchRequest](w, r)
+	if !ok {
 		return
 	}
 	var teeTime *time.Time
@@ -99,14 +93,6 @@ func toMatchDTO(m golf.Match) sdk.Match {
 	}
 }
 
-func toMatchDTOs(matches []golf.Match) []sdk.Match {
-	out := make([]sdk.Match, len(matches))
-	for i, m := range matches {
-		out[i] = toMatchDTO(m)
-	}
-	return out
-}
-
 // GET /v1/matches/{id}/participants
 func (h *MatchesHandler) ListParticipants(w http.ResponseWriter, r *http.Request) {
 	id, err := pathUUID(r, "id")
@@ -119,7 +105,7 @@ func (h *MatchesHandler) ListParticipants(w http.ResponseWriter, r *http.Request
 		respondDomainError(r.Context(), w, "Failed to list participants", err)
 		return
 	}
-	respondJSON(w, http.StatusOK, toMatchParticipantDTOs(participants))
+	respondJSON(w, http.StatusOK, mapSlice(participants, toMatchParticipantDTO))
 }
 
 // POST /v1/matches/{id}/participants
@@ -129,13 +115,8 @@ func (h *MatchesHandler) AddParticipant(w http.ResponseWriter, r *http.Request) 
 		respondError(r.Context(), w, http.StatusBadRequest, "Invalid match ID", err)
 		return
 	}
-	var req sdk.AddParticipantRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
-		return
-	}
-	if err := req.Validate(r.Context()); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, err.Error(), nil)
+	req, ok := decodeAndValidate[sdk.AddParticipantRequest](w, r)
+	if !ok {
 		return
 	}
 	participant, err := h.matchService.AddParticipant(r.Context(), id, req.PlayerID, req.TeamID)
@@ -155,14 +136,6 @@ func toMatchParticipantDTO(p golf.MatchParticipant) sdk.MatchParticipant {
 	}
 }
 
-func toMatchParticipantDTOs(participants []golf.MatchParticipant) []sdk.MatchParticipant {
-	out := make([]sdk.MatchParticipant, len(participants))
-	for i, p := range participants {
-		out[i] = toMatchParticipantDTO(p)
-	}
-	return out
-}
-
 // GET /v1/matches/{id}/scores
 // Returns the hole-by-hole match-play state.
 func (h *MatchesHandler) GetMatchScores(w http.ResponseWriter, r *http.Request) {
@@ -176,7 +149,7 @@ func (h *MatchesHandler) GetMatchScores(w http.ResponseWriter, r *http.Request) 
 		respondDomainError(r.Context(), w, "Failed to calculate match scores", err)
 		return
 	}
-	respondJSON(w, http.StatusOK, toHoleStatusDTOs(scores))
+	respondJSON(w, http.StatusOK, mapSlice(scores, toHoleStatusDTO))
 }
 
 // POST /v1/matches/{id}/scores
@@ -187,13 +160,8 @@ func (h *MatchesHandler) SubmitScore(w http.ResponseWriter, r *http.Request) {
 		respondError(r.Context(), w, http.StatusBadRequest, "Invalid match ID", err)
 		return
 	}
-	var req sdk.ScoreSubmission
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
-		return
-	}
-	if err := req.Validate(r.Context()); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, err.Error(), nil)
+	req, ok := decodeAndValidate[sdk.ScoreSubmission](w, r)
+	if !ok {
 		return
 	}
 	entry := golf.ScoreEntry{

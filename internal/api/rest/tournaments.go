@@ -2,7 +2,6 @@ package rest
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -34,18 +33,13 @@ func (h *TournamentsHandler) ListTournaments(w http.ResponseWriter, r *http.Requ
 		respondDomainError(r.Context(), w, "Failed to list tournaments", err)
 		return
 	}
-	respondJSON(w, http.StatusOK, toTournamentDTOs(tournaments))
+	respondJSON(w, http.StatusOK, mapSlice(tournaments, toTournamentDTO))
 }
 
 // POST /v1/tournaments
 func (h *TournamentsHandler) CreateTournament(w http.ResponseWriter, r *http.Request) {
-	var req sdk.CreateTournamentRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
-		return
-	}
-	if err := req.Validate(r.Context()); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, err.Error(), nil)
+	req, ok := decodeAndValidate[sdk.CreateTournamentRequest](w, r)
+	if !ok {
 		return
 	}
 	// Validate already confirmed the dates parse; the errors here are unreachable in
@@ -101,7 +95,7 @@ func (h *TournamentsHandler) GetTournamentTeams(w http.ResponseWriter, r *http.R
 		respondDomainError(r.Context(), w, "Failed to get teams data", err)
 		return
 	}
-	respondJSON(w, http.StatusOK, toTournamentTeamDTOs(teams))
+	respondJSON(w, http.StatusOK, mapSlice(teams, toTournamentTeamDTO))
 }
 
 // GET /v1/tournaments/{id}/winner

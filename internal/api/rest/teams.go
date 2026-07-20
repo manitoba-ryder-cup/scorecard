@@ -2,7 +2,6 @@ package rest
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -29,13 +28,8 @@ func (h *TeamsHandler) SetCaptain(w http.ResponseWriter, r *http.Request) {
 		respondError(r.Context(), w, http.StatusBadRequest, "Invalid team ID", err)
 		return
 	}
-	var req sdk.SetTeamCaptainRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
-		return
-	}
-	if err := req.Validate(r.Context()); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, err.Error(), nil)
+	req, ok := decodeAndValidate[sdk.SetTeamCaptainRequest](w, r)
+	if !ok {
 		return
 	}
 	// Unknown team -> 404, unknown player -> 400 (FK), both via respondDomainError.

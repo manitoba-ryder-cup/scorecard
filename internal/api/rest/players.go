@@ -2,7 +2,6 @@ package rest
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -32,20 +31,15 @@ func (h *PlayersHandler) ListPlayers(w http.ResponseWriter, r *http.Request) {
 		respondDomainError(r.Context(), w, "Failed to list players", err)
 		return
 	}
-	respondJSON(w, http.StatusOK, toPlayerDTOs(players))
+	respondJSON(w, http.StatusOK, mapSlice(players, toPlayerDTO))
 }
 
 // POST /v1/players
 func (h *PlayersHandler) CreatePlayer(w http.ResponseWriter, r *http.Request) {
-	var req sdk.CreatePlayerRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
-		return
-	}
-	// Server-side shape validation guards non-SDK callers (the SDK client also runs
-	// this before sending). Domain invariants are enforced separately below.
-	if err := req.Validate(r.Context()); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, err.Error(), nil)
+	// The SDK client validates before sending; this guards non-SDK callers. Domain
+	// invariants are enforced separately below.
+	req, ok := decodeAndValidate[sdk.CreatePlayerRequest](w, r)
+	if !ok {
 		return
 	}
 	player, err := h.playerService.CreatePlayer(r.Context(), golf.CreatePlayerInput{
