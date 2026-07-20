@@ -373,6 +373,9 @@ CREATE INDEX ix__scores__tenant_id__match_id__hole_number ON scores(tenant_id, m
 CREATE INDEX ix__team_members__tenant_id__tournament_id ON team_members(tenant_id, tournament_id);
 CREATE INDEX ix__team_members__tenant_id__team_id ON team_members(tenant_id, team_id);
 CREATE INDEX ix__match_participants__tenant_id__match_id ON match_participants(tenant_id, match_id);
+-- GetPlayerRecord filters participants by player_id; the PK/other indexes lead with
+-- match_id, so without this a player's record scans all of a tenant's participants.
+CREATE INDEX ix__match_participants__tenant_id__player_id ON match_participants(tenant_id, player_id);
 CREATE INDEX ix__match_results__tenant_id__tournament_id ON match_results(tenant_id, tournament_id);
 
 -- Score uniqueness has two grains: one row per player per hole (per-player formats)

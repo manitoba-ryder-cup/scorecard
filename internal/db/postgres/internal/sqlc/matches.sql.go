@@ -165,13 +165,7 @@ func (q *Queries) GetMatchWithDetails(ctx context.Context, arg GetMatchWithDetai
 }
 
 const listMatchesByTournament = `-- name: ListMatchesByTournament :many
-SELECT
-    m.id, m.tournament_id, m.course_id, m.tee_color_id, m.match_format_id, m.tenant_id, m.tee_time, m.handicapped, m.created_at, m.updated_at,
-    c.name as course_name,
-    tc.color as tee_color_name
-FROM matches m
-JOIN courses c ON m.course_id = c.id
-JOIN tee_colors tc ON m.tee_color_id = tc.id
+SELECT m.id, m.tournament_id, m.course_id, m.tee_color_id, m.match_format_id, m.tenant_id, m.tee_time, m.handicapped, m.created_at, m.updated_at FROM matches m
 WHERE m.tournament_id = $1 AND m.tenant_id = $2
 ORDER BY m.tee_time
 `
@@ -181,30 +175,15 @@ type ListMatchesByTournamentParams struct {
 	TenantID     uuid.UUID `json:"tenant_id"`
 }
 
-type ListMatchesByTournamentRow struct {
-	ID            uuid.UUID  `json:"id"`
-	TournamentID  uuid.UUID  `json:"tournament_id"`
-	CourseID      uuid.UUID  `json:"course_id"`
-	TeeColorID    uuid.UUID  `json:"tee_color_id"`
-	MatchFormatID uuid.UUID  `json:"match_format_id"`
-	TenantID      uuid.UUID  `json:"tenant_id"`
-	TeeTime       *time.Time `json:"tee_time"`
-	Handicapped   bool       `json:"handicapped"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
-	CourseName    string     `json:"course_name"`
-	TeeColorName  string     `json:"tee_color_name"`
-}
-
-func (q *Queries) ListMatchesByTournament(ctx context.Context, arg ListMatchesByTournamentParams) ([]ListMatchesByTournamentRow, error) {
+func (q *Queries) ListMatchesByTournament(ctx context.Context, arg ListMatchesByTournamentParams) ([]Match, error) {
 	rows, err := q.db.Query(ctx, listMatchesByTournament, arg.TournamentID, arg.TenantID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListMatchesByTournamentRow{}
+	items := []Match{}
 	for rows.Next() {
-		var i ListMatchesByTournamentRow
+		var i Match
 		if err := rows.Scan(
 			&i.ID,
 			&i.TournamentID,
@@ -216,8 +195,6 @@ func (q *Queries) ListMatchesByTournament(ctx context.Context, arg ListMatchesBy
 			&i.Handicapped,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.CourseName,
-			&i.TeeColorName,
 		); err != nil {
 			return nil, err
 		}

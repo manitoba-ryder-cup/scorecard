@@ -30,13 +30,7 @@ JOIN tournaments t ON m.tournament_id = t.id
 WHERE m.id = $1 AND m.tenant_id = $2;
 
 -- name: ListMatchesByTournament :many
-SELECT
-    m.*,
-    c.name as course_name,
-    tc.color as tee_color_name
-FROM matches m
-JOIN courses c ON m.course_id = c.id
-JOIN tee_colors tc ON m.tee_color_id = tc.id
+SELECT m.* FROM matches m
 WHERE m.tournament_id = $1 AND m.tenant_id = $2
 ORDER BY m.tee_time;
 
