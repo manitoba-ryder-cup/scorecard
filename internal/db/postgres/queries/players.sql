@@ -14,27 +14,7 @@ INSERT INTO players (
 SELECT * FROM players
 WHERE id = $1 AND tenant_id = $2;
 
--- name: GetPlayerByEmail :one
-SELECT * FROM players
-WHERE email = $1 AND tenant_id = $2;
-
 -- name: ListPlayers :many
 SELECT * FROM players
 WHERE tenant_id = $1
 ORDER BY last_name, first_name;
-
--- name: UpdatePlayer :one
-UPDATE players
-SET
-    user_id = $3,
-    email = $4,
-    first_name = $5,
-    last_name = $6,
-    photo_path = $7,
-    updated_at = now()
-WHERE id = $1 AND tenant_id = $2
-RETURNING *;
-
--- name: DeletePlayer :exec
-DELETE FROM players
-WHERE id = $1 AND tenant_id = $2;

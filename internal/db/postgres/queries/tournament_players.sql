@@ -48,7 +48,3 @@ JOIN players p ON tp.player_id = p.id
 JOIN team_members tm ON tm.tournament_id = tp.tournament_id AND tm.player_id = tp.player_id
 WHERE tm.team_id = $1 AND tp.tenant_id = $2
 ORDER BY p.last_name, p.first_name;
-
--- name: DeleteTournamentPlayer :exec
-DELETE FROM tournament_players
-WHERE tournament_id = $1 AND player_id = $2 AND tenant_id = $3;

@@ -62,21 +62,6 @@ func (q *Queries) CreateMatch(ctx context.Context, arg CreateMatchParams) (Match
 	return i, err
 }
 
-const deleteMatch = `-- name: DeleteMatch :exec
-DELETE FROM matches
-WHERE id = $1 AND tenant_id = $2
-`
-
-type DeleteMatchParams struct {
-	ID       uuid.UUID `json:"id"`
-	TenantID uuid.UUID `json:"tenant_id"`
-}
-
-func (q *Queries) DeleteMatch(ctx context.Context, arg DeleteMatchParams) error {
-	_, err := q.db.Exec(ctx, deleteMatch, arg.ID, arg.TenantID)
-	return err
-}
-
 const getMatch = `-- name: GetMatch :one
 SELECT id, tournament_id, course_id, tee_color_id, match_format_id, tenant_id, tee_time, handicapped, created_at, updated_at FROM matches
 WHERE id = $1 AND tenant_id = $2
@@ -101,65 +86,6 @@ func (q *Queries) GetMatch(ctx context.Context, arg GetMatchParams) (Match, erro
 		&i.Handicapped,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const getMatchWithDetails = `-- name: GetMatchWithDetails :one
-SELECT
-    m.id, m.tournament_id, m.course_id, m.tee_color_id, m.match_format_id, m.tenant_id, m.tee_time, m.handicapped, m.created_at, m.updated_at,
-    c.name as course_name,
-    tc.color as tee_color_name,
-    mf.name as match_format_name,
-    t.name as tournament_name
-FROM matches m
-JOIN courses c ON m.course_id = c.id
-JOIN tee_colors tc ON m.tee_color_id = tc.id
-JOIN match_formats mf ON m.match_format_id = mf.id
-JOIN tournaments t ON m.tournament_id = t.id
-WHERE m.id = $1 AND m.tenant_id = $2
-`
-
-type GetMatchWithDetailsParams struct {
-	ID       uuid.UUID `json:"id"`
-	TenantID uuid.UUID `json:"tenant_id"`
-}
-
-type GetMatchWithDetailsRow struct {
-	ID              uuid.UUID  `json:"id"`
-	TournamentID    uuid.UUID  `json:"tournament_id"`
-	CourseID        uuid.UUID  `json:"course_id"`
-	TeeColorID      uuid.UUID  `json:"tee_color_id"`
-	MatchFormatID   uuid.UUID  `json:"match_format_id"`
-	TenantID        uuid.UUID  `json:"tenant_id"`
-	TeeTime         *time.Time `json:"tee_time"`
-	Handicapped     bool       `json:"handicapped"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
-	CourseName      string     `json:"course_name"`
-	TeeColorName    string     `json:"tee_color_name"`
-	MatchFormatName string     `json:"match_format_name"`
-	TournamentName  string     `json:"tournament_name"`
-}
-
-func (q *Queries) GetMatchWithDetails(ctx context.Context, arg GetMatchWithDetailsParams) (GetMatchWithDetailsRow, error) {
-	row := q.db.QueryRow(ctx, getMatchWithDetails, arg.ID, arg.TenantID)
-	var i GetMatchWithDetailsRow
-	err := row.Scan(
-		&i.ID,
-		&i.TournamentID,
-		&i.CourseID,
-		&i.TeeColorID,
-		&i.MatchFormatID,
-		&i.TenantID,
-		&i.TeeTime,
-		&i.Handicapped,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.CourseName,
-		&i.TeeColorName,
-		&i.MatchFormatName,
-		&i.TournamentName,
 	)
 	return i, err
 }
@@ -204,52 +130,4 @@ func (q *Queries) ListMatchesByTournament(ctx context.Context, arg ListMatchesBy
 		return nil, err
 	}
 	return items, nil
-}
-
-const updateMatch = `-- name: UpdateMatch :one
-UPDATE matches
-SET
-    course_id = $3,
-    tee_color_id = $4,
-    match_format_id = $5,
-    tee_time = $6,
-    handicapped = $7
-WHERE id = $1 AND tenant_id = $2
-RETURNING id, tournament_id, course_id, tee_color_id, match_format_id, tenant_id, tee_time, handicapped, created_at, updated_at
-`
-
-type UpdateMatchParams struct {
-	ID            uuid.UUID  `json:"id"`
-	TenantID      uuid.UUID  `json:"tenant_id"`
-	CourseID      uuid.UUID  `json:"course_id"`
-	TeeColorID    uuid.UUID  `json:"tee_color_id"`
-	MatchFormatID uuid.UUID  `json:"match_format_id"`
-	TeeTime       *time.Time `json:"tee_time"`
-	Handicapped   bool       `json:"handicapped"`
-}
-
-func (q *Queries) UpdateMatch(ctx context.Context, arg UpdateMatchParams) (Match, error) {
-	row := q.db.QueryRow(ctx, updateMatch,
-		arg.ID,
-		arg.TenantID,
-		arg.CourseID,
-		arg.TeeColorID,
-		arg.MatchFormatID,
-		arg.TeeTime,
-		arg.Handicapped,
-	)
-	var i Match
-	err := row.Scan(
-		&i.ID,
-		&i.TournamentID,
-		&i.CourseID,
-		&i.TeeColorID,
-		&i.MatchFormatID,
-		&i.TenantID,
-		&i.TeeTime,
-		&i.Handicapped,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
 }

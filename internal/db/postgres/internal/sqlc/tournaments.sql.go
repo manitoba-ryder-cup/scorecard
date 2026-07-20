@@ -54,21 +54,6 @@ func (q *Queries) CreateTournament(ctx context.Context, arg CreateTournamentPara
 	return i, err
 }
 
-const deleteTournament = `-- name: DeleteTournament :exec
-DELETE FROM tournaments
-WHERE id = $1 AND tenant_id = $2
-`
-
-type DeleteTournamentParams struct {
-	ID       uuid.UUID `json:"id"`
-	TenantID uuid.UUID `json:"tenant_id"`
-}
-
-func (q *Queries) DeleteTournament(ctx context.Context, arg DeleteTournamentParams) error {
-	_, err := q.db.Exec(ctx, deleteTournament, arg.ID, arg.TenantID)
-	return err
-}
-
 const getTournament = `-- name: GetTournament :one
 SELECT id, tenant_id, name, start_date, end_date, location, created_at, updated_at FROM tournaments
 WHERE id = $1 AND tenant_id = $2
@@ -128,90 +113,4 @@ func (q *Queries) ListTournaments(ctx context.Context, tenantID uuid.UUID) ([]To
 		return nil, err
 	}
 	return items, nil
-}
-
-const listTournamentsByDateRange = `-- name: ListTournamentsByDateRange :many
-SELECT id, tenant_id, name, start_date, end_date, location, created_at, updated_at FROM tournaments
-WHERE tenant_id = $1
-  AND start_date >= $2
-  AND end_date <= $3
-ORDER BY start_date DESC
-`
-
-type ListTournamentsByDateRangeParams struct {
-	TenantID  uuid.UUID `json:"tenant_id"`
-	StartDate time.Time `json:"start_date"`
-	EndDate   time.Time `json:"end_date"`
-}
-
-func (q *Queries) ListTournamentsByDateRange(ctx context.Context, arg ListTournamentsByDateRangeParams) ([]Tournament, error) {
-	rows, err := q.db.Query(ctx, listTournamentsByDateRange, arg.TenantID, arg.StartDate, arg.EndDate)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []Tournament{}
-	for rows.Next() {
-		var i Tournament
-		if err := rows.Scan(
-			&i.ID,
-			&i.TenantID,
-			&i.Name,
-			&i.StartDate,
-			&i.EndDate,
-			&i.Location,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const updateTournament = `-- name: UpdateTournament :one
-UPDATE tournaments
-SET
-    name = $3,
-    start_date = $4,
-    end_date = $5,
-    location = $6
-WHERE id = $1 AND tenant_id = $2
-RETURNING id, tenant_id, name, start_date, end_date, location, created_at, updated_at
-`
-
-type UpdateTournamentParams struct {
-	ID        uuid.UUID `json:"id"`
-	TenantID  uuid.UUID `json:"tenant_id"`
-	Name      string    `json:"name"`
-	StartDate time.Time `json:"start_date"`
-	EndDate   time.Time `json:"end_date"`
-	Location  string    `json:"location"`
-}
-
-func (q *Queries) UpdateTournament(ctx context.Context, arg UpdateTournamentParams) (Tournament, error) {
-	row := q.db.QueryRow(ctx, updateTournament,
-		arg.ID,
-		arg.TenantID,
-		arg.Name,
-		arg.StartDate,
-		arg.EndDate,
-		arg.Location,
-	)
-	var i Tournament
-	err := row.Scan(
-		&i.ID,
-		&i.TenantID,
-		&i.Name,
-		&i.StartDate,
-		&i.EndDate,
-		&i.Location,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
 }

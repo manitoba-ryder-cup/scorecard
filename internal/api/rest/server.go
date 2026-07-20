@@ -17,8 +17,7 @@ import (
 type Config struct {
 	Address          string
 	JWTValidator     *jwt.Validator
-	Environment      string // "development", "staging", "production"
-	TrustedProxyMode bool   // Trust X-Forwarded-For headers from reverse proxy
+	TrustedProxyMode bool // Trust X-Forwarded-For headers from reverse proxy
 	// PublicTenantID enables anonymous read access for a single-tenant public site
 	// (e.g. manitobarydercup.com): reads without a token resolve to this tenant. Nil
 	// on a multi-tenant deployment, where every request must carry a token.

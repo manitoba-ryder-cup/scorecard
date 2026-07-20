@@ -12,21 +12,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const deleteScoresByMatch = `-- name: DeleteScoresByMatch :exec
-DELETE FROM scores
-WHERE match_id = $1 AND tenant_id = $2
-`
-
-type DeleteScoresByMatchParams struct {
-	MatchID  uuid.UUID `json:"match_id"`
-	TenantID uuid.UUID `json:"tenant_id"`
-}
-
-func (q *Queries) DeleteScoresByMatch(ctx context.Context, arg DeleteScoresByMatchParams) error {
-	_, err := q.db.Exec(ctx, deleteScoresByMatch, arg.MatchID, arg.TenantID)
-	return err
-}
-
 const listScoresByMatch = `-- name: ListScoresByMatch :many
 SELECT
     s.id, s.match_id, s.team_id, s.player_id, s.course_id, s.tee_color_id, s.hole_number, s.tenant_id, s.strokes, s.created_at, s.updated_at,

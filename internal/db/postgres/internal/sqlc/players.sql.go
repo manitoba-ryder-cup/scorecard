@@ -57,21 +57,6 @@ func (q *Queries) CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Pla
 	return i, err
 }
 
-const deletePlayer = `-- name: DeletePlayer :exec
-DELETE FROM players
-WHERE id = $1 AND tenant_id = $2
-`
-
-type DeletePlayerParams struct {
-	ID       uuid.UUID `json:"id"`
-	TenantID uuid.UUID `json:"tenant_id"`
-}
-
-func (q *Queries) DeletePlayer(ctx context.Context, arg DeletePlayerParams) error {
-	_, err := q.db.Exec(ctx, deletePlayer, arg.ID, arg.TenantID)
-	return err
-}
-
 const getPlayer = `-- name: GetPlayer :one
 SELECT id, tenant_id, user_id, email, first_name, last_name, photo_path, created_at, updated_at FROM players
 WHERE id = $1 AND tenant_id = $2
@@ -84,33 +69,6 @@ type GetPlayerParams struct {
 
 func (q *Queries) GetPlayer(ctx context.Context, arg GetPlayerParams) (Player, error) {
 	row := q.db.QueryRow(ctx, getPlayer, arg.ID, arg.TenantID)
-	var i Player
-	err := row.Scan(
-		&i.ID,
-		&i.TenantID,
-		&i.UserID,
-		&i.Email,
-		&i.FirstName,
-		&i.LastName,
-		&i.PhotoPath,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const getPlayerByEmail = `-- name: GetPlayerByEmail :one
-SELECT id, tenant_id, user_id, email, first_name, last_name, photo_path, created_at, updated_at FROM players
-WHERE email = $1 AND tenant_id = $2
-`
-
-type GetPlayerByEmailParams struct {
-	Email    *string   `json:"email"`
-	TenantID uuid.UUID `json:"tenant_id"`
-}
-
-func (q *Queries) GetPlayerByEmail(ctx context.Context, arg GetPlayerByEmailParams) (Player, error) {
-	row := q.db.QueryRow(ctx, getPlayerByEmail, arg.Email, arg.TenantID)
 	var i Player
 	err := row.Scan(
 		&i.ID,
@@ -160,52 +118,4 @@ func (q *Queries) ListPlayers(ctx context.Context, tenantID uuid.UUID) ([]Player
 		return nil, err
 	}
 	return items, nil
-}
-
-const updatePlayer = `-- name: UpdatePlayer :one
-UPDATE players
-SET
-    user_id = $3,
-    email = $4,
-    first_name = $5,
-    last_name = $6,
-    photo_path = $7,
-    updated_at = now()
-WHERE id = $1 AND tenant_id = $2
-RETURNING id, tenant_id, user_id, email, first_name, last_name, photo_path, created_at, updated_at
-`
-
-type UpdatePlayerParams struct {
-	ID        uuid.UUID  `json:"id"`
-	TenantID  uuid.UUID  `json:"tenant_id"`
-	UserID    *uuid.UUID `json:"user_id"`
-	Email     *string    `json:"email"`
-	FirstName string     `json:"first_name"`
-	LastName  string     `json:"last_name"`
-	PhotoPath string     `json:"photo_path"`
-}
-
-func (q *Queries) UpdatePlayer(ctx context.Context, arg UpdatePlayerParams) (Player, error) {
-	row := q.db.QueryRow(ctx, updatePlayer,
-		arg.ID,
-		arg.TenantID,
-		arg.UserID,
-		arg.Email,
-		arg.FirstName,
-		arg.LastName,
-		arg.PhotoPath,
-	)
-	var i Player
-	err := row.Scan(
-		&i.ID,
-		&i.TenantID,
-		&i.UserID,
-		&i.Email,
-		&i.FirstName,
-		&i.LastName,
-		&i.PhotoPath,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
 }

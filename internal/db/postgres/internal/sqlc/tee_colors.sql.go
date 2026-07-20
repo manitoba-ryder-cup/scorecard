@@ -32,55 +32,6 @@ func (q *Queries) CreateTeeColor(ctx context.Context, arg CreateTeeColorParams) 
 	return i, err
 }
 
-const deleteTeeColor = `-- name: DeleteTeeColor :exec
-DELETE FROM tee_colors
-WHERE id = $1 AND tenant_id = $2
-`
-
-type DeleteTeeColorParams struct {
-	ID       uuid.UUID `json:"id"`
-	TenantID uuid.UUID `json:"tenant_id"`
-}
-
-func (q *Queries) DeleteTeeColor(ctx context.Context, arg DeleteTeeColorParams) error {
-	_, err := q.db.Exec(ctx, deleteTeeColor, arg.ID, arg.TenantID)
-	return err
-}
-
-const getTeeColor = `-- name: GetTeeColor :one
-SELECT id, tenant_id, color FROM tee_colors
-WHERE id = $1 AND tenant_id = $2
-`
-
-type GetTeeColorParams struct {
-	ID       uuid.UUID `json:"id"`
-	TenantID uuid.UUID `json:"tenant_id"`
-}
-
-func (q *Queries) GetTeeColor(ctx context.Context, arg GetTeeColorParams) (TeeColor, error) {
-	row := q.db.QueryRow(ctx, getTeeColor, arg.ID, arg.TenantID)
-	var i TeeColor
-	err := row.Scan(&i.ID, &i.TenantID, &i.Color)
-	return i, err
-}
-
-const getTeeColorByName = `-- name: GetTeeColorByName :one
-SELECT id, tenant_id, color FROM tee_colors
-WHERE color = $1 AND tenant_id = $2
-`
-
-type GetTeeColorByNameParams struct {
-	Color    string    `json:"color"`
-	TenantID uuid.UUID `json:"tenant_id"`
-}
-
-func (q *Queries) GetTeeColorByName(ctx context.Context, arg GetTeeColorByNameParams) (TeeColor, error) {
-	row := q.db.QueryRow(ctx, getTeeColorByName, arg.Color, arg.TenantID)
-	var i TeeColor
-	err := row.Scan(&i.ID, &i.TenantID, &i.Color)
-	return i, err
-}
-
 const listTeeColors = `-- name: ListTeeColors :many
 SELECT id, tenant_id, color FROM tee_colors
 WHERE tenant_id = $1
@@ -105,24 +56,4 @@ func (q *Queries) ListTeeColors(ctx context.Context, tenantID uuid.UUID) ([]TeeC
 		return nil, err
 	}
 	return items, nil
-}
-
-const updateTeeColor = `-- name: UpdateTeeColor :one
-UPDATE tee_colors
-SET color = $3
-WHERE id = $1 AND tenant_id = $2
-RETURNING id, tenant_id, color
-`
-
-type UpdateTeeColorParams struct {
-	ID       uuid.UUID `json:"id"`
-	TenantID uuid.UUID `json:"tenant_id"`
-	Color    string    `json:"color"`
-}
-
-func (q *Queries) UpdateTeeColor(ctx context.Context, arg UpdateTeeColorParams) (TeeColor, error) {
-	row := q.db.QueryRow(ctx, updateTeeColor, arg.ID, arg.TenantID, arg.Color)
-	var i TeeColor
-	err := row.Scan(&i.ID, &i.TenantID, &i.Color)
-	return i, err
 }

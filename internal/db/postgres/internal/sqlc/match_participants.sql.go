@@ -50,46 +50,6 @@ func (q *Queries) CreateMatchParticipant(ctx context.Context, arg CreateMatchPar
 	return i, err
 }
 
-const deleteMatchParticipant = `-- name: DeleteMatchParticipant :exec
-DELETE FROM match_participants
-WHERE match_id = $1 AND player_id = $2 AND tenant_id = $3
-`
-
-type DeleteMatchParticipantParams struct {
-	MatchID  uuid.UUID `json:"match_id"`
-	PlayerID uuid.UUID `json:"player_id"`
-	TenantID uuid.UUID `json:"tenant_id"`
-}
-
-func (q *Queries) DeleteMatchParticipant(ctx context.Context, arg DeleteMatchParticipantParams) error {
-	_, err := q.db.Exec(ctx, deleteMatchParticipant, arg.MatchID, arg.PlayerID, arg.TenantID)
-	return err
-}
-
-const getMatchParticipant = `-- name: GetMatchParticipant :one
-SELECT tournament_id, match_id, player_id, team_id, tenant_id FROM match_participants
-WHERE match_id = $1 AND player_id = $2 AND tenant_id = $3
-`
-
-type GetMatchParticipantParams struct {
-	MatchID  uuid.UUID `json:"match_id"`
-	PlayerID uuid.UUID `json:"player_id"`
-	TenantID uuid.UUID `json:"tenant_id"`
-}
-
-func (q *Queries) GetMatchParticipant(ctx context.Context, arg GetMatchParticipantParams) (MatchParticipant, error) {
-	row := q.db.QueryRow(ctx, getMatchParticipant, arg.MatchID, arg.PlayerID, arg.TenantID)
-	var i MatchParticipant
-	err := row.Scan(
-		&i.TournamentID,
-		&i.MatchID,
-		&i.PlayerID,
-		&i.TeamID,
-		&i.TenantID,
-	)
-	return i, err
-}
-
 const listMatchParticipants = `-- name: ListMatchParticipants :many
 SELECT tournament_id, match_id, player_id, team_id, tenant_id FROM match_participants
 WHERE match_id = $1 AND tenant_id = $2

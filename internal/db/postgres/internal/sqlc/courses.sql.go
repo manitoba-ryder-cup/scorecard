@@ -32,21 +32,6 @@ func (q *Queries) CreateCourse(ctx context.Context, arg CreateCourseParams) (Cou
 	return i, err
 }
 
-const deleteCourse = `-- name: DeleteCourse :exec
-DELETE FROM courses
-WHERE id = $1 AND tenant_id = $2
-`
-
-type DeleteCourseParams struct {
-	ID       uuid.UUID `json:"id"`
-	TenantID uuid.UUID `json:"tenant_id"`
-}
-
-func (q *Queries) DeleteCourse(ctx context.Context, arg DeleteCourseParams) error {
-	_, err := q.db.Exec(ctx, deleteCourse, arg.ID, arg.TenantID)
-	return err
-}
-
 const getCourse = `-- name: GetCourse :one
 SELECT id, tenant_id, name FROM courses
 WHERE id = $1 AND tenant_id = $2
@@ -59,23 +44,6 @@ type GetCourseParams struct {
 
 func (q *Queries) GetCourse(ctx context.Context, arg GetCourseParams) (Course, error) {
 	row := q.db.QueryRow(ctx, getCourse, arg.ID, arg.TenantID)
-	var i Course
-	err := row.Scan(&i.ID, &i.TenantID, &i.Name)
-	return i, err
-}
-
-const getCourseByName = `-- name: GetCourseByName :one
-SELECT id, tenant_id, name FROM courses
-WHERE name = $1 AND tenant_id = $2
-`
-
-type GetCourseByNameParams struct {
-	Name     string    `json:"name"`
-	TenantID uuid.UUID `json:"tenant_id"`
-}
-
-func (q *Queries) GetCourseByName(ctx context.Context, arg GetCourseByNameParams) (Course, error) {
-	row := q.db.QueryRow(ctx, getCourseByName, arg.Name, arg.TenantID)
 	var i Course
 	err := row.Scan(&i.ID, &i.TenantID, &i.Name)
 	return i, err
@@ -105,24 +73,4 @@ func (q *Queries) ListCourses(ctx context.Context, tenantID uuid.UUID) ([]Course
 		return nil, err
 	}
 	return items, nil
-}
-
-const updateCourse = `-- name: UpdateCourse :one
-UPDATE courses
-SET name = $3
-WHERE id = $1 AND tenant_id = $2
-RETURNING id, tenant_id, name
-`
-
-type UpdateCourseParams struct {
-	ID       uuid.UUID `json:"id"`
-	TenantID uuid.UUID `json:"tenant_id"`
-	Name     string    `json:"name"`
-}
-
-func (q *Queries) UpdateCourse(ctx context.Context, arg UpdateCourseParams) (Course, error) {
-	row := q.db.QueryRow(ctx, updateCourse, arg.ID, arg.TenantID, arg.Name)
-	var i Course
-	err := row.Scan(&i.ID, &i.TenantID, &i.Name)
-	return i, err
 }

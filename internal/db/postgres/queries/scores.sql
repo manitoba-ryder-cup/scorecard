@@ -32,7 +32,3 @@ JOIN holes h ON s.course_id = h.course_id
     AND s.hole_number = h.number
 WHERE s.match_id = $1 AND s.tenant_id = $2
 ORDER BY s.hole_number;
-
--- name: DeleteScoresByMatch :exec
-DELETE FROM scores
-WHERE match_id = $1 AND tenant_id = $2;

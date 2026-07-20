@@ -83,22 +83,6 @@ func (q *Queries) CreateTournamentPlayer(ctx context.Context, arg CreateTourname
 	return i, err
 }
 
-const deleteTournamentPlayer = `-- name: DeleteTournamentPlayer :exec
-DELETE FROM tournament_players
-WHERE tournament_id = $1 AND player_id = $2 AND tenant_id = $3
-`
-
-type DeleteTournamentPlayerParams struct {
-	TournamentID uuid.UUID `json:"tournament_id"`
-	PlayerID     uuid.UUID `json:"player_id"`
-	TenantID     uuid.UUID `json:"tenant_id"`
-}
-
-func (q *Queries) DeleteTournamentPlayer(ctx context.Context, arg DeleteTournamentPlayerParams) error {
-	_, err := q.db.Exec(ctx, deleteTournamentPlayer, arg.TournamentID, arg.PlayerID, arg.TenantID)
-	return err
-}
-
 const listTournamentPlayers = `-- name: ListTournamentPlayers :many
 SELECT tp.tournament_id, tp.player_id, tp.tenant_id, tp.tier, tp.biography, tp.hdcp, tp.created_at, tp.updated_at, p.first_name, p.last_name, p.email, p.photo_path, tm.team_id
 FROM tournament_players tp

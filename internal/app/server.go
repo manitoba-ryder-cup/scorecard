@@ -133,7 +133,6 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 	httpServer := rest.NewServer(&rest.Config{
 		Address:           config.HTTPAddress,
 		JWTValidator:      jwtValidator,
-		Environment:       config.Environment,
 		TrustedProxyMode:  config.TrustedProxyMode,
 		PublicTenantID:    publicTenantID,
 		PlayerService:     playerService,

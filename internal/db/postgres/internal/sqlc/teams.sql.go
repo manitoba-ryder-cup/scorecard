@@ -47,21 +47,6 @@ func (q *Queries) CreateTeam(ctx context.Context, arg CreateTeamParams) (Team, e
 	return i, err
 }
 
-const deleteTeam = `-- name: DeleteTeam :exec
-DELETE FROM teams
-WHERE id = $1 AND tenant_id = $2
-`
-
-type DeleteTeamParams struct {
-	ID       uuid.UUID `json:"id"`
-	TenantID uuid.UUID `json:"tenant_id"`
-}
-
-func (q *Queries) DeleteTeam(ctx context.Context, arg DeleteTeamParams) error {
-	_, err := q.db.Exec(ctx, deleteTeam, arg.ID, arg.TenantID)
-	return err
-}
-
 const getTeam = `-- name: GetTeam :one
 SELECT id, tenant_id, tournament_id, color, captain_id FROM teams
 WHERE id = $1 AND tenant_id = $2
@@ -74,30 +59,6 @@ type GetTeamParams struct {
 
 func (q *Queries) GetTeam(ctx context.Context, arg GetTeamParams) (Team, error) {
 	row := q.db.QueryRow(ctx, getTeam, arg.ID, arg.TenantID)
-	var i Team
-	err := row.Scan(
-		&i.ID,
-		&i.TenantID,
-		&i.TournamentID,
-		&i.Color,
-		&i.CaptainID,
-	)
-	return i, err
-}
-
-const getTeamByColor = `-- name: GetTeamByColor :one
-SELECT id, tenant_id, tournament_id, color, captain_id FROM teams
-WHERE tournament_id = $1 AND color = $2 AND tenant_id = $3
-`
-
-type GetTeamByColorParams struct {
-	TournamentID uuid.UUID `json:"tournament_id"`
-	Color        string    `json:"color"`
-	TenantID     uuid.UUID `json:"tenant_id"`
-}
-
-func (q *Queries) GetTeamByColor(ctx context.Context, arg GetTeamByColorParams) (Team, error) {
-	row := q.db.QueryRow(ctx, getTeamByColor, arg.TournamentID, arg.Color, arg.TenantID)
 	var i Team
 	err := row.Scan(
 		&i.ID,

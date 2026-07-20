@@ -7,30 +7,16 @@ package sqlc
 
 import (
 	"context"
-
-	"github.com/google/uuid"
 )
 
-const getMatchFormat = `-- name: GetMatchFormat :one
-
-SELECT id, name FROM match_formats
-WHERE id = $1
-`
-
-// Match formats are global, code-defined reference data (seeded, not tenant-scoped),
-// so these reads take no tenant_id and there is no create/update/delete.
-func (q *Queries) GetMatchFormat(ctx context.Context, id uuid.UUID) (MatchFormat, error) {
-	row := q.db.QueryRow(ctx, getMatchFormat, id)
-	var i MatchFormat
-	err := row.Scan(&i.ID, &i.Name)
-	return i, err
-}
-
 const listMatchFormats = `-- name: ListMatchFormats :many
+
 SELECT id, name FROM match_formats
 ORDER BY id
 `
 
+// Match formats are global, code-defined reference data (seeded, not tenant-scoped),
+// so these reads take no tenant_id and there is no create/update/delete.
 func (q *Queries) ListMatchFormats(ctx context.Context) ([]MatchFormat, error) {
 	rows, err := q.db.Query(ctx, listMatchFormats)
 	if err != nil {

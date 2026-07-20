@@ -12,10 +12,6 @@ INSERT INTO teams (
 SELECT * FROM teams
 WHERE id = $1 AND tenant_id = $2;
 
--- name: GetTeamByColor :one
-SELECT * FROM teams
-WHERE tournament_id = $1 AND color = $2 AND tenant_id = $3;
-
 -- name: ListTeamsByTournament :many
 -- LEFT JOIN so the captain (if any) comes back in one query instead of a per-team lookup.
 SELECT
@@ -33,7 +29,3 @@ UPDATE teams
 SET captain_id = $3
 WHERE id = $1 AND tenant_id = $2
 RETURNING *;
-
--- name: DeleteTeam :exec
-DELETE FROM teams
-WHERE id = $1 AND tenant_id = $2;
