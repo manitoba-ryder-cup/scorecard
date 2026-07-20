@@ -17,9 +17,16 @@ SELECT * FROM teams
 WHERE tournament_id = $1 AND color = $2 AND tenant_id = $3;
 
 -- name: ListTeamsByTournament :many
-SELECT * FROM teams
-WHERE tournament_id = $1 AND tenant_id = $2
-ORDER BY color;
+-- LEFT JOIN so the captain (if any) comes back in one query instead of a per-team lookup.
+SELECT
+    t.*,
+    p.first_name AS captain_first_name,
+    p.last_name  AS captain_last_name,
+    p.email      AS captain_email
+FROM teams t
+LEFT JOIN players p ON p.id = t.captain_id
+WHERE t.tournament_id = $1 AND t.tenant_id = $2
+ORDER BY t.color;
 
 -- name: SetTeamCaptain :one
 UPDATE teams

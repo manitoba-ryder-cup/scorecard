@@ -118,6 +118,14 @@ func (r DraftPlayerRequest) Validate(ctx context.Context) error {
 	return nil
 }
 
+// Validate checks a set-captain request.
+func (r SetTeamCaptainRequest) Validate(ctx context.Context) error {
+	if r.CaptainID == uuid.Nil {
+		return fmt.Errorf("captain_id is required")
+	}
+	return nil
+}
+
 // Validate checks a tee-set creation request: valid slope/rating and exactly 18
 // holes forming complete, non-duplicated hole-number and stroke-index (hdcp) sets.
 func (r CreateTeeSetRequest) Validate(ctx context.Context) error {

@@ -43,13 +43,14 @@ type scoreDB interface {
 // teamDB interface defines database operations for teams
 type teamDB interface {
 	GetTeam(ctx context.Context, id uuid.UUID) (*Team, error)
-	ListTeamsByTournament(ctx context.Context, tournamentID uuid.UUID) ([]Team, error)
+	// ListTeamsByTournament returns the tournament's teams with their captains resolved.
+	ListTeamsByTournament(ctx context.Context, tournamentID uuid.UUID) ([]TeamWithCaptain, error)
+	// SetTeamCaptain assigns a team's captain and returns the updated team.
+	SetTeamCaptain(ctx context.Context, teamID, captainID uuid.UUID) (*Team, error)
 }
 
 // teamMemberDB interface defines database operations for team members
 type teamMemberDB interface {
-	// GetTeamCaptain returns the captain of a team (via teams.captain_id), or nil.
-	GetTeamCaptain(ctx context.Context, teamID uuid.UUID) (*Player, error)
 	// CreateTeamMember drafts a player onto a team (the tournament is the team's).
 	CreateTeamMember(ctx context.Context, teamID, playerID, tournamentID uuid.UUID) (*TeamMember, error)
 }

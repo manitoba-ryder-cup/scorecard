@@ -99,9 +99,8 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 	}
 
 	teamService := &golf.TeamService{
-		TeamDB:       teamsDB,
-		TeamMemberDB: teamMembersDB,
-		Logger:       config.Logger,
+		TeamDB: teamsDB,
+		Logger: config.Logger,
 	}
 
 	tournamentService := &golf.TournamentService{
@@ -143,6 +142,7 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 		CourseService:     courseService,
 		FormatService:     formatService,
 		RosterService:     rosterService,
+		TeamService:       teamService,
 	})
 
 	return &Server{

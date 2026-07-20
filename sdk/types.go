@@ -185,6 +185,12 @@ type DraftPlayerRequest struct {
 	PlayerID uuid.UUID `json:"player_id"`
 }
 
+// SetTeamCaptainRequest is the body for PUT /v1/teams/{id}/captain. The captain must be
+// an existing player (typically one drafted onto the team).
+type SetTeamCaptainRequest struct {
+	CaptainID uuid.UUID `json:"captain_id"`
+}
+
 // TournamentTeam is one of a tournament's two sides with its captain and points.
 type TournamentTeam struct {
 	ID      uuid.UUID      `json:"id"`

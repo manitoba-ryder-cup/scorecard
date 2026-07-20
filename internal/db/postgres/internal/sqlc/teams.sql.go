@@ -110,9 +110,15 @@ func (q *Queries) GetTeamByColor(ctx context.Context, arg GetTeamByColorParams) 
 }
 
 const listTeamsByTournament = `-- name: ListTeamsByTournament :many
-SELECT id, tenant_id, tournament_id, color, captain_id FROM teams
-WHERE tournament_id = $1 AND tenant_id = $2
-ORDER BY color
+SELECT
+    t.id, t.tenant_id, t.tournament_id, t.color, t.captain_id,
+    p.first_name AS captain_first_name,
+    p.last_name  AS captain_last_name,
+    p.email      AS captain_email
+FROM teams t
+LEFT JOIN players p ON p.id = t.captain_id
+WHERE t.tournament_id = $1 AND t.tenant_id = $2
+ORDER BY t.color
 `
 
 type ListTeamsByTournamentParams struct {
@@ -120,21 +126,36 @@ type ListTeamsByTournamentParams struct {
 	TenantID     uuid.UUID `json:"tenant_id"`
 }
 
-func (q *Queries) ListTeamsByTournament(ctx context.Context, arg ListTeamsByTournamentParams) ([]Team, error) {
+type ListTeamsByTournamentRow struct {
+	ID               uuid.UUID  `json:"id"`
+	TenantID         uuid.UUID  `json:"tenant_id"`
+	TournamentID     uuid.UUID  `json:"tournament_id"`
+	Color            string     `json:"color"`
+	CaptainID        *uuid.UUID `json:"captain_id"`
+	CaptainFirstName *string    `json:"captain_first_name"`
+	CaptainLastName  *string    `json:"captain_last_name"`
+	CaptainEmail     *string    `json:"captain_email"`
+}
+
+// LEFT JOIN so the captain (if any) comes back in one query instead of a per-team lookup.
+func (q *Queries) ListTeamsByTournament(ctx context.Context, arg ListTeamsByTournamentParams) ([]ListTeamsByTournamentRow, error) {
 	rows, err := q.db.Query(ctx, listTeamsByTournament, arg.TournamentID, arg.TenantID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Team{}
+	items := []ListTeamsByTournamentRow{}
 	for rows.Next() {
-		var i Team
+		var i ListTeamsByTournamentRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.TenantID,
 			&i.TournamentID,
 			&i.Color,
 			&i.CaptainID,
+			&i.CaptainFirstName,
+			&i.CaptainLastName,
+			&i.CaptainEmail,
 		); err != nil {
 			return nil, err
 		}

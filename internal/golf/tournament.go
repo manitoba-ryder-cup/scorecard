@@ -75,15 +75,10 @@ func (s *TournamentService) GetTeamsData(ctx context.Context, tournamentID uuid.
 
 	result := []TeamData{}
 	for _, team := range teams {
-		captain, err := s.TeamService.GetCaptain(ctx, team.ID)
-		if err != nil {
-			s.Logger.Error("failed to get captain for team", "team_id", team.ID, "error", err)
-			captain = nil
-		}
 		result = append(result, TeamData{
 			ID:      team.ID,
 			Color:   team.Color,
-			Captain: captain,
+			Captain: team.Captain,
 			Points:  points[team.ID],
 		})
 	}

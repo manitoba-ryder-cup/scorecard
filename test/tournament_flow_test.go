@@ -62,6 +62,14 @@ func TestFullRyderCupCorrectness(t *testing.T) {
 		blue[i] = enterAndDraft(t, client, tour.ID, blueTeam, "Blue", fmt.Sprintf("Player%d", i))
 	}
 
+	// Each side names a captain (one of its drafted players).
+	if err := client.SetTeamCaptain(ctx, redTeam, sdk.SetTeamCaptainRequest{CaptainID: red[0]}); err != nil {
+		t.Fatalf("set red captain: %v", err)
+	}
+	if err := client.SetTeamCaptain(ctx, blueTeam, sdk.SetTeamCaptainRequest{CaptainID: blue[0]}); err != nil {
+		t.Fatalf("set blue captain: %v", err)
+	}
+
 	// The four rounds. perSide is the match grain (1 = singles, 2 = pairs); the outcomes
 	// slice has one entry per match and must cover every player on each side exactly once
 	// (len == playersPerSide/perSide). The schedule below is engineered so Red wins the
@@ -189,9 +197,15 @@ func TestFullRyderCupCorrectness(t *testing.T) {
 			if tm.Points != redPts {
 				t.Fatalf("Red points: want %v, got %v", redPts, tm.Points)
 			}
+			if tm.Captain == nil || tm.Captain.ID != red[0] {
+				t.Fatalf("Red captain: want %s, got %+v", red[0], tm.Captain)
+			}
 		case blueTeam:
 			if tm.Points != bluePts {
 				t.Fatalf("Blue points: want %v, got %v", bluePts, tm.Points)
+			}
+			if tm.Captain == nil || tm.Captain.ID != blue[0] {
+				t.Fatalf("Blue captain: want %s, got %+v", blue[0], tm.Captain)
 			}
 		}
 	}

@@ -172,6 +172,13 @@ type HoleResult struct {
 	Decided        bool
 }
 
+// TeamWithCaptain is a team plus its resolved captain (nil if unset). Returned by the
+// team listing so the tournament summary needs no per-team captain lookup.
+type TeamWithCaptain struct {
+	Team
+	Captain *PlayerSummary
+}
+
 // TeamData represents a team's summary for a tournament
 type TeamData struct {
 	ID      uuid.UUID

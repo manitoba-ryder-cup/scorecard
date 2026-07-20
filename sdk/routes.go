@@ -32,6 +32,7 @@ const (
 
 	// Team draft (members of a specific team)
 	RouteV1TeamMembers = "/v1/teams/{id}/members"
+	RouteV1TeamCaptain = "/v1/teams/{id}/captain"
 
 	// Matches
 	RouteV1TournamentMatches = "/v1/tournaments/{id}/matches"

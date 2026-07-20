@@ -66,35 +66,6 @@ func (q *Queries) DeleteTeamMember(ctx context.Context, arg DeleteTeamMemberPara
 	return err
 }
 
-const getTeamCaptain = `-- name: GetTeamCaptain :one
-SELECT p.id, p.tenant_id, p.user_id, p.email, p.first_name, p.last_name, p.photo_path, p.created_at, p.updated_at
-FROM teams t
-JOIN players p ON t.captain_id = p.id
-WHERE t.id = $1 AND t.tenant_id = $2
-`
-
-type GetTeamCaptainParams struct {
-	ID       uuid.UUID `json:"id"`
-	TenantID uuid.UUID `json:"tenant_id"`
-}
-
-func (q *Queries) GetTeamCaptain(ctx context.Context, arg GetTeamCaptainParams) (Player, error) {
-	row := q.db.QueryRow(ctx, getTeamCaptain, arg.ID, arg.TenantID)
-	var i Player
-	err := row.Scan(
-		&i.ID,
-		&i.TenantID,
-		&i.UserID,
-		&i.Email,
-		&i.FirstName,
-		&i.LastName,
-		&i.PhotoPath,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const getTeamMember = `-- name: GetTeamMember :one
 SELECT team_id, player_id, tournament_id, tenant_id FROM team_members
 WHERE tournament_id = $1 AND player_id = $2 AND tenant_id = $3

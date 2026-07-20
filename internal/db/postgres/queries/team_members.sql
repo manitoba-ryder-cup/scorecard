@@ -16,12 +16,6 @@ INSERT INTO team_members (
 SELECT * FROM team_members
 WHERE tournament_id = $1 AND player_id = $2 AND tenant_id = $3;
 
--- name: GetTeamCaptain :one
-SELECT p.*
-FROM teams t
-JOIN players p ON t.captain_id = p.id
-WHERE t.id = $1 AND t.tenant_id = $2;
-
 -- name: DeleteTeamMember :exec
 DELETE FROM team_members
 WHERE tournament_id = $1 AND player_id = $2 AND tenant_id = $3;

@@ -155,6 +155,11 @@ func (c *Client) DraftPlayer(ctx context.Context, teamID uuid.UUID, req DraftPla
 	return &out, c.do(ctx, http.MethodPost, pathID(RouteV1TeamMembers, teamID), req, &out)
 }
 
+// SetTeamCaptain assigns a team's captain. A 204 (no body) is success.
+func (c *Client) SetTeamCaptain(ctx context.Context, teamID uuid.UUID, req SetTeamCaptainRequest) error {
+	return c.do(ctx, http.MethodPut, pathID(RouteV1TeamCaptain, teamID), req, nil)
+}
+
 // ListTeamMembers lists a team's drafted players (the roster-entry view, filtered).
 func (c *Client) ListTeamMembers(ctx context.Context, teamID uuid.UUID) ([]TournamentPlayer, error) {
 	var out []TournamentPlayer

@@ -2,11 +2,9 @@ package postgres
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres/internal/sqlc"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/travisbale/knowhere/identity"
@@ -43,29 +41,6 @@ func (t *TeamMembersDB) CreateTeamMember(ctx context.Context, teamID, playerID, 
 			PlayerID:     member.PlayerID,
 			TournamentID: member.TournamentID,
 		}
-		return nil
-	})
-	return result, err
-}
-
-// GetTeamCaptain returns the captain of a team (teams.captain_id), or nil if unset.
-func (t *TeamMembersDB) GetTeamCaptain(ctx context.Context, teamID uuid.UUID) (*golf.Player, error) {
-	tenantID, err := identity.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var result *golf.Player
-	err = t.db.WithTenantContext(ctx, func(q *sqlc.Queries) error {
-		captain, err := q.GetTeamCaptain(ctx, sqlc.GetTeamCaptainParams{ID: teamID, TenantID: tenantID})
-		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				return nil // no captain set
-			}
-			return fmt.Errorf("getting team captain: %w", err)
-		}
-		p := toDomainPlayer(captain)
-		result = &p
 		return nil
 	})
 	return result, err

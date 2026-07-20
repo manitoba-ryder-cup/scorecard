@@ -29,6 +29,7 @@ type Config struct {
 	CourseService     *golf.CourseService
 	FormatService     *golf.FormatService
 	RosterService     *golf.RosterService
+	TeamService       *golf.TeamService
 }
 
 type Server struct {
@@ -44,6 +45,7 @@ func NewServer(config *Config) *Server {
 	coursesHandler := NewCoursesHandler(config.CourseService)
 	formatsHandler := NewFormatsHandler(config.FormatService)
 	rosterHandler := NewRosterHandler(config.RosterService)
+	teamsHandler := NewTeamsHandler(config.TeamService)
 
 	mux := http.NewServeMux()
 
@@ -104,6 +106,7 @@ func NewServer(config *Config) *Server {
 	// Team draft routes
 	public("GET", "/v1/teams/{id}/members", rosterHandler.ListTeamMembers)
 	scoped("POST", "/v1/teams/{id}/members", sdk.ScopeTournamentsWrite, rosterHandler.DraftPlayer)
+	scoped("PUT", "/v1/teams/{id}/captain", sdk.ScopeTournamentsWrite, teamsHandler.SetCaptain)
 
 	// Global middleware chain. Assembled inner-to-outer, so recoverMiddleware is
 	// outermost (wraps everything) and RequestID runs before ClientIP/UserAgent.
