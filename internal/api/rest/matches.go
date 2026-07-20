@@ -18,6 +18,8 @@ type MatchService interface {
 	SubmitScore(ctx context.Context, matchID uuid.UUID, entry golf.ScoreEntry) error
 	CreateMatch(ctx context.Context, in golf.CreateMatchInput) (*golf.Match, error)
 	ListMatches(ctx context.Context, tournamentID uuid.UUID) ([]golf.Match, error)
+	AddParticipant(ctx context.Context, matchID, playerID, teamID uuid.UUID) (*golf.MatchParticipant, error)
+	ListParticipants(ctx context.Context, matchID uuid.UUID) ([]golf.MatchParticipant, error)
 }
 
 type MatchesHandler struct {
@@ -101,6 +103,62 @@ func toMatchDTOs(matches []golf.Match) []sdk.Match {
 	out := make([]sdk.Match, len(matches))
 	for i, m := range matches {
 		out[i] = toMatchDTO(m)
+	}
+	return out
+}
+
+// GET /v1/matches/{id}/participants
+func (h *MatchesHandler) ListParticipants(w http.ResponseWriter, r *http.Request) {
+	id, err := pathUUID(r, "id")
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid match ID", err)
+		return
+	}
+	participants, err := h.matchService.ListParticipants(r.Context(), id)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to list participants", err)
+		return
+	}
+	respondJSON(w, http.StatusOK, toMatchParticipantDTOs(participants))
+}
+
+// POST /v1/matches/{id}/participants
+func (h *MatchesHandler) AddParticipant(w http.ResponseWriter, r *http.Request) {
+	id, err := pathUUID(r, "id")
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid match ID", err)
+		return
+	}
+	var req sdk.AddParticipantRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid request body", err)
+		return
+	}
+	if err := req.Validate(r.Context()); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
+	participant, err := h.matchService.AddParticipant(r.Context(), id, req.PlayerID, req.TeamID)
+	if err != nil {
+		respondDomainError(w, "Failed to add participant", err)
+		return
+	}
+	respondJSON(w, http.StatusCreated, toMatchParticipantDTO(*participant))
+}
+
+func toMatchParticipantDTO(p golf.MatchParticipant) sdk.MatchParticipant {
+	return sdk.MatchParticipant{
+		TournamentID: p.TournamentID,
+		MatchID:      p.MatchID,
+		PlayerID:     p.PlayerID,
+		TeamID:       p.TeamID,
+	}
+}
+
+func toMatchParticipantDTOs(participants []golf.MatchParticipant) []sdk.MatchParticipant {
+	out := make([]sdk.MatchParticipant, len(participants))
+	for i, p := range participants {
+		out[i] = toMatchParticipantDTO(p)
 	}
 	return out
 }

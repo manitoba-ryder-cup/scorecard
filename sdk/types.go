@@ -217,6 +217,21 @@ type CreateMatchRequest struct {
 	Handicapped   bool      `json:"handicapped"`
 }
 
+// MatchParticipant is a player (on a team) taking part in a match.
+type MatchParticipant struct {
+	TournamentID uuid.UUID `json:"tournament_id"`
+	MatchID      uuid.UUID `json:"match_id"`
+	PlayerID     uuid.UUID `json:"player_id"`
+	TeamID       uuid.UUID `json:"team_id"`
+}
+
+// AddParticipantRequest is the body for POST /v1/matches/{id}/participants. The match
+// (and its tournament) come from the path; the player must be drafted onto team_id.
+type AddParticipantRequest struct {
+	PlayerID uuid.UUID `json:"player_id"`
+	TeamID   uuid.UUID `json:"team_id"`
+}
+
 // ScoreSubmission is the request body for POST /v1/matches/{id}/scores — one hole
 // score. course_id/tee_color_id are omitted: the server derives them from the match.
 // player_id is null for one-ball team formats (alt shot, scramble).

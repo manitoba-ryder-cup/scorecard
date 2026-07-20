@@ -173,6 +173,17 @@ func (c *Client) CreateMatch(ctx context.Context, tournamentID uuid.UUID, req Cr
 	return &out, c.do(ctx, http.MethodPost, pathID(RouteV1TournamentMatches, tournamentID), req, &out)
 }
 
+func (c *Client) ListParticipants(ctx context.Context, matchID uuid.UUID) ([]MatchParticipant, error) {
+	var out []MatchParticipant
+	return out, c.do(ctx, http.MethodGet, pathID(RouteV1MatchParticipants, matchID), nil, &out)
+}
+
+// AddParticipant adds a drafted player (with their team) to a match.
+func (c *Client) AddParticipant(ctx context.Context, matchID uuid.UUID, req AddParticipantRequest) (*MatchParticipant, error) {
+	var out MatchParticipant
+	return &out, c.do(ctx, http.MethodPost, pathID(RouteV1MatchParticipants, matchID), req, &out)
+}
+
 // SubmitScore records one hole score. A 204 (no body) is success.
 func (c *Client) SubmitScore(ctx context.Context, matchID uuid.UUID, req ScoreSubmission) error {
 	return c.do(ctx, http.MethodPost, pathID(RouteV1MatchScores, matchID), req, nil)

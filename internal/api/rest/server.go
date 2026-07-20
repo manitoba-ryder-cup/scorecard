@@ -75,6 +75,8 @@ func NewServer(config *Config) *Server {
 	scoped("POST", "/v1/courses/{id}/tees", sdk.ScopeCoursesWrite, coursesHandler.AddTeeSet)
 
 	// Match routes
+	public("GET", "/v1/matches/{id}/participants", matchesHandler.ListParticipants)
+	scoped("POST", "/v1/matches/{id}/participants", sdk.ScopeTournamentsWrite, matchesHandler.AddParticipant)
 	public("GET", "/v1/matches/{id}/scores", matchesHandler.GetMatchScores)
 	scoped("POST", "/v1/matches/{id}/scores", sdk.ScopeScoresWrite, matchesHandler.SubmitScore)
 	public("GET", "/v1/matches/{id}/winner", matchesHandler.GetMatchWinner)

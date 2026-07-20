@@ -31,6 +31,9 @@ type fakeParticipantDB struct {
 func (f *fakeParticipantDB) ListMatchParticipants(ctx context.Context, matchID uuid.UUID) ([]MatchParticipant, error) {
 	return f.participants, nil
 }
+func (f *fakeParticipantDB) CreateMatchParticipant(ctx context.Context, tournamentID, matchID, playerID, teamID uuid.UUID) (*MatchParticipant, error) {
+	return nil, nil
+}
 
 type fakeScoreDB struct {
 	scores []Score

@@ -49,6 +49,31 @@ func (s *MatchService) ListMatches(ctx context.Context, tournamentID uuid.UUID) 
 	return matches, nil
 }
 
+// AddParticipant adds a player (on a team) to a match. The match is loaded first (so a
+// bad match is a clean 404) to derive the tournament. The composite FKs enforce that
+// the player is drafted onto that team and the team is in the match's tournament — an
+// undrafted or wrong-team player surfaces as ErrInvalidInput.
+func (s *MatchService) AddParticipant(ctx context.Context, matchID, playerID, teamID uuid.UUID) (*MatchParticipant, error) {
+	match, err := s.MatchDB.GetMatch(ctx, matchID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load match: %w", err)
+	}
+	participant, err := s.ParticipantDB.CreateMatchParticipant(ctx, match.TournamentID, matchID, playerID, teamID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add participant: %w", err)
+	}
+	return participant, nil
+}
+
+// ListParticipants returns a match's participants.
+func (s *MatchService) ListParticipants(ctx context.Context, matchID uuid.UUID) ([]MatchParticipant, error) {
+	participants, err := s.ParticipantDB.ListMatchParticipants(ctx, matchID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list participants: %w", err)
+	}
+	return participants, nil
+}
+
 // ScoreEntry is a client-supplied hole score. CourseID/TeeColorID are intentionally
 // absent — they're derived from the match, not trusted from the caller. PlayerID is
 // nil for one-ball team formats (alt shot, scramble). Hole/strokes range is validated

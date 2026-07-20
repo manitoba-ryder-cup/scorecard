@@ -99,6 +99,17 @@ func (r CreateMatchRequest) Validate(ctx context.Context) error {
 	return nil
 }
 
+// Validate checks an add-participant request: both references are required.
+func (r AddParticipantRequest) Validate(ctx context.Context) error {
+	if r.PlayerID == uuid.Nil {
+		return fmt.Errorf("player_id is required")
+	}
+	if r.TeamID == uuid.Nil {
+		return fmt.Errorf("team_id is required")
+	}
+	return nil
+}
+
 // Validate checks a draft request: a player reference is required.
 func (r DraftPlayerRequest) Validate(ctx context.Context) error {
 	if r.PlayerID == uuid.Nil {

@@ -29,6 +29,7 @@ type matchDB interface {
 // participantDB interface defines database operations for match participants
 type participantDB interface {
 	ListMatchParticipants(ctx context.Context, matchID uuid.UUID) ([]MatchParticipant, error)
+	CreateMatchParticipant(ctx context.Context, tournamentID, matchID, playerID, teamID uuid.UUID) (*MatchParticipant, error)
 }
 
 // scoreDB interface defines database operations for scores
