@@ -11,6 +11,7 @@ import (
 )
 
 func TestSetTeamCaptainAndRead(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 	tour, err := client.CreateTournament(ctx, sdk.CreateTournamentRequest{
@@ -55,6 +56,7 @@ func TestSetTeamCaptainAndRead(t *testing.T) {
 }
 
 func TestSetCaptainUnknownTeamReturns404(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	err := client.SetTeamCaptain(context.Background(), uuid.New(), sdk.SetTeamCaptainRequest{CaptainID: uuid.New()})
 	var apiErr *sdk.APIError
@@ -64,6 +66,7 @@ func TestSetCaptainUnknownTeamReturns404(t *testing.T) {
 }
 
 func TestSetCaptainUnknownPlayerRejected(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 	tour, err := client.CreateTournament(ctx, sdk.CreateTournamentRequest{

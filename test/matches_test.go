@@ -46,6 +46,7 @@ func playableCourse(t *testing.T, client *sdk.Client) (courseID, teeColorID, for
 }
 
 func TestCreateAndListMatch(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 
@@ -86,6 +87,7 @@ func TestCreateAndListMatch(t *testing.T) {
 }
 
 func TestCreateMatchUnknownFormatRejected(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 	tour, err := client.CreateTournament(ctx, sdk.CreateTournamentRequest{
@@ -107,6 +109,7 @@ func TestCreateMatchUnknownFormatRejected(t *testing.T) {
 }
 
 func TestCreateMatchWithoutTeeSetRejected(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 	tour, err := client.CreateTournament(ctx, sdk.CreateTournamentRequest{

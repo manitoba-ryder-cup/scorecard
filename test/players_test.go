@@ -13,6 +13,7 @@ import (
 )
 
 func TestCreatePlayerAndReadBack(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 
@@ -56,6 +57,7 @@ func TestCreatePlayerAndReadBack(t *testing.T) {
 }
 
 func TestCreatePlayerRosterOnly(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 
 	// No email, no user_id — a roster-only player is valid.
@@ -71,6 +73,7 @@ func TestCreatePlayerRosterOnly(t *testing.T) {
 }
 
 func TestCreatePlayerDuplicateEmailConflicts(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 	email := "dup@example.com"
@@ -90,6 +93,7 @@ func TestCreatePlayerDuplicateEmailConflicts(t *testing.T) {
 // TestAnonymousReadUsesPublicTenant confirms a request with no token can read data
 // belonging to the configured public tenant — the spectator path for a public site.
 func TestAnonymousReadUsesPublicTenant(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	cfg := util.LoadConfig()
 
@@ -117,6 +121,7 @@ func TestAnonymousReadUsesPublicTenant(t *testing.T) {
 }
 
 func TestGetNonexistentPlayerReturns404(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 
 	_, err := client.GetPlayer(context.Background(), uuid.New())
@@ -129,6 +134,7 @@ func TestGetNonexistentPlayerReturns404(t *testing.T) {
 // Raw request (bypassing the SDK client's validation) confirms the server rejects a
 // nameless player too.
 func TestCreatePlayerEmptyNameRejectedByServer(t *testing.T) {
+	t.Parallel()
 	body := `{"first_name":"","last_name":"Johnson"}`
 	status, _ := request.Raw(t, http.MethodPost, sdk.RouteV1Players, body, freshToken(t))
 	if status != http.StatusBadRequest {

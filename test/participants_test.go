@@ -14,6 +14,7 @@ import (
 // — tournament, players, entry, draft, course, match, participants — and submits a
 // score, proving the whole setup chain is reachable end to end.
 func TestFullTournamentFlowToScoring(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 
@@ -114,6 +115,7 @@ func draftedMatch(t *testing.T, client *sdk.Client) (matchID, redTeam, redPlayer
 }
 
 func TestAddUndraftedPlayerRejected(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 	matchID, redTeam, _ := draftedMatch(t, client)
@@ -131,6 +133,7 @@ func TestAddUndraftedPlayerRejected(t *testing.T) {
 }
 
 func TestAddDuplicateParticipantConflicts(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 	matchID, redTeam, redPlayer := draftedMatch(t, client)
@@ -146,6 +149,7 @@ func TestAddDuplicateParticipantConflicts(t *testing.T) {
 }
 
 func TestAddParticipantToNonexistentMatchReturns404(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 
 	_, err := client.AddParticipant(context.Background(), uuid.New(), sdk.AddParticipantRequest{

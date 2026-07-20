@@ -11,6 +11,7 @@ import (
 // TestHealthzReportsOK checks that /healthz returns 200 when the database is reachable
 // (the readiness probe the deployment relies on).
 func TestHealthzReportsOK(t *testing.T) {
+	t.Parallel()
 	resp, err := http.Get(util.LoadConfig().BaseURL + sdk.RouteHealth)
 	if err != nil {
 		t.Fatalf("get healthz: %v", err)

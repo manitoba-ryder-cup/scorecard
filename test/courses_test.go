@@ -11,6 +11,7 @@ import (
 )
 
 func TestCreateTeeColorAndCourse(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 
@@ -57,6 +58,7 @@ func TestCreateTeeColorAndCourse(t *testing.T) {
 }
 
 func TestCreateCourseDuplicateNameConflicts(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 
@@ -71,6 +73,7 @@ func TestCreateCourseDuplicateNameConflicts(t *testing.T) {
 }
 
 func TestCreateTeeColorDuplicateConflicts(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 
@@ -85,6 +88,7 @@ func TestCreateTeeColorDuplicateConflicts(t *testing.T) {
 }
 
 func TestGetNonexistentCourseReturns404(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 
 	_, err := client.GetCourse(context.Background(), uuid.New())

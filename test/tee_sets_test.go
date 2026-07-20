@@ -21,6 +21,7 @@ func eighteenHoles() []sdk.Hole {
 }
 
 func TestAddTeeSetWithHoles(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 
@@ -55,6 +56,7 @@ func TestAddTeeSetWithHoles(t *testing.T) {
 }
 
 func TestAddTeeSetUnknownTeeColorRejected(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 
@@ -74,6 +76,7 @@ func TestAddTeeSetUnknownTeeColorRejected(t *testing.T) {
 }
 
 func TestAddTeeSetToNonexistentCourseReturns404(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 
 	_, err := client.AddTeeSet(context.Background(), uuid.New(), sdk.CreateTeeSetRequest{
@@ -88,6 +91,7 @@ func TestAddTeeSetToNonexistentCourseReturns404(t *testing.T) {
 // Sent raw (bypassing the SDK client's validation) to confirm the server also
 // rejects a wrong hole count.
 func TestAddTeeSetWrongHoleCountRejectedByServer(t *testing.T) {
+	t.Parallel()
 	// Valid UUID path + tee_color_id so the request reaches hole-count validation.
 	body := `{"tee_color_id":"11111111-1111-1111-1111-111111111111","slope":113,"rating":71.2,"holes":[]}`
 	status, _ := request.Raw(t, http.MethodPost, "/v1/courses/11111111-1111-1111-1111-111111111111/tees", body, freshToken(t))

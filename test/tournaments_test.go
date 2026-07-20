@@ -33,6 +33,7 @@ func freshClient(t *testing.T) *sdk.Client {
 }
 
 func TestCreateTournamentSeedsBothTeams(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 
@@ -76,6 +77,7 @@ func TestCreateTournamentSeedsBothTeams(t *testing.T) {
 // TestWriteWithoutScopeForbidden confirms a valid token lacking the write scope is
 // authorized-but-forbidden (403), distinct from unauthenticated (401).
 func TestWriteWithoutScopeForbidden(t *testing.T) {
+	t.Parallel()
 	client := sdk.NewClient(util.LoadConfig().BaseURL)
 	client.SetToken(testjwt.MintAccessToken(t, uuid.New(), uuid.New())) // no scopes
 
@@ -89,6 +91,7 @@ func TestWriteWithoutScopeForbidden(t *testing.T) {
 }
 
 func TestGetNonexistentTournamentReturns404(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 
 	_, err := client.GetTournament(context.Background(), uuid.New())
@@ -101,6 +104,7 @@ func TestGetNonexistentTournamentReturns404(t *testing.T) {
 // The SDK client would reject end-before-start before sending, so this hits the
 // server directly to confirm it validates too (a non-SDK caller must get 400).
 func TestCreateTournamentInvalidDatesRejectedByServer(t *testing.T) {
+	t.Parallel()
 	body := `{"name":"Backwards Cup","start_date":"2026-08-03","end_date":"2026-08-01","location":"Winnipeg"}`
 	status, _ := request.Raw(t, http.MethodPost, sdk.RouteV1Tournaments, body, freshToken(t))
 	if status != http.StatusBadRequest {

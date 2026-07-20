@@ -29,6 +29,7 @@ func enterPrereqs(t *testing.T, client *sdk.Client) (tournamentID, playerID uuid
 }
 
 func TestEnterUpdateAndListTournamentPlayers(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 	tournamentID, playerID := enterPrereqs(t, client)
@@ -66,6 +67,7 @@ func TestEnterUpdateAndListTournamentPlayers(t *testing.T) {
 }
 
 func TestEnterTournamentPlayerDefaultsTier(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 	tournamentID, playerID := enterPrereqs(t, client)
@@ -80,6 +82,7 @@ func TestEnterTournamentPlayerDefaultsTier(t *testing.T) {
 }
 
 func TestEnterTournamentPlayerDuplicateConflicts(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 	tournamentID, playerID := enterPrereqs(t, client)
@@ -95,6 +98,7 @@ func TestEnterTournamentPlayerDuplicateConflicts(t *testing.T) {
 }
 
 func TestEnterUnknownPlayerRejected(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 	tour, err := client.CreateTournament(ctx, sdk.CreateTournamentRequest{
@@ -129,6 +133,7 @@ func teamByColor(t *testing.T, client *sdk.Client, tournamentID uuid.UUID, color
 }
 
 func TestDraftPlayerOntoTeam(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 	tournamentID, playerID := enterPrereqs(t, client)
@@ -165,6 +170,7 @@ func TestDraftPlayerOntoTeam(t *testing.T) {
 }
 
 func TestDraftUnenteredPlayerRejected(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 	tournamentID, playerID := enterPrereqs(t, client) // player created but NOT entered
@@ -179,6 +185,7 @@ func TestDraftUnenteredPlayerRejected(t *testing.T) {
 }
 
 func TestDraftAlreadyDraftedConflicts(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 	tournamentID, playerID := enterPrereqs(t, client)
@@ -199,6 +206,7 @@ func TestDraftAlreadyDraftedConflicts(t *testing.T) {
 }
 
 func TestDraftToNonexistentTeamReturns404(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 
 	_, err := client.DraftPlayer(context.Background(), uuid.New(), sdk.DraftPlayerRequest{PlayerID: uuid.New()})
@@ -209,6 +217,7 @@ func TestDraftToNonexistentTeamReturns404(t *testing.T) {
 }
 
 func TestUpdateUnenteredPlayerReturns404(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 	tournamentID, playerID := enterPrereqs(t, client)

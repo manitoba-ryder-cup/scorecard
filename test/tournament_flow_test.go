@@ -36,6 +36,7 @@ const (
 // pre-chosen outcome via hole scores, and we assert the API reports that outcome —
 // per match and, once every match is final, for the Cup and the point tally.
 func TestFullRyderCupCorrectness(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
 
@@ -215,38 +216,38 @@ func TestFullRyderCupCorrectness(t *testing.T) {
 // result the winning side shoots 3 and the loser 5 on every hole, so the winner takes
 // each hole and closes the match out at hole 10 (10&8) — the earliest a 3-and-1 lead
 // becomes insurmountable. A halved match has both sides shoot 4 for all 18 holes,
-// finishing all square. Every participant posts each hole, so pairs formats genuinely
-// exercise best-ball (min strokes per team).
+// finishing all square. One designated player posts per team each hole: the engine
+// scores a team by its best ball, so a single score IS the team's score, and this keeps
+// score submissions (the suite's dominant cost) to two calls per hole regardless of
+// format. Best-ball min-of-two partners is covered by the golf unit tests instead.
 func playMatch(t *testing.T, client *sdk.Client, matchID, redTeam, blueTeam uuid.UUID, redPs, bluePs []uuid.UUID, out outcome) {
 	t.Helper()
 	ctx := context.Background()
-	post := func(hole int32, team uuid.UUID, players []uuid.UUID, strokes int32) {
-		for _, p := range players {
-			p := p
-			if err := client.SubmitScore(ctx, matchID, sdk.ScoreSubmission{
-				HoleNumber: hole, Strokes: strokes, TeamID: team, PlayerID: &p,
-			}); err != nil {
-				t.Fatalf("submit score (match %s hole %d): %v", matchID, hole, err)
-			}
+	post := func(hole int32, team, player uuid.UUID, strokes int32) {
+		p := player
+		if err := client.SubmitScore(ctx, matchID, sdk.ScoreSubmission{
+			HoleNumber: hole, Strokes: strokes, TeamID: team, PlayerID: &p,
+		}); err != nil {
+			t.Fatalf("submit score (match %s hole %d): %v", matchID, hole, err)
 		}
 	}
 
 	if out == halved {
 		for h := int32(1); h <= 18; h++ {
-			post(h, redTeam, redPs, 4)
-			post(h, blueTeam, bluePs, 4)
+			post(h, redTeam, redPs[0], 4)
+			post(h, blueTeam, bluePs[0], 4)
 		}
 		return
 	}
 
-	winTeam, winPs, loseTeam, losePs := redTeam, redPs, blueTeam, bluePs
+	winTeam, winP, loseTeam, loseP := redTeam, redPs[0], blueTeam, bluePs[0]
 	if out == blueWin {
-		winTeam, winPs, loseTeam, losePs = blueTeam, bluePs, redTeam, redPs
+		winTeam, winP, loseTeam, loseP = blueTeam, bluePs[0], redTeam, redPs[0]
 	}
 	// Holes 1-10 are enough: after 10 holes won the lead is 10 with 8 to play (10&8).
 	for h := int32(1); h <= 10; h++ {
-		post(h, winTeam, winPs, 3)
-		post(h, loseTeam, losePs, 5)
+		post(h, winTeam, winP, 3)
+		post(h, loseTeam, loseP, 5)
 	}
 }
 

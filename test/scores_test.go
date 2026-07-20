@@ -63,6 +63,7 @@ func authedClient(t *testing.T) (*sdk.Client, *util.Fixture) {
 // path against real Postgres: submitting scores through the API updates match_results,
 // which the winner/status/player-record reads then reflect.
 func TestScoreEntryClosesTheMaterializationLoop(t *testing.T) {
+	t.Parallel()
 	client, fix := authedClient(t)
 	ctx := context.Background()
 
@@ -127,6 +128,7 @@ func TestScoreEntryClosesTheMaterializationLoop(t *testing.T) {
 // TestSubmitScoreUpsertsHole confirms the ON CONFLICT update path: re-submitting the
 // same hole overwrites the prior strokes rather than inserting a duplicate.
 func TestSubmitScoreUpsertsHole(t *testing.T) {
+	t.Parallel()
 	client, fix := authedClient(t)
 	ctx := context.Background()
 	red := fix.RedPlayer
@@ -180,6 +182,7 @@ func TestSubmitScoreUpsertsHole(t *testing.T) {
 // strokes with 400. Sent raw (bypassing the SDK client's validation); shape checks
 // run before any match lookup, so no seeded match is needed.
 func TestSubmitScoreRejectsInvalidStrokes(t *testing.T) {
+	t.Parallel()
 	// Valid UUID path + team_id so the request reaches strokes validation.
 	body := `{"hole_number":1,"strokes":0,"team_id":"11111111-1111-1111-1111-111111111111"}`
 	status, _ := request.Raw(t, http.MethodPost, "/v1/matches/11111111-1111-1111-1111-111111111111/scores", body, freshToken(t))
@@ -192,6 +195,7 @@ func TestSubmitScoreRejectsInvalidStrokes(t *testing.T) {
 // 404, not 500. The body is shape-valid so it passes client + server validation and
 // reaches the match lookup, which fails with not-found.
 func TestSubmitScoreToNonexistentMatchReturns404(t *testing.T) {
+	t.Parallel()
 	client := freshClient(t)
 
 	err := client.SubmitScore(context.Background(), uuid.New(), sdk.ScoreSubmission{
@@ -206,6 +210,7 @@ func TestSubmitScoreToNonexistentMatchReturns404(t *testing.T) {
 // TestUnauthenticatedWriteRejected confirms writes require a token: reads are public
 // now, but an unauthenticated write is 401. Sent raw so no client token is attached.
 func TestUnauthenticatedWriteRejected(t *testing.T) {
+	t.Parallel()
 	body := `{"first_name":"No","last_name":"Auth"}`
 	status, _ := request.Raw(t, http.MethodPost, sdk.RouteV1Players, body, "")
 	if status != http.StatusUnauthorized {

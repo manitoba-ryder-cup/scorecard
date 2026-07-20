@@ -11,6 +11,7 @@ import (
 // TestListMatchFormatsIsPublicAndSeeded confirms match formats are global seeded
 // reference data: readable with no token (no tenant) and populated by the migration.
 func TestListMatchFormatsIsPublicAndSeeded(t *testing.T) {
+	t.Parallel()
 	client := sdk.NewClient(util.LoadConfig().BaseURL) // no token
 
 	formats, err := client.ListMatchFormats(context.Background())
