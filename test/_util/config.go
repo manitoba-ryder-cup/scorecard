@@ -26,7 +26,7 @@ type Config struct {
 // docker-compose defaults.
 func LoadConfig() *Config {
 	return &Config{
-		BaseURL:           getEnv("SCORECARD_BASE_URL", "http://localhost:5000"),
+		BaseURL:           getEnv("SCORECARD_BASE_URL", "http://localhost:5001"),
 		DatabaseURL:       getEnv("TEST_DATABASE_URL", "postgres://superuser:superuser@localhost:5433/scorecard?sslmode=disable"),
 		JWTPrivateKeyPath: getEnv("JWT_PRIVATE_KEY_PATH", privateKeyPath()),
 	}

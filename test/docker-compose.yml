@@ -29,7 +29,8 @@ services:
       dockerfile: Dockerfile
     container_name: scorecard-test
     ports:
-      - "5000:5000"
+      # Host 5001 so the test API can run alongside the dev/UI scorecard on 5000.
+      - "5001:5000"
     environment:
       # Connects as the non-superuser app role so RLS is enforced. The server runs
       # migrations on startup, so no separate migrate step is needed.
