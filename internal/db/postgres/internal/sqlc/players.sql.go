@@ -59,21 +59,23 @@ func (q *Queries) CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Pla
 }
 
 const playerRecords = `-- name: PlayerRecords :many
+WITH cups AS (
+    SELECT tm.player_id, COUNT(*) AS cups_won
+    FROM team_members tm
+    JOIN tournament_winners w
+        ON w.tenant_id = tm.tenant_id AND w.tournament_id = tm.tournament_id AND w.team_id = tm.team_id
+    WHERE tm.tenant_id = $1
+    GROUP BY tm.player_id
+)
 SELECT
     p.id, p.tenant_id, p.user_id, p.email, p.first_name, p.last_name, p.photo_path, p.created_at, p.updated_at,
-    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id = mp.team_id) AS wins,
-    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id IS NOT NULL AND mr.leader_team_id <> mp.team_id) AS losses,
-    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id IS NULL) AS ties,
-    (
-        SELECT COUNT(*)
-        FROM team_members tm
-        JOIN tournament_winners w
-            ON w.tenant_id = tm.tenant_id AND w.tournament_id = tm.tournament_id AND w.team_id = tm.team_id
-        WHERE tm.player_id = p.id AND tm.tenant_id = p.tenant_id
-    ) AS cups_won
+    COUNT(*) FILTER (WHERE o.won) AS wins,
+    COUNT(*) FILTER (WHERE o.lost) AS losses,
+    COUNT(*) FILTER (WHERE o.tied) AS ties,
+    COALESCE(MAX(c.cups_won), 0)::bigint AS cups_won
 FROM players p
-LEFT JOIN match_participants mp ON mp.player_id = p.id AND mp.tenant_id = p.tenant_id
-LEFT JOIN match_results mr ON mr.match_id = mp.match_id AND mr.tenant_id = mp.tenant_id
+LEFT JOIN player_match_outcomes o ON o.player_id = p.id AND o.tenant_id = p.tenant_id
+LEFT JOIN cups c ON c.player_id = p.id
 WHERE p.tenant_id = $1
   AND ($2::uuid IS NULL OR p.id = $2)
 GROUP BY p.id
@@ -103,8 +105,8 @@ type PlayerRecordsRow struct {
 
 // PlayerRecords returns players with their all-time record and cups (both 0 with no
 // finished matches / no winning tournaments) joined in — one query for the whole list
-// (id null) or a single player (id set). Cups counts finished tournaments the player's
-// team won outright.
+// (id null) or a single player (id set). Cups is pre-aggregated once (a per-player CTE)
+// rather than a subquery per row; the record aggregates the per-match outcomes.
 func (q *Queries) PlayerRecords(ctx context.Context, arg PlayerRecordsParams) ([]PlayerRecordsRow, error) {
 	rows, err := q.db.Query(ctx, playerRecords, arg.TenantID, arg.ID)
 	if err != nil {

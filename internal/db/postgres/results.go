@@ -72,11 +72,24 @@ func (r *ResultsDB) ListTeamPoints(ctx context.Context, tournamentID uuid.UUID) 
 
 func (r *ResultsDB) IsTournamentFinished(ctx context.Context, tournamentID uuid.UUID) (bool, error) {
 	return withTenant(ctx, r.db, func(q *sqlc.Queries, tenantID uuid.UUID) (bool, error) {
-		f, err := q.IsTournamentFinished(ctx, sqlc.IsTournamentFinishedParams{TournamentID: tournamentID, TenantID: tenantID})
+		finished, err := q.IsTournamentFinished(ctx, sqlc.IsTournamentFinishedParams{TournamentID: tournamentID, TenantID: tenantID})
 		if err != nil {
 			return false, fmt.Errorf("checking tournament finished: %w", err)
 		}
-		return f != nil && *f, nil
+		return finished, nil
+	})
+}
+
+func (r *ResultsDB) GetTournamentWinner(ctx context.Context, tournamentID uuid.UUID) (*uuid.UUID, error) {
+	return withTenant(ctx, r.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*uuid.UUID, error) {
+		teamID, err := q.GetTournamentWinner(ctx, sqlc.GetTournamentWinnerParams{TournamentID: tournamentID, TenantID: tenantID})
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, nil // unfinished or tied — no winner
+			}
+			return nil, fmt.Errorf("getting tournament winner: %w", err)
+		}
+		return &teamID, nil
 	})
 }
 

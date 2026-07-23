@@ -50,15 +50,11 @@ func (s *TournamentService) IsFinished(ctx context.Context, tournamentID uuid.UU
 // GetWinningTeam returns the tournament's winning team ID, or nil if undecided
 // (not finished) or tied.
 func (s *TournamentService) GetWinningTeam(ctx context.Context, tournamentID uuid.UUID) (*uuid.UUID, error) {
-	finished, err := s.IsFinished(ctx, tournamentID)
-	if err != nil || !finished {
-		return nil, err
-	}
-	points, err := s.ResultDB.ListTeamPoints(ctx, tournamentID)
+	winner, err := s.ResultDB.GetTournamentWinner(ctx, tournamentID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list team points: %w", err)
+		return nil, fmt.Errorf("failed to get tournament winner: %w", err)
 	}
-	return winnerFromPoints(points), nil
+	return winner, nil
 }
 
 // GetTeamsData builds each team's summary (color, captain, points) for a tournament.
@@ -100,25 +96,4 @@ func (s *TournamentService) ListTournaments(ctx context.Context) ([]Tournament, 
 		return nil, fmt.Errorf("failed to list tournaments: %w", err)
 	}
 	return tournaments, nil
-}
-
-// winnerFromPoints returns the team with the unique highest points, or nil on a tie.
-func winnerFromPoints(points map[uuid.UUID]float64) *uuid.UUID {
-	var bestID uuid.UUID
-	var best float64
-	count := 0
-	first := true
-	for id, p := range points {
-		switch {
-		case first || p > best:
-			best, bestID, count, first = p, id, 1, false
-		case p == best:
-			count++
-		}
-	}
-	if count != 1 {
-		return nil
-	}
-	id := bestID
-	return &id
 }

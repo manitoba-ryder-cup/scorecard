@@ -385,40 +385,58 @@ CREATE UNIQUE INDEX uq__scores__match_id__hole_number__player_id
 CREATE UNIQUE INDEX uq__scores__match_id__hole_number__team_id
     ON scores(match_id, hole_number, team_id) WHERE player_id IS NULL;
 
--- tournament_winners is the sole points leader of each finished tournament — the team
--- that won the cup. Points mirror the team-standings rule (1 per won match, 0.5 per
--- halved); a team wins only by strictly outscoring the other side, so a tied tournament
--- yields no winner row. One definition of "who won", reused wherever cups are counted.
--- Queries scope it by tenant_id explicitly (as everywhere), joining through the
--- tenant-scoped tables that reference it.
+-- Derived "standings" views. The reads compute the same handful of things — a player's
+-- per-match result, a team's points, whether a tournament is finished, and who won it —
+-- so each is defined once here and reused, rather than repeating the logic (and its tie
+-- rules) across queries and the Go layer. Every query still scopes by tenant_id
+-- explicitly, joining through the tenant-scoped tables that reference these.
+
+-- player_match_outcomes: one row per participation, with its result once the match is
+-- final (all three false while it's live). The single definition of a player's match
+-- result; the record queries aggregate it at different grains.
+CREATE VIEW player_match_outcomes AS
+SELECT
+    mp.tenant_id,
+    mp.tournament_id,
+    mp.player_id,
+    mp.match_id,
+    (mr.finished AND mr.leader_team_id = mp.team_id) AS won,
+    (mr.finished AND mr.leader_team_id IS NOT NULL AND mr.leader_team_id <> mp.team_id) AS lost,
+    (mr.finished AND mr.leader_team_id IS NULL) AS tied
+FROM match_participants mp
+JOIN match_results mr ON mr.match_id = mp.match_id AND mr.tenant_id = mp.tenant_id;
+
+-- team_points: Ryder-cup points per team per tournament (1 per won match, 0.5 per halved).
+CREATE VIEW team_points AS
+SELECT
+    t.tenant_id,
+    t.tournament_id,
+    t.id AS team_id,
+    COALESCE(SUM(
+        CASE
+            WHEN mr.finished AND mr.leader_team_id = t.id THEN 1.0
+            WHEN mr.finished AND mr.leader_team_id IS NULL THEN 0.5
+            ELSE 0
+        END
+    ), 0)::float8 AS points
+FROM teams t
+LEFT JOIN match_results mr ON mr.tournament_id = t.tournament_id AND mr.tenant_id = t.tenant_id
+GROUP BY t.tenant_id, t.tournament_id, t.id;
+
+-- finished_tournaments: tournaments with at least one match and no unfinished match.
+CREATE VIEW finished_tournaments AS
+SELECT m.tenant_id, m.tournament_id
+FROM matches m
+LEFT JOIN match_results mr ON mr.match_id = m.id AND mr.tenant_id = m.tenant_id
+GROUP BY m.tenant_id, m.tournament_id
+HAVING bool_and(COALESCE(mr.finished, false));
+
+-- tournament_winners: the team that won the cup — the sole points leader of a finished
+-- tournament (a tie wins for neither, so a tied tournament yields no winner row).
 CREATE VIEW tournament_winners AS
-WITH team_points AS (
-    SELECT
-        t.tenant_id,
-        t.tournament_id,
-        t.id AS team_id,
-        COALESCE(SUM(
-            CASE
-                WHEN mr.finished AND mr.leader_team_id = t.id THEN 1.0
-                WHEN mr.finished AND mr.leader_team_id IS NULL THEN 0.5
-                ELSE 0
-            END
-        ), 0)::float8 AS points
-    FROM teams t
-    LEFT JOIN match_results mr ON mr.tournament_id = t.tournament_id AND mr.tenant_id = t.tenant_id
-    GROUP BY t.tenant_id, t.tournament_id, t.id
-),
-finished AS (
-    -- Tournaments with at least one match and no unfinished match.
-    SELECT m.tenant_id, m.tournament_id
-    FROM matches m
-    LEFT JOIN match_results mr ON mr.match_id = m.id AND mr.tenant_id = m.tenant_id
-    GROUP BY m.tenant_id, m.tournament_id
-    HAVING bool_and(COALESCE(mr.finished, false))
-)
 SELECT tp.tenant_id, tp.tournament_id, tp.team_id
 FROM team_points tp
-JOIN finished f ON f.tenant_id = tp.tenant_id AND f.tournament_id = tp.tournament_id
+JOIN finished_tournaments f ON f.tenant_id = tp.tenant_id AND f.tournament_id = tp.tournament_id
 WHERE tp.points > (
     SELECT COALESCE(MAX(o.points), -1)
     FROM team_points o

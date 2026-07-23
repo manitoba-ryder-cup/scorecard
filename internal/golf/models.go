@@ -165,7 +165,6 @@ type PlayerTournamentHistory struct {
 	EndDate          time.Time
 	CaptainFirstName string
 	CaptainLastName  string
-	TeamID           *uuid.UUID
 	Result           string
 	Record           PlayerRecord
 }

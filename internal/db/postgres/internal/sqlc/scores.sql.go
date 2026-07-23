@@ -7,21 +7,12 @@ package sqlc
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
 )
 
 const listScoresByMatch = `-- name: ListScoresByMatch :many
-SELECT
-    s.id, s.match_id, s.team_id, s.player_id, s.course_id, s.tee_color_id, s.hole_number, s.tenant_id, s.strokes, s.created_at, s.updated_at,
-    h.par,
-    h.hdcp AS hole_hdcp,
-    h.yards
-FROM scores s
-JOIN holes h ON s.course_id = h.course_id
-    AND s.tee_color_id = h.tee_color_id
-    AND s.hole_number = h.number
+SELECT s.id, s.match_id, s.team_id, s.player_id, s.course_id, s.tee_color_id, s.hole_number, s.tenant_id, s.strokes, s.created_at, s.updated_at FROM scores s
 WHERE s.match_id = $1 AND s.tenant_id = $2
 ORDER BY s.hole_number
 `
@@ -31,32 +22,15 @@ type ListScoresByMatchParams struct {
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
-type ListScoresByMatchRow struct {
-	ID         uuid.UUID  `json:"id"`
-	MatchID    uuid.UUID  `json:"match_id"`
-	TeamID     uuid.UUID  `json:"team_id"`
-	PlayerID   *uuid.UUID `json:"player_id"`
-	CourseID   uuid.UUID  `json:"course_id"`
-	TeeColorID uuid.UUID  `json:"tee_color_id"`
-	HoleNumber int32      `json:"hole_number"`
-	TenantID   uuid.UUID  `json:"tenant_id"`
-	Strokes    int32      `json:"strokes"`
-	CreatedAt  time.Time  `json:"created_at"`
-	UpdatedAt  time.Time  `json:"updated_at"`
-	Par        int32      `json:"par"`
-	HoleHdcp   int32      `json:"hole_hdcp"`
-	Yards      int32      `json:"yards"`
-}
-
-func (q *Queries) ListScoresByMatch(ctx context.Context, arg ListScoresByMatchParams) ([]ListScoresByMatchRow, error) {
+func (q *Queries) ListScoresByMatch(ctx context.Context, arg ListScoresByMatchParams) ([]Score, error) {
 	rows, err := q.db.Query(ctx, listScoresByMatch, arg.MatchID, arg.TenantID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListScoresByMatchRow{}
+	items := []Score{}
 	for rows.Next() {
-		var i ListScoresByMatchRow
+		var i Score
 		if err := rows.Scan(
 			&i.ID,
 			&i.MatchID,
@@ -69,9 +43,6 @@ func (q *Queries) ListScoresByMatch(ctx context.Context, arg ListScoresByMatchPa
 			&i.Strokes,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.Par,
-			&i.HoleHdcp,
-			&i.Yards,
 		); err != nil {
 			return nil, err
 		}

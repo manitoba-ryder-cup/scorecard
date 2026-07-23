@@ -21,15 +21,7 @@ DO UPDATE SET strokes = EXCLUDED.strokes, updated_at = now()
 RETURNING *;
 
 -- name: ListScoresByMatch :many
-SELECT
-    s.*,
-    h.par,
-    h.hdcp AS hole_hdcp,
-    h.yards
-FROM scores s
-JOIN holes h ON s.course_id = h.course_id
-    AND s.tee_color_id = h.tee_color_id
-    AND s.hole_number = h.number
+SELECT s.* FROM scores s
 WHERE s.match_id = $1 AND s.tenant_id = $2
 ORDER BY s.hole_number;
 

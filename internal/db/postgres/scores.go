@@ -64,7 +64,7 @@ func (s *ScoresDB) ListScoresByMatch(ctx context.Context, matchID uuid.UUID) ([]
 		if err != nil {
 			return nil, fmt.Errorf("listing scores for match %s: %w", matchID, err)
 		}
-		return mapSlice(scores, toDomainScoreWithHole), nil
+		return mapSlice(scores, toDomainScore), nil
 	})
 }
 
@@ -83,19 +83,6 @@ func (s *ScoresDB) ListScoresByTournament(ctx context.Context, tournamentID uuid
 
 // ListScoresByMatch returns extra hole columns (par/hdcp/yards) the domain Score
 // drops; toDomainScoreWithHole reads only the fields the scoring engine needs.
-func toDomainScoreWithHole(s sqlc.ListScoresByMatchRow) golf.Score {
-	return golf.Score{
-		ID:         s.ID,
-		MatchID:    s.MatchID,
-		TeamID:     s.TeamID,
-		PlayerID:   s.PlayerID,
-		CourseID:   s.CourseID,
-		TeeColorID: s.TeeColorID,
-		HoleNumber: s.HoleNumber,
-		Strokes:    s.Strokes,
-	}
-}
-
 func toDomainScore(s sqlc.Score) golf.Score {
 	return golf.Score{
 		ID:         s.ID,

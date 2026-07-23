@@ -37,15 +37,28 @@ func (q *Queries) GetMatchResult(ctx context.Context, arg GetMatchResultParams) 
 	return i, err
 }
 
+const getTournamentWinner = `-- name: GetTournamentWinner :one
+SELECT team_id FROM tournament_winners
+WHERE tournament_id = $1 AND tenant_id = $2
+`
+
+type GetTournamentWinnerParams struct {
+	TournamentID uuid.UUID `json:"tournament_id"`
+	TenantID     uuid.UUID `json:"tenant_id"`
+}
+
+// The winning team's id, or no row when the tournament is unfinished or tied.
+func (q *Queries) GetTournamentWinner(ctx context.Context, arg GetTournamentWinnerParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, getTournamentWinner, arg.TournamentID, arg.TenantID)
+	var team_id uuid.UUID
+	err := row.Scan(&team_id)
+	return team_id, err
+}
+
 const isTournamentFinished = `-- name: IsTournamentFinished :one
-SELECT
-    EXISTS (SELECT 1 FROM matches m WHERE m.tournament_id = $1 AND m.tenant_id = $2)
-    AND NOT EXISTS (
-        SELECT 1 FROM matches m
-        LEFT JOIN match_results mr ON mr.match_id = m.id
-        WHERE m.tournament_id = $1 AND m.tenant_id = $2
-          AND COALESCE(mr.finished, false) = false
-    ) AS finished
+SELECT EXISTS (
+    SELECT 1 FROM finished_tournaments WHERE tournament_id = $1 AND tenant_id = $2
+) AS finished
 `
 
 type IsTournamentFinishedParams struct {
@@ -53,28 +66,16 @@ type IsTournamentFinishedParams struct {
 	TenantID     uuid.UUID `json:"tenant_id"`
 }
 
-// Finished when the tournament has at least one match and all are finished.
-func (q *Queries) IsTournamentFinished(ctx context.Context, arg IsTournamentFinishedParams) (*bool, error) {
+func (q *Queries) IsTournamentFinished(ctx context.Context, arg IsTournamentFinishedParams) (bool, error) {
 	row := q.db.QueryRow(ctx, isTournamentFinished, arg.TournamentID, arg.TenantID)
-	var finished *bool
+	var finished bool
 	err := row.Scan(&finished)
 	return finished, err
 }
 
 const listTeamPoints = `-- name: ListTeamPoints :many
-SELECT
-    t.id AS team_id,
-    COALESCE(SUM(
-        CASE
-            WHEN mr.finished AND mr.leader_team_id = t.id THEN 1.0
-            WHEN mr.finished AND mr.leader_team_id IS NULL THEN 0.5
-            ELSE 0
-        END
-    ), 0)::float8 AS points
-FROM teams t
-LEFT JOIN match_results mr ON mr.tournament_id = t.tournament_id
-WHERE t.tournament_id = $1 AND t.tenant_id = $2
-GROUP BY t.id
+SELECT team_id, points FROM team_points
+WHERE tournament_id = $1 AND tenant_id = $2
 `
 
 type ListTeamPointsParams struct {
@@ -87,8 +88,7 @@ type ListTeamPointsRow struct {
 	Points float64   `json:"points"`
 }
 
-// Ryder-cup points per team for a tournament: 1 for a won match, 0.5 for a tie.
-// A tie awards 0.5 to both sides because every finished match joins to both teams.
+// Ryder-cup points per team for a tournament (see the team_points view).
 func (q *Queries) ListTeamPoints(ctx context.Context, arg ListTeamPointsParams) ([]ListTeamPointsRow, error) {
 	rows, err := q.db.Query(ctx, listTeamPoints, arg.TournamentID, arg.TenantID)
 	if err != nil {
@@ -154,12 +154,11 @@ func (q *Queries) ListTournamentPlayerCups(ctx context.Context, arg ListTourname
 const listTournamentPlayerRecords = `-- name: ListTournamentPlayerRecords :many
 SELECT
     tp.player_id,
-    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id = mp.team_id) AS wins,
-    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id IS NOT NULL AND mr.leader_team_id <> mp.team_id) AS losses,
-    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id IS NULL) AS ties
+    COUNT(*) FILTER (WHERE o.won) AS wins,
+    COUNT(*) FILTER (WHERE o.lost) AS losses,
+    COUNT(*) FILTER (WHERE o.tied) AS ties
 FROM tournament_players tp
-LEFT JOIN match_participants mp ON mp.player_id = tp.player_id AND mp.tenant_id = tp.tenant_id
-LEFT JOIN match_results mr ON mr.match_id = mp.match_id AND mr.tenant_id = mp.tenant_id
+LEFT JOIN player_match_outcomes o ON o.player_id = tp.player_id AND o.tenant_id = tp.tenant_id
 WHERE tp.tournament_id = $1 AND tp.tenant_id = $2
 GROUP BY tp.player_id
 `
@@ -176,8 +175,8 @@ type ListTournamentPlayerRecordsRow struct {
 	Ties     int64     `json:"ties"`
 }
 
-// The batched form of GetPlayerRecord: all-time W-L-T for every player entered in a
-// tournament, so the roster enriches without a per-player round trip.
+// All-time W-L-T for every player entered in a tournament, so the roster enriches
+// without a per-player round trip. Records span every match the player has played.
 func (q *Queries) ListTournamentPlayerRecords(ctx context.Context, arg ListTournamentPlayerRecordsParams) ([]ListTournamentPlayerRecordsRow, error) {
 	rows, err := q.db.Query(ctx, listTournamentPlayerRecords, arg.TournamentID, arg.TenantID)
 	if err != nil {

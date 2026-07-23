@@ -17,44 +17,30 @@ SELECT * FROM match_results
 WHERE match_id = $1 AND tenant_id = $2;
 
 -- name: ListTeamPoints :many
--- Ryder-cup points per team for a tournament: 1 for a won match, 0.5 for a tie.
--- A tie awards 0.5 to both sides because every finished match joins to both teams.
-SELECT
-    t.id AS team_id,
-    COALESCE(SUM(
-        CASE
-            WHEN mr.finished AND mr.leader_team_id = t.id THEN 1.0
-            WHEN mr.finished AND mr.leader_team_id IS NULL THEN 0.5
-            ELSE 0
-        END
-    ), 0)::float8 AS points
-FROM teams t
-LEFT JOIN match_results mr ON mr.tournament_id = t.tournament_id
-WHERE t.tournament_id = $1 AND t.tenant_id = $2
-GROUP BY t.id;
+-- Ryder-cup points per team for a tournament (see the team_points view).
+SELECT team_id, points FROM team_points
+WHERE tournament_id = $1 AND tenant_id = $2;
 
 -- name: IsTournamentFinished :one
--- Finished when the tournament has at least one match and all are finished.
-SELECT
-    EXISTS (SELECT 1 FROM matches m WHERE m.tournament_id = $1 AND m.tenant_id = $2)
-    AND NOT EXISTS (
-        SELECT 1 FROM matches m
-        LEFT JOIN match_results mr ON mr.match_id = m.id
-        WHERE m.tournament_id = $1 AND m.tenant_id = $2
-          AND COALESCE(mr.finished, false) = false
-    ) AS finished;
+SELECT EXISTS (
+    SELECT 1 FROM finished_tournaments WHERE tournament_id = $1 AND tenant_id = $2
+) AS finished;
 
--- The batched form of GetPlayerRecord: all-time W-L-T for every player entered in a
--- tournament, so the roster enriches without a per-player round trip.
+-- name: GetTournamentWinner :one
+-- The winning team's id, or no row when the tournament is unfinished or tied.
+SELECT team_id FROM tournament_winners
+WHERE tournament_id = $1 AND tenant_id = $2;
+
+-- All-time W-L-T for every player entered in a tournament, so the roster enriches
+-- without a per-player round trip. Records span every match the player has played.
 -- name: ListTournamentPlayerRecords :many
 SELECT
     tp.player_id,
-    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id = mp.team_id) AS wins,
-    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id IS NOT NULL AND mr.leader_team_id <> mp.team_id) AS losses,
-    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id IS NULL) AS ties
+    COUNT(*) FILTER (WHERE o.won) AS wins,
+    COUNT(*) FILTER (WHERE o.lost) AS losses,
+    COUNT(*) FILTER (WHERE o.tied) AS ties
 FROM tournament_players tp
-LEFT JOIN match_participants mp ON mp.player_id = tp.player_id AND mp.tenant_id = tp.tenant_id
-LEFT JOIN match_results mr ON mr.match_id = mp.match_id AND mr.tenant_id = mp.tenant_id
+LEFT JOIN player_match_outcomes o ON o.player_id = tp.player_id AND o.tenant_id = tp.tenant_id
 WHERE tp.tournament_id = @tournament_id AND tp.tenant_id = @tenant_id
 GROUP BY tp.player_id;
 
