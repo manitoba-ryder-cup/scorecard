@@ -139,3 +139,9 @@ type TournamentPlayer struct {
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
+
+type TournamentWinner struct {
+	TenantID     uuid.UUID `json:"tenant_id"`
+	TournamentID uuid.UUID `json:"tournament_id"`
+	TeamID       uuid.UUID `json:"team_id"`
+}

@@ -34,11 +34,13 @@ func toPlayerDTO(p golf.Player) sdk.Player {
 	}
 }
 
-// toPlayerProfileDTO is the full player wire shape: identity plus the derived record.
+// toPlayerProfileDTO is the full player wire shape: identity plus the derived record
+// and cups won.
 func toPlayerProfileDTO(p golf.Player) sdk.PlayerProfile {
 	return sdk.PlayerProfile{
-		Player: toPlayerDTO(p),
-		Record: toPlayerRecordDTO(p.Record),
+		Player:  toPlayerDTO(p),
+		Record:  toPlayerRecordDTO(p.Record),
+		CupsWon: p.CupsWon,
 	}
 }
 

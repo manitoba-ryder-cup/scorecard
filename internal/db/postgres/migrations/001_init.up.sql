@@ -384,3 +384,45 @@ CREATE UNIQUE INDEX uq__scores__match_id__hole_number__player_id
     ON scores(match_id, hole_number, player_id) WHERE player_id IS NOT NULL;
 CREATE UNIQUE INDEX uq__scores__match_id__hole_number__team_id
     ON scores(match_id, hole_number, team_id) WHERE player_id IS NULL;
+
+-- tournament_winners is the sole points leader of each finished tournament — the team
+-- that won the cup. Points mirror the team-standings rule (1 per won match, 0.5 per
+-- halved); a team wins only by strictly outscoring the other side, so a tied tournament
+-- yields no winner row. One definition of "who won", reused wherever cups are counted.
+-- Queries scope it by tenant_id explicitly (as everywhere), joining through the
+-- tenant-scoped tables that reference it.
+CREATE VIEW tournament_winners AS
+WITH team_points AS (
+    SELECT
+        t.tenant_id,
+        t.tournament_id,
+        t.id AS team_id,
+        COALESCE(SUM(
+            CASE
+                WHEN mr.finished AND mr.leader_team_id = t.id THEN 1.0
+                WHEN mr.finished AND mr.leader_team_id IS NULL THEN 0.5
+                ELSE 0
+            END
+        ), 0)::float8 AS points
+    FROM teams t
+    LEFT JOIN match_results mr ON mr.tournament_id = t.tournament_id AND mr.tenant_id = t.tenant_id
+    GROUP BY t.tenant_id, t.tournament_id, t.id
+),
+finished AS (
+    -- Tournaments with at least one match and no unfinished match.
+    SELECT m.tenant_id, m.tournament_id
+    FROM matches m
+    LEFT JOIN match_results mr ON mr.match_id = m.id AND mr.tenant_id = m.tenant_id
+    GROUP BY m.tenant_id, m.tournament_id
+    HAVING bool_and(COALESCE(mr.finished, false))
+)
+SELECT tp.tenant_id, tp.tournament_id, tp.team_id
+FROM team_points tp
+JOIN finished f ON f.tenant_id = tp.tenant_id AND f.tournament_id = tp.tournament_id
+WHERE tp.points > (
+    SELECT COALESCE(MAX(o.points), -1)
+    FROM team_points o
+    WHERE o.tenant_id = tp.tenant_id
+      AND o.tournament_id = tp.tournament_id
+      AND o.team_id <> tp.team_id
+);

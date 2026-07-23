@@ -45,7 +45,8 @@ type PlayerRecord struct {
 // stay at the top level of the JSON alongside "record".
 type PlayerProfile struct {
 	Player
-	Record PlayerRecord `json:"record"`
+	Record  PlayerRecord `json:"record"`
+	CupsWon int          `json:"cups_won"` // finished tournaments the player's team won
 }
 
 // TeeColor is a tenant-level tee marker (e.g. White, Blue), shared across courses.
