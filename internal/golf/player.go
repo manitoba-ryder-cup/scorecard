@@ -44,22 +44,13 @@ func (s *PlayerService) GetPlayer(ctx context.Context, playerID uuid.UUID) (*Pla
 	return player, nil
 }
 
-// ListPlayers retrieves all players for the tenant
+// ListPlayers retrieves all players for the tenant, each with their all-time record.
 func (s *PlayerService) ListPlayers(ctx context.Context) ([]Player, error) {
 	players, err := s.PlayerDB.ListPlayers(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list players: %w", err)
 	}
 	return players, nil
-}
-
-// GetPlayerRecord returns a player's win/loss/tie record, derived from match_results.
-func (s *PlayerService) GetPlayerRecord(ctx context.Context, playerID uuid.UUID) (PlayerRecord, error) {
-	record, err := s.ResultDB.GetPlayerRecord(ctx, playerID)
-	if err != nil {
-		return PlayerRecord{}, fmt.Errorf("failed to get player record: %w", err)
-	}
-	return record, nil
 }
 
 // ListPlayerTournaments returns the player's tournament history, filling in each

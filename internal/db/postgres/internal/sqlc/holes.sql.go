@@ -70,9 +70,6 @@ type ListHolesByTeeSetParams struct {
 	TenantID   uuid.UUID `json:"tenant_id"`
 }
 
-// ListHolesByTeeSet returns a tee set's 18 holes (a course + tee color pair), in
-// play order. The match-holes endpoint resolves the tee from the match, then reads
-// its holes here.
 func (q *Queries) ListHolesByTeeSet(ctx context.Context, arg ListHolesByTeeSetParams) ([]Hole, error) {
 	rows, err := q.db.Query(ctx, listHolesByTeeSet, arg.CourseID, arg.TeeColorID, arg.TenantID)
 	if err != nil {

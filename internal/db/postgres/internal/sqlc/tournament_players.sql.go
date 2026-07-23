@@ -127,13 +127,9 @@ type ListPlayerTournamentsRow struct {
 	Ties             int64      `json:"ties"`
 }
 
-// ListPlayerTournaments returns a player's tournament history: every event they were
-// entered in, with the event metadata, their team that year (identified by its
-// captain), and their W-L-T within that tournament. The team/captain come via
-// team_members -> teams -> players(captain) (LEFT JOINed, since a player can be
-// entered but undrafted). The record is scoped to the tournament by filtering the
-// participant join to the same tournament. The won/lost/tied vs in-progress verdict
-// needs the tournament standings, so the caller derives it separately. Newest first.
+// A player's tournament history with their team (via its captain) and per-tournament
+// W-L-T. LEFT JOINs throughout, since a player can be entered but undrafted. The
+// won/lost/tied verdict needs the standings, so the caller derives it separately.
 func (q *Queries) ListPlayerTournaments(ctx context.Context, arg ListPlayerTournamentsParams) ([]ListPlayerTournamentsRow, error) {
 	rows, err := q.db.Query(ctx, listPlayerTournaments, arg.PlayerID, arg.TenantID)
 	if err != nil {

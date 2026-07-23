@@ -39,27 +39,42 @@ func (p *PlayersDB) CreatePlayer(ctx context.Context, in golf.CreatePlayerInput)
 	})
 }
 
-// GetPlayer retrieves a player by ID with tenant isolation
+// GetPlayer retrieves a player (with their all-time record) by ID, tenant-isolated.
 func (p *PlayersDB) GetPlayer(ctx context.Context, id uuid.UUID) (*golf.Player, error) {
 	return withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Player, error) {
-		player, err := q.GetPlayer(ctx, sqlc.GetPlayerParams{ID: id, TenantID: tenantID})
+		row, err := q.GetPlayer(ctx, sqlc.GetPlayerParams{ID: id, TenantID: tenantID})
 		if err != nil {
 			return nil, fmt.Errorf("getting player %s: %w", id, mapReadErr(err))
 		}
-		pl := toDomainPlayer(player)
+		pl := golf.Player{
+			ID: row.ID, UserID: row.UserID, Email: row.Email,
+			FirstName: row.FirstName, LastName: row.LastName, PhotoPath: row.PhotoPath,
+			Record: playerRecord(row.Wins, row.Losses, row.Ties),
+		}
 		return &pl, nil
 	})
 }
 
-// ListPlayers retrieves all players for the tenant
+// ListPlayers retrieves all players for the tenant, each with their all-time record.
 func (p *PlayersDB) ListPlayers(ctx context.Context) ([]golf.Player, error) {
 	return withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) ([]golf.Player, error) {
 		players, err := q.ListPlayers(ctx, tenantID)
 		if err != nil {
 			return nil, fmt.Errorf("listing players: %w", err)
 		}
-		return mapSlice(players, toDomainPlayer), nil
+		return mapSlice(players, func(r sqlc.ListPlayersRow) golf.Player {
+			return golf.Player{
+				ID: r.ID, UserID: r.UserID, Email: r.Email,
+				FirstName: r.FirstName, LastName: r.LastName, PhotoPath: r.PhotoPath,
+				Record: playerRecord(r.Wins, r.Losses, r.Ties),
+			}
+		}), nil
 	})
+}
+
+// playerRecord narrows the sqlc bigint counts to the domain's int32 record.
+func playerRecord(wins, losses, ties int64) golf.PlayerRecord {
+	return golf.PlayerRecord{Wins: int32(wins), Losses: int32(losses), Ties: int32(ties)}
 }
 
 // ListPlayerTournaments returns the player's tournament history. Result is left unset

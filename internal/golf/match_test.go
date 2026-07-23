@@ -79,9 +79,6 @@ func (f *fakeResultDB) ListTeamPoints(ctx context.Context, tournamentID uuid.UUI
 func (f *fakeResultDB) IsTournamentFinished(ctx context.Context, tournamentID uuid.UUID) (bool, error) {
 	return false, nil
 }
-func (f *fakeResultDB) GetPlayerRecord(ctx context.Context, playerID uuid.UUID) (PlayerRecord, error) {
-	return PlayerRecord{}, nil
-}
 func (f *fakeResultDB) ListTournamentPlayerRecords(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]PlayerRecord, error) {
 	return nil, nil
 }

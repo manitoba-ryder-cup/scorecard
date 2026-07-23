@@ -7,6 +7,7 @@ package sqlc
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -58,8 +59,16 @@ func (q *Queries) CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Pla
 }
 
 const getPlayer = `-- name: GetPlayer :one
-SELECT id, tenant_id, user_id, email, first_name, last_name, photo_path, created_at, updated_at FROM players
-WHERE id = $1 AND tenant_id = $2
+SELECT
+    p.id, p.tenant_id, p.user_id, p.email, p.first_name, p.last_name, p.photo_path, p.created_at, p.updated_at,
+    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id = mp.team_id) AS wins,
+    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id IS NOT NULL AND mr.leader_team_id <> mp.team_id) AS losses,
+    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id IS NULL) AS ties
+FROM players p
+LEFT JOIN match_participants mp ON mp.player_id = p.id AND mp.tenant_id = p.tenant_id
+LEFT JOIN match_results mr ON mr.match_id = mp.match_id AND mr.tenant_id = mp.tenant_id
+WHERE p.id = $1 AND p.tenant_id = $2
+GROUP BY p.id
 `
 
 type GetPlayerParams struct {
@@ -67,9 +76,25 @@ type GetPlayerParams struct {
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
-func (q *Queries) GetPlayer(ctx context.Context, arg GetPlayerParams) (Player, error) {
+type GetPlayerRow struct {
+	ID        uuid.UUID  `json:"id"`
+	TenantID  uuid.UUID  `json:"tenant_id"`
+	UserID    *uuid.UUID `json:"user_id"`
+	Email     *string    `json:"email"`
+	FirstName string     `json:"first_name"`
+	LastName  string     `json:"last_name"`
+	PhotoPath string     `json:"photo_path"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+	Wins      int64      `json:"wins"`
+	Losses    int64      `json:"losses"`
+	Ties      int64      `json:"ties"`
+}
+
+// GetPlayer returns a player with their all-time W-L-T joined in (see ListPlayers).
+func (q *Queries) GetPlayer(ctx context.Context, arg GetPlayerParams) (GetPlayerRow, error) {
 	row := q.db.QueryRow(ctx, getPlayer, arg.ID, arg.TenantID)
-	var i Player
+	var i GetPlayerRow
 	err := row.Scan(
 		&i.ID,
 		&i.TenantID,
@@ -80,25 +105,54 @@ func (q *Queries) GetPlayer(ctx context.Context, arg GetPlayerParams) (Player, e
 		&i.PhotoPath,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Wins,
+		&i.Losses,
+		&i.Ties,
 	)
 	return i, err
 }
 
 const listPlayers = `-- name: ListPlayers :many
-SELECT id, tenant_id, user_id, email, first_name, last_name, photo_path, created_at, updated_at FROM players
-WHERE tenant_id = $1
-ORDER BY last_name, first_name
+SELECT
+    p.id, p.tenant_id, p.user_id, p.email, p.first_name, p.last_name, p.photo_path, p.created_at, p.updated_at,
+    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id = mp.team_id) AS wins,
+    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id IS NOT NULL AND mr.leader_team_id <> mp.team_id) AS losses,
+    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id IS NULL) AS ties
+FROM players p
+LEFT JOIN match_participants mp ON mp.player_id = p.id AND mp.tenant_id = p.tenant_id
+LEFT JOIN match_results mr ON mr.match_id = mp.match_id AND mr.tenant_id = mp.tenant_id
+WHERE p.tenant_id = $1
+GROUP BY p.id
+ORDER BY p.last_name, p.first_name
 `
 
-func (q *Queries) ListPlayers(ctx context.Context, tenantID uuid.UUID) ([]Player, error) {
+type ListPlayersRow struct {
+	ID        uuid.UUID  `json:"id"`
+	TenantID  uuid.UUID  `json:"tenant_id"`
+	UserID    *uuid.UUID `json:"user_id"`
+	Email     *string    `json:"email"`
+	FirstName string     `json:"first_name"`
+	LastName  string     `json:"last_name"`
+	PhotoPath string     `json:"photo_path"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+	Wins      int64      `json:"wins"`
+	Losses    int64      `json:"losses"`
+	Ties      int64      `json:"ties"`
+}
+
+// ListPlayers returns every player with their all-time W-L-T (0/0/0 for a player with no
+// finished matches) joined in, so the players listing is a single query. The record
+// counts every finished match the player has played (won when their team led, etc.).
+func (q *Queries) ListPlayers(ctx context.Context, tenantID uuid.UUID) ([]ListPlayersRow, error) {
 	rows, err := q.db.Query(ctx, listPlayers, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Player{}
+	items := []ListPlayersRow{}
 	for rows.Next() {
-		var i Player
+		var i ListPlayersRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.TenantID,
@@ -109,6 +163,9 @@ func (q *Queries) ListPlayers(ctx context.Context, tenantID uuid.UUID) ([]Player
 			&i.PhotoPath,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Wins,
+			&i.Losses,
+			&i.Ties,
 		); err != nil {
 			return nil, err
 		}

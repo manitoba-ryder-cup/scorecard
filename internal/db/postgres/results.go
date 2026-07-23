@@ -80,20 +80,6 @@ func (r *ResultsDB) IsTournamentFinished(ctx context.Context, tournamentID uuid.
 	})
 }
 
-func (r *ResultsDB) GetPlayerRecord(ctx context.Context, playerID uuid.UUID) (golf.PlayerRecord, error) {
-	return withTenant(ctx, r.db, func(q *sqlc.Queries, tenantID uuid.UUID) (golf.PlayerRecord, error) {
-		row, err := q.GetPlayerRecord(ctx, sqlc.GetPlayerRecordParams{PlayerID: playerID, TenantID: tenantID})
-		if err != nil {
-			return golf.PlayerRecord{}, fmt.Errorf("getting player record %s: %w", playerID, err)
-		}
-		return golf.PlayerRecord{
-			Wins:   int32(row.Wins),
-			Losses: int32(row.Losses),
-			Ties:   int32(row.Ties),
-		}, nil
-	})
-}
-
 func (r *ResultsDB) ListTournamentPlayerRecords(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]golf.PlayerRecord, error) {
 	return withTenant(ctx, r.db, func(q *sqlc.Queries, tenantID uuid.UUID) (map[uuid.UUID]golf.PlayerRecord, error) {
 		rows, err := q.ListTournamentPlayerRecords(ctx, sqlc.ListTournamentPlayerRecordsParams{TournamentID: tournamentID, TenantID: tenantID})

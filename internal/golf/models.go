@@ -11,9 +11,9 @@ import (
 // uuid.UUID (matching the schema); non-ID integers (hole number, par, strokes) stay
 // int. Dates are plain time.Time; the repos map to/from the database driver's types.
 
-// Player represents a golfer's stable identity. Per-tournament attributes (tier,
-// biography, handicap) live on TournamentPlayer; win/loss records are derived from
-// match_results.
+// Player is a golfer's public profile: stable identity plus their all-time W-L-T
+// record, which is derived from match_results on read (0/0/0 for a new player).
+// Per-tournament attributes (tier, biography, handicap) live on TournamentPlayer.
 type Player struct {
 	ID        uuid.UUID
 	UserID    *uuid.UUID // heimdall account link; nil for roster-only players
@@ -21,6 +21,7 @@ type Player struct {
 	FirstName string
 	LastName  string
 	PhotoPath string
+	Record    PlayerRecord
 }
 
 // Team represents one of a tournament's two sides.

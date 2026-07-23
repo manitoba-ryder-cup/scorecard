@@ -44,16 +44,6 @@ SELECT
           AND COALESCE(mr.finished, false) = false
     ) AS finished;
 
--- name: GetPlayerRecord :one
--- A player's win/loss/tie record across all finished matches they played.
-SELECT
-    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id = mp.team_id) AS wins,
-    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id IS NOT NULL AND mr.leader_team_id <> mp.team_id) AS losses,
-    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id IS NULL) AS ties
-FROM match_participants mp
-JOIN match_results mr ON mr.match_id = mp.match_id
-WHERE mp.player_id = $1 AND mp.tenant_id = $2;
-
 -- The batched form of GetPlayerRecord: all-time W-L-T for every player entered in a
 -- tournament, so the roster enriches without a per-player round trip.
 -- name: ListTournamentPlayerRecords :many

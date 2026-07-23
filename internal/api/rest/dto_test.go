@@ -9,10 +9,12 @@ import (
 
 func TestToPlayerProfileDTO_CombinesPlayerAndRecord(t *testing.T) {
 	id := uuid.New()
-	p := golf.Player{ID: id, FirstName: "Dustin", LastName: "Johnson", PhotoPath: "dj.jpg"}
-	rec := golf.PlayerRecord{Wins: 3, Losses: 1, Ties: 2}
+	p := golf.Player{
+		ID: id, FirstName: "Dustin", LastName: "Johnson", PhotoPath: "dj.jpg",
+		Record: golf.PlayerRecord{Wins: 3, Losses: 1, Ties: 2},
+	}
 
-	got := toPlayerProfileDTO(p, rec)
+	got := toPlayerProfileDTO(p)
 
 	// Base player fields are promoted from the embedded Player.
 	if got.ID != id || got.FirstName != "Dustin" || got.LastName != "Johnson" || got.PhotoPath != "dj.jpg" {

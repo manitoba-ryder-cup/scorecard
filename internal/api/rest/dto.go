@@ -34,11 +34,11 @@ func toPlayerDTO(p golf.Player) sdk.Player {
 	}
 }
 
-// toPlayerProfileDTO combines a player with their derived record for the detail view.
-func toPlayerProfileDTO(p golf.Player, rec golf.PlayerRecord) sdk.PlayerProfile {
+// toPlayerProfileDTO is the full player wire shape: identity plus the derived record.
+func toPlayerProfileDTO(p golf.Player) sdk.PlayerProfile {
 	return sdk.PlayerProfile{
 		Player: toPlayerDTO(p),
-		Record: toPlayerRecordDTO(rec),
+		Record: toPlayerRecordDTO(p.Record),
 	}
 }
 

@@ -161,9 +161,7 @@ type ListMatchesWithDetailsByTournamentRow struct {
 	CourseName    string     `json:"course_name"`
 }
 
-// ListMatchesWithDetailsByTournament returns the tournament's matches joined with the
-// display names (format, course) the results view needs, so the caller resolves both
-// in one query instead of a per-match lookup. Ordered by tee time (unscheduled last).
+// Joined with format + course names so the results view resolves both in one query.
 func (q *Queries) ListMatchesWithDetailsByTournament(ctx context.Context, arg ListMatchesWithDetailsByTournamentParams) ([]ListMatchesWithDetailsByTournamentRow, error) {
 	rows, err := q.db.Query(ctx, listMatchesWithDetailsByTournament, arg.TournamentID, arg.TenantID)
 	if err != nil {

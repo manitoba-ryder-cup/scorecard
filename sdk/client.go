@@ -41,8 +41,8 @@ type validatable interface {
 
 // --- Players ---
 
-func (c *Client) ListPlayers(ctx context.Context) ([]Player, error) {
-	var out []Player
+func (c *Client) ListPlayers(ctx context.Context) ([]PlayerProfile, error) {
+	var out []PlayerProfile
 	return out, c.do(ctx, http.MethodGet, RouteV1Players, nil, &out)
 }
 

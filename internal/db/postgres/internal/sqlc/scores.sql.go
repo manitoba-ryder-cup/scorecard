@@ -96,9 +96,8 @@ type ListScoresByTournamentParams struct {
 	TenantID     uuid.UUID `json:"tenant_id"`
 }
 
-// ListScoresByTournament returns every score across the tournament's matches, so the
-// results view computes each match's progression without a per-match scores query.
-// Ordered by match so the caller groups them cheaply.
+// Every score across the tournament, ordered by match, so the results view computes
+// each match's progression without a per-match query.
 func (q *Queries) ListScoresByTournament(ctx context.Context, arg ListScoresByTournamentParams) ([]Score, error) {
 	rows, err := q.db.Query(ctx, listScoresByTournament, arg.TournamentID, arg.TenantID)
 	if err != nil {

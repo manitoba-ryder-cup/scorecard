@@ -108,9 +108,8 @@ type ListParticipantsWithPlayersByTournamentRow struct {
 	LastName  string    `json:"last_name"`
 }
 
-// ListParticipantsWithPlayersByTournament returns every participant across the
-// tournament's matches, enriched with the player's name — enough to build each
-// match's two sides in one query. Ordered so a match's participants group together.
+// Every participant across the tournament, with player names, so the results view
+// builds each match's sides without a per-match lookup.
 func (q *Queries) ListParticipantsWithPlayersByTournament(ctx context.Context, arg ListParticipantsWithPlayersByTournamentParams) ([]ListParticipantsWithPlayersByTournamentRow, error) {
 	rows, err := q.db.Query(ctx, listParticipantsWithPlayersByTournament, arg.TournamentID, arg.TenantID)
 	if err != nil {

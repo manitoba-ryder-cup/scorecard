@@ -12,7 +12,6 @@ import (
 type PlayerService interface {
 	GetPlayer(ctx context.Context, playerID uuid.UUID) (*golf.Player, error)
 	ListPlayers(ctx context.Context) ([]golf.Player, error)
-	GetPlayerRecord(ctx context.Context, playerID uuid.UUID) (golf.PlayerRecord, error)
 	ListPlayerTournaments(ctx context.Context, playerID uuid.UUID) ([]golf.PlayerTournamentHistory, error)
 	CreatePlayer(ctx context.Context, in golf.CreatePlayerInput) (*golf.Player, error)
 }
@@ -32,7 +31,7 @@ func (h *PlayersHandler) ListPlayers(w http.ResponseWriter, r *http.Request) {
 		respondDomainError(r.Context(), w, "Failed to list players", err)
 		return
 	}
-	respondJSON(w, http.StatusOK, mapSlice(players, toPlayerDTO))
+	respondJSON(w, http.StatusOK, mapSlice(players, toPlayerProfileDTO))
 }
 
 // POST /v1/players
@@ -69,13 +68,7 @@ func (h *PlayersHandler) GetPlayer(w http.ResponseWriter, r *http.Request) {
 		respondDomainError(r.Context(), w, "Failed to get player", err)
 		return
 	}
-	// The detail view carries the derived W/L/T record; the list view does not.
-	record, err := h.playerService.GetPlayerRecord(r.Context(), id)
-	if err != nil {
-		respondDomainError(r.Context(), w, "Failed to get player record", err)
-		return
-	}
-	respondJSON(w, http.StatusOK, toPlayerProfileDTO(*player, record))
+	respondJSON(w, http.StatusOK, toPlayerProfileDTO(*player))
 }
 
 // GET /v1/players/{id}/tournaments

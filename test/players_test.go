@@ -49,6 +49,10 @@ func TestCreatePlayerAndReadBack(t *testing.T) {
 	for _, p := range players {
 		if p.ID == created.ID {
 			found = true
+			// The listing carries each player's record (the players page renders it).
+			if p.Record.Wins != 0 || p.Record.Losses != 0 || p.Record.Ties != 0 {
+				t.Errorf("new player should list an empty record, got %+v", p.Record)
+			}
 		}
 	}
 	if !found {
