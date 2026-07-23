@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/api/rest"
 	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres"
-	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/travisbale/knowhere/jwt"
 )
 
@@ -62,61 +61,8 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 		publicTenantID = &id
 	}
 
-	// Create database adapters
-	playersDB := postgres.NewPlayersDB(db)
-	matchesDB := postgres.NewMatchesDB(db)
-	participantsDB := postgres.NewParticipantsDB(db)
-	scoresDB := postgres.NewScoresDB(db)
-	teamsDB := postgres.NewTeamsDB(db)
-	teamMembersDB := postgres.NewTeamMembersDB(db)
-	tournamentsDB := postgres.NewTournamentsDB(db)
-	resultsDB := postgres.NewResultsDB(db)
-	teeColorsDB := postgres.NewTeeColorsDB(db)
-	coursesDB := postgres.NewCoursesDB(db)
-	teeSetsDB := postgres.NewTeeSetsDB(db)
-	matchFormatsDB := postgres.NewMatchFormatsDB(db)
-	tournamentPlayersDB := postgres.NewTournamentPlayersDB(db)
-
-	// Create domain services
-	playerService := &golf.PlayerService{
-		PlayerDB: playersDB,
-		ResultDB: resultsDB,
-	}
-
-	matchService := &golf.MatchService{
-		MatchDB:       matchesDB,
-		ParticipantDB: participantsDB,
-		ScoreDB:       scoresDB,
-		ResultDB:      resultsDB,
-		HoleDB:        teeSetsDB,
-	}
-
-	teamService := &golf.TeamService{
-		TeamDB: teamsDB,
-	}
-
-	tournamentService := &golf.TournamentService{
-		TournamentDB: tournamentsDB,
-		ResultDB:     resultsDB,
-		TeamService:  teamService,
-	}
-
-	courseService := &golf.CourseService{
-		TeeColorDB: teeColorsDB,
-		CourseDB:   coursesDB,
-		TeeSetDB:   teeSetsDB,
-	}
-
-	formatService := &golf.FormatService{
-		FormatDB: matchFormatsDB,
-	}
-
-	rosterService := &golf.RosterService{
-		TournamentPlayerDB: tournamentPlayersDB,
-		TeamDB:             teamsDB,
-		TeamMemberDB:       teamMembersDB,
-		ResultDB:           resultsDB,
-	}
+	// Wire the domain services (shared with the CLI commands).
+	services := NewServices(db)
 
 	// Create HTTP server
 	httpServer := rest.NewServer(&rest.Config{
@@ -125,13 +71,13 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 		TrustedProxyMode:  config.TrustedProxyMode,
 		PublicTenantID:    publicTenantID,
 		DB:                db,
-		PlayerService:     playerService,
-		MatchService:      matchService,
-		TournamentService: tournamentService,
-		CourseService:     courseService,
-		FormatService:     formatService,
-		RosterService:     rosterService,
-		TeamService:       teamService,
+		PlayerService:     services.Player,
+		MatchService:      services.Match,
+		TournamentService: services.Tournament,
+		CourseService:     services.Course,
+		FormatService:     services.Format,
+		RosterService:     services.Roster,
+		TeamService:       services.Team,
 	})
 
 	return &Server{
