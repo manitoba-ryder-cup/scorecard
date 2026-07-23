@@ -31,7 +31,7 @@ const (
 // result we know by construction.
 //
 // It builds a course, a 16-player field (8 per side), four rounds in four different
-// formats (Singles 1v1, then Fourball / Alternate Shot / Scramble 2v2), and assigns
+// formats (Singles 1v1, then Fourball / Alt Shot / Scramble 2v2), and assigns
 // every player to exactly one match per format. Each match is then driven to a
 // pre-chosen outcome via hole scores, and we assert the API reports that outcome —
 // per match and, once every match is final, for the Cup and the point tally.
@@ -82,7 +82,7 @@ func TestFullRyderCupCorrectness(t *testing.T) {
 	}{
 		{"Singles", 1, []outcome{redWin, redWin, redWin, redWin, redWin, blueWin, blueWin, halved}},
 		{"Fourball", 2, []outcome{redWin, redWin, redWin, blueWin}},
-		{"Alternate Shot", 2, []outcome{redWin, redWin, blueWin, halved}},
+		{"Alt Shot", 2, []outcome{redWin, redWin, blueWin, halved}},
 		{"Scramble", 2, []outcome{redWin, redWin, blueWin, blueWin}},
 	}
 

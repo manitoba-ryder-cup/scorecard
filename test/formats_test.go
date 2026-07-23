@@ -23,7 +23,7 @@ func TestListMatchFormatsIsPublicAndSeeded(t *testing.T) {
 	for _, f := range formats {
 		names[f.Name] = true
 	}
-	for _, want := range []string{"Singles", "Fourball", "Alternate Shot", "Scramble", "Modified Scotch"} {
+	for _, want := range []string{"Singles", "Fourball", "Alt Shot", "Scramble", "Scotch"} {
 		if !names[want] {
 			t.Errorf("missing seeded format %q (got %+v)", want, formats)
 		}
