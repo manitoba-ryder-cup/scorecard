@@ -48,3 +48,30 @@ JOIN players p ON tp.player_id = p.id
 JOIN team_members tm ON tm.tournament_id = tp.tournament_id AND tm.player_id = tp.player_id
 WHERE tm.team_id = $1 AND tp.tenant_id = $2
 ORDER BY p.last_name, p.first_name;
+
+-- A player's tournament history with their team (via its captain) and per-tournament
+-- W-L-T. LEFT JOINs throughout, since a player can be entered but undrafted. The
+-- won/lost/tied verdict needs the standings, so the caller derives it separately.
+-- name: ListPlayerTournaments :many
+SELECT
+    t.id AS tournament_id,
+    t.name,
+    t.location,
+    t.start_date,
+    t.end_date,
+    tm.team_id,
+    cap.first_name AS captain_first_name,
+    cap.last_name  AS captain_last_name,
+    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id = mp.team_id) AS wins,
+    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id IS NOT NULL AND mr.leader_team_id <> mp.team_id) AS losses,
+    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id IS NULL) AS ties
+FROM tournament_players tp
+JOIN tournaments t ON t.id = tp.tournament_id AND t.tenant_id = tp.tenant_id
+LEFT JOIN team_members tm ON tm.tournament_id = tp.tournament_id AND tm.player_id = tp.player_id AND tm.tenant_id = tp.tenant_id
+LEFT JOIN teams te ON te.id = tm.team_id AND te.tenant_id = tm.tenant_id
+LEFT JOIN players cap ON cap.id = te.captain_id AND cap.tenant_id = te.tenant_id
+LEFT JOIN match_participants mp ON mp.player_id = tp.player_id AND mp.tournament_id = tp.tournament_id AND mp.tenant_id = tp.tenant_id
+LEFT JOIN match_results mr ON mr.match_id = mp.match_id AND mr.tenant_id = mp.tenant_id
+WHERE tp.player_id = @player_id AND tp.tenant_id = @tenant_id
+GROUP BY t.id, t.name, t.location, t.start_date, t.end_date, tm.team_id, cap.first_name, cap.last_name
+ORDER BY t.start_date DESC;

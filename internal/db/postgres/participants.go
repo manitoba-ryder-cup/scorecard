@@ -50,6 +50,29 @@ func (p *ParticipantsDB) ListMatchParticipants(ctx context.Context, matchID uuid
 	})
 }
 
+func (p *ParticipantsDB) ListParticipantsWithPlayersByTournament(ctx context.Context, tournamentID uuid.UUID) ([]golf.MatchParticipantPlayer, error) {
+	return withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) ([]golf.MatchParticipantPlayer, error) {
+		rows, err := q.ListParticipantsWithPlayersByTournament(ctx, sqlc.ListParticipantsWithPlayersByTournamentParams{
+			TournamentID: tournamentID,
+			TenantID:     tenantID,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("listing participants for tournament %s: %w", tournamentID, err)
+		}
+		return mapSlice(rows, toDomainParticipantPlayer), nil
+	})
+}
+
+func toDomainParticipantPlayer(p sqlc.ListParticipantsWithPlayersByTournamentRow) golf.MatchParticipantPlayer {
+	return golf.MatchParticipantPlayer{
+		MatchID:   p.MatchID,
+		TeamID:    p.TeamID,
+		PlayerID:  p.PlayerID,
+		FirstName: p.FirstName,
+		LastName:  p.LastName,
+	}
+}
+
 func toDomainParticipant(p sqlc.MatchParticipant) golf.MatchParticipant {
 	return golf.MatchParticipant{
 		TournamentID: p.TournamentID,

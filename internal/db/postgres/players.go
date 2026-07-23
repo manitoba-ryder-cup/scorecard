@@ -62,6 +62,36 @@ func (p *PlayersDB) ListPlayers(ctx context.Context) ([]golf.Player, error) {
 	})
 }
 
+// ListPlayerTournaments returns the player's tournament history. Result is left unset
+// here; the service derives it from each tournament's standings.
+func (p *PlayersDB) ListPlayerTournaments(ctx context.Context, playerID uuid.UUID) ([]golf.PlayerTournamentHistory, error) {
+	return withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) ([]golf.PlayerTournamentHistory, error) {
+		rows, err := q.ListPlayerTournaments(ctx, sqlc.ListPlayerTournamentsParams{PlayerID: playerID, TenantID: tenantID})
+		if err != nil {
+			return nil, fmt.Errorf("listing player tournaments %s: %w", playerID, err)
+		}
+		return mapSlice(rows, toPlayerTournamentHistory), nil
+	})
+}
+
+func toPlayerTournamentHistory(row sqlc.ListPlayerTournamentsRow) golf.PlayerTournamentHistory {
+	return golf.PlayerTournamentHistory{
+		TournamentID:     row.TournamentID,
+		Name:             row.Name,
+		Location:         row.Location,
+		StartDate:        row.StartDate,
+		EndDate:          row.EndDate,
+		CaptainFirstName: derefString(row.CaptainFirstName),
+		CaptainLastName:  derefString(row.CaptainLastName),
+		TeamID:           row.TeamID,
+		Record: golf.PlayerRecord{
+			Wins:   int32(row.Wins),
+			Losses: int32(row.Losses),
+			Ties:   int32(row.Ties),
+		},
+	}
+}
+
 // toDomainPlayer converts a sqlc Player to a domain Player. sqlc maps the nullable
 // uuid column straight to *uuid.UUID, so user_id passes through with no conversion.
 func toDomainPlayer(p sqlc.Player) golf.Player {

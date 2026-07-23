@@ -88,6 +88,7 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 		ParticipantDB: participantsDB,
 		ScoreDB:       scoresDB,
 		ResultDB:      resultsDB,
+		HoleDB:        teeSetsDB,
 	}
 
 	teamService := &golf.TeamService{
@@ -114,6 +115,7 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 		TournamentPlayerDB: tournamentPlayersDB,
 		TeamDB:             teamsDB,
 		TeamMemberDB:       teamMembersDB,
+		ResultDB:           resultsDB,
 	}
 
 	// Create HTTP server

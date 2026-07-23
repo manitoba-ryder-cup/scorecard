@@ -66,6 +66,19 @@ func (m *MatchesDB) ListMatchesByTournament(ctx context.Context, tournamentID uu
 	})
 }
 
+func (m *MatchesDB) ListMatchDetailsByTournament(ctx context.Context, tournamentID uuid.UUID) ([]golf.MatchDetail, error) {
+	return withTenant(ctx, m.db, func(q *sqlc.Queries, tenantID uuid.UUID) ([]golf.MatchDetail, error) {
+		rows, err := q.ListMatchesWithDetailsByTournament(ctx, sqlc.ListMatchesWithDetailsByTournamentParams{
+			TournamentID: tournamentID,
+			TenantID:     tenantID,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("listing match details for tournament %s: %w", tournamentID, err)
+		}
+		return mapSlice(rows, toDomainMatchDetail), nil
+	})
+}
+
 // toDomainMatch converts a sqlc Match to a domain Match
 func toDomainMatch(m sqlc.Match) golf.Match {
 	return golf.Match{
@@ -76,5 +89,21 @@ func toDomainMatch(m sqlc.Match) golf.Match {
 		MatchFormatID: m.MatchFormatID,
 		TeeTime:       m.TeeTime,
 		Handicapped:   m.Handicapped,
+	}
+}
+
+func toDomainMatchDetail(m sqlc.ListMatchesWithDetailsByTournamentRow) golf.MatchDetail {
+	return golf.MatchDetail{
+		Match: golf.Match{
+			ID:            m.ID,
+			TournamentID:  m.TournamentID,
+			CourseID:      m.CourseID,
+			TeeColorID:    m.TeeColorID,
+			MatchFormatID: m.MatchFormatID,
+			TeeTime:       m.TeeTime,
+			Handicapped:   m.Handicapped,
+		},
+		FormatName: m.FormatName,
+		CourseName: m.CourseName,
 	}
 }

@@ -15,6 +15,7 @@ type MatchService struct {
 	ParticipantDB participantDB
 	ScoreDB       scoreDB
 	ResultDB      resultDB
+	HoleDB        holeDB
 }
 
 // CreateMatchInput is the intent to create a match within a tournament. The FK to
@@ -132,6 +133,114 @@ func (s *MatchService) CalculateMatchScores(ctx context.Context, matchID uuid.UU
 		return nil, fmt.Errorf("failed to list scores: %w", err)
 	}
 	return ComputeMatchProgress(scores, teamA, teamB), nil
+}
+
+// ListMatchHoles returns the holes of a match's tee set. The match is loaded first so
+// a bad match id is a clean 404 rather than an empty list.
+func (s *MatchService) ListMatchHoles(ctx context.Context, matchID uuid.UUID) ([]Hole, error) {
+	match, err := s.MatchDB.GetMatch(ctx, matchID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get match: %w", err)
+	}
+	holes, err := s.HoleDB.ListHolesByTeeSet(ctx, match.CourseID, match.TeeColorID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list holes: %w", err)
+	}
+	return holes, nil
+}
+
+// ListResults builds every match's outcome for a tournament: the display names, the
+// two sides, and the per-hole/closed-out scoring state. Participants and scores are
+// fetched tournament-wide and grouped by match, so the whole view is a fixed number of
+// queries regardless of match count.
+func (s *MatchService) ListResults(ctx context.Context, tournamentID uuid.UUID) ([]MatchResult, error) {
+	matches, err := s.MatchDB.ListMatchDetailsByTournament(ctx, tournamentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list matches: %w", err)
+	}
+	participants, err := s.ParticipantDB.ListParticipantsWithPlayersByTournament(ctx, tournamentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list participants: %w", err)
+	}
+	scores, err := s.ScoreDB.ListScoresByTournament(ctx, tournamentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list scores: %w", err)
+	}
+
+	sidesByMatch := groupSides(participants)
+	scoresByMatch := map[uuid.UUID][]Score{}
+	for _, sc := range scores {
+		scoresByMatch[sc.MatchID] = append(scoresByMatch[sc.MatchID], sc)
+	}
+
+	results := make([]MatchResult, len(matches))
+	for i, m := range matches {
+		results[i] = buildMatchResult(m, sidesByMatch[m.ID], scoresByMatch[m.ID])
+	}
+	return results, nil
+}
+
+// groupSides collapses a tournament's participants into each match's sides, preserving
+// the query's ordering (by team, then player name) so a match's two sides and their
+// pairings are stable.
+func groupSides(participants []MatchParticipantPlayer) map[uuid.UUID][]MatchSide {
+	sides := map[uuid.UUID][]MatchSide{}
+	for _, p := range participants {
+		matchSides := sides[p.MatchID]
+		idx := -1
+		for j := range matchSides {
+			if matchSides[j].TeamID == p.TeamID {
+				idx = j
+				break
+			}
+		}
+		if idx == -1 {
+			matchSides = append(matchSides, MatchSide{TeamID: p.TeamID})
+			idx = len(matchSides) - 1
+		}
+		matchSides[idx].Players = append(matchSides[idx].Players, MatchSidePlayer{
+			PlayerID:  p.PlayerID,
+			FirstName: p.FirstName,
+			LastName:  p.LastName,
+		})
+		sides[p.MatchID] = matchSides
+	}
+	return sides
+}
+
+// buildMatchResult assembles one match's result. The two teams for scoring come from
+// its sides; with fewer than two sides the match hasn't a scored progression yet, so it
+// reads as unplayed.
+func buildMatchResult(m MatchDetail, sides []MatchSide, scores []Score) MatchResult {
+	result := MatchResult{
+		MatchID:        m.ID,
+		FormatName:     m.FormatName,
+		CourseName:     m.CourseName,
+		TeeTime:        m.TeeTime,
+		Sides:          sides,
+		HolesRemaining: 18,
+		HoleResults:    []*uuid.UUID{},
+	}
+	if len(sides) != 2 {
+		return result
+	}
+
+	teamA, teamB := sides[0].TeamID, sides[1].TeamID
+	progress := ComputeMatchProgress(scores, teamA, teamB)
+	holeResults := make([]*uuid.UUID, len(progress))
+	for i, h := range progress {
+		holeResults[i] = HoleWinner(h)
+	}
+	result.HoleResults = holeResults
+
+	stored := ComputeStoredResult(scores, teamA, teamB)
+	result.Finished = stored.Finished
+	result.Lead = stored.Lead
+	result.HolesRemaining = stored.HolesRemaining
+	if stored.Finished {
+		result.WinnerTeamID = stored.LeaderTeamID
+	}
+	return result
 }
 
 // recompute recomputes a match's materialized result from its scores and upserts it to

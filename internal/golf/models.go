@@ -59,6 +59,22 @@ type MatchParticipant struct {
 	TeamID       uuid.UUID
 }
 
+// MatchParticipantPlayer is a match participant enriched with the player's name.
+type MatchParticipantPlayer struct {
+	MatchID   uuid.UUID
+	TeamID    uuid.UUID
+	PlayerID  uuid.UUID
+	FirstName string
+	LastName  string
+}
+
+// MatchDetail is a match plus its resolved format and course names.
+type MatchDetail struct {
+	Match
+	FormatName string
+	CourseName string
+}
+
 // Score is a hole score attributed to a side (TeamID) and, for per-player formats,
 // to a player. PlayerID is nil for one-ball team scores (alt shot, scramble).
 type Score struct {
@@ -119,6 +135,8 @@ type TeamMember struct {
 // TournamentPlayer is a player entered in a tournament: the per-tournament attributes
 // (tier, biography, handicap) set independently of the team draft, plus the player's
 // identity and their team assignment. TeamID is nil when entered but not yet drafted.
+// Record and CupsWon are all-time, derived from match_results; only the roster listing
+// populates them, other reads leave them zero.
 type TournamentPlayer struct {
 	TournamentID uuid.UUID
 	PlayerID     uuid.UUID
@@ -130,6 +148,54 @@ type TournamentPlayer struct {
 	Email        *string
 	PhotoPath    string
 	TeamID       *uuid.UUID
+	Record       PlayerRecord
+	CupsWon      int
+}
+
+// PlayerTournamentHistory is one event in a player's history: their team that year
+// (by its captain), the outcome, and their W-L-T in that tournament. TeamID feeds the
+// Result derivation and is not put on the wire; Result is filled by the service.
+type PlayerTournamentHistory struct {
+	TournamentID     uuid.UUID
+	Name             string
+	Location         string
+	StartDate        time.Time
+	EndDate          time.Time
+	CaptainFirstName string
+	CaptainLastName  string
+	TeamID           *uuid.UUID
+	Result           string
+	Record           PlayerRecord
+}
+
+// MatchSidePlayer is a player on one side of a match.
+type MatchSidePlayer struct {
+	PlayerID  uuid.UUID
+	FirstName string
+	LastName  string
+}
+
+// MatchSide is one team's lineup in a match, by id.
+type MatchSide struct {
+	TeamID  uuid.UUID
+	Players []MatchSidePlayer
+}
+
+// MatchResult is a match's outcome for the tournament results view. HoleResults holds,
+// per played hole in order, the winning team's id (nil = halved); its length is the
+// holes played. The closed-out state (Finished/WinnerTeamID/Lead/HolesRemaining) is
+// the same StoredResult the scoring engine persists.
+type MatchResult struct {
+	MatchID        uuid.UUID
+	FormatName     string
+	CourseName     string
+	TeeTime        *time.Time
+	Finished       bool
+	WinnerTeamID   *uuid.UUID
+	Lead           int
+	HolesRemaining int
+	Sides          []MatchSide
+	HoleResults    []*uuid.UUID
 }
 
 // TeamHoleScore is one side's gross score on a hole, tagged by team ID.

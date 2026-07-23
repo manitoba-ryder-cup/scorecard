@@ -57,3 +57,46 @@ func (q *Queries) CreateHole(ctx context.Context, arg CreateHoleParams) (Hole, e
 	)
 	return i, err
 }
+
+const listHolesByTeeSet = `-- name: ListHolesByTeeSet :many
+SELECT course_id, tee_color_id, number, tenant_id, par, hdcp, yards FROM holes
+WHERE course_id = $1 AND tee_color_id = $2 AND tenant_id = $3
+ORDER BY number
+`
+
+type ListHolesByTeeSetParams struct {
+	CourseID   uuid.UUID `json:"course_id"`
+	TeeColorID uuid.UUID `json:"tee_color_id"`
+	TenantID   uuid.UUID `json:"tenant_id"`
+}
+
+// ListHolesByTeeSet returns a tee set's 18 holes (a course + tee color pair), in
+// play order. The match-holes endpoint resolves the tee from the match, then reads
+// its holes here.
+func (q *Queries) ListHolesByTeeSet(ctx context.Context, arg ListHolesByTeeSetParams) ([]Hole, error) {
+	rows, err := q.db.Query(ctx, listHolesByTeeSet, arg.CourseID, arg.TeeColorID, arg.TenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Hole{}
+	for rows.Next() {
+		var i Hole
+		if err := rows.Scan(
+			&i.CourseID,
+			&i.TeeColorID,
+			&i.Number,
+			&i.TenantID,
+			&i.Par,
+			&i.Hdcp,
+			&i.Yards,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

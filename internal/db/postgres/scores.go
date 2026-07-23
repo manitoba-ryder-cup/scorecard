@@ -64,19 +64,47 @@ func (s *ScoresDB) ListScoresByMatch(ctx context.Context, matchID uuid.UUID) ([]
 		if err != nil {
 			return nil, fmt.Errorf("listing scores for match %s: %w", matchID, err)
 		}
-		result := make([]golf.Score, len(scores))
-		for i, score := range scores {
-			result[i] = golf.Score{
-				ID:         score.ID,
-				MatchID:    score.MatchID,
-				TeamID:     score.TeamID,
-				PlayerID:   score.PlayerID,
-				CourseID:   score.CourseID,
-				TeeColorID: score.TeeColorID,
-				HoleNumber: score.HoleNumber,
-				Strokes:    score.Strokes,
-			}
-		}
-		return result, nil
+		return mapSlice(scores, toDomainScoreWithHole), nil
 	})
+}
+
+func (s *ScoresDB) ListScoresByTournament(ctx context.Context, tournamentID uuid.UUID) ([]golf.Score, error) {
+	return withTenant(ctx, s.db, func(q *sqlc.Queries, tenantID uuid.UUID) ([]golf.Score, error) {
+		scores, err := q.ListScoresByTournament(ctx, sqlc.ListScoresByTournamentParams{
+			TournamentID: tournamentID,
+			TenantID:     tenantID,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("listing scores for tournament %s: %w", tournamentID, err)
+		}
+		return mapSlice(scores, toDomainScore), nil
+	})
+}
+
+// ListScoresByMatch returns extra hole columns (par/hdcp/yards) the domain Score
+// drops; toDomainScoreWithHole reads only the fields the scoring engine needs.
+func toDomainScoreWithHole(s sqlc.ListScoresByMatchRow) golf.Score {
+	return golf.Score{
+		ID:         s.ID,
+		MatchID:    s.MatchID,
+		TeamID:     s.TeamID,
+		PlayerID:   s.PlayerID,
+		CourseID:   s.CourseID,
+		TeeColorID: s.TeeColorID,
+		HoleNumber: s.HoleNumber,
+		Strokes:    s.Strokes,
+	}
+}
+
+func toDomainScore(s sqlc.Score) golf.Score {
+	return golf.Score{
+		ID:         s.ID,
+		MatchID:    s.MatchID,
+		TeamID:     s.TeamID,
+		PlayerID:   s.PlayerID,
+		CourseID:   s.CourseID,
+		TeeColorID: s.TeeColorID,
+		HoleNumber: s.HoleNumber,
+		Strokes:    s.Strokes,
+	}
 }

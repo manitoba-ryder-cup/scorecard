@@ -11,14 +11,15 @@ import (
 // Fixture holds the IDs of a seeded singles match: two teams (Red/Blue), one player
 // per side, on an 18-hole course. Enough to exercise the score-entry loop end to end.
 type Fixture struct {
-	TenantID   uuid.UUID
-	CourseID   uuid.UUID
-	TeeColorID uuid.UUID
-	MatchID    uuid.UUID
-	TeamRed    uuid.UUID
-	TeamBlue   uuid.UUID
-	RedPlayer  uuid.UUID
-	BluePlayer uuid.UUID
+	TenantID     uuid.UUID
+	TournamentID uuid.UUID
+	CourseID     uuid.UUID
+	TeeColorID   uuid.UUID
+	MatchID      uuid.UUID
+	TeamRed      uuid.UUID
+	TeamBlue     uuid.UUID
+	RedPlayer    uuid.UUID
+	BluePlayer   uuid.UUID
 }
 
 // Connect opens a single pgx connection for seeding. The caller closes it.
@@ -84,13 +85,13 @@ func SeedSinglesMatch(ctx context.Context, conn *pgx.Conn) (*Fixture, error) {
 		return nil, fmt.Errorf("seed blue player: %w", err)
 	}
 
-	var tournamentID uuid.UUID
 	if err := conn.QueryRow(ctx,
 		`INSERT INTO tournaments (tenant_id, name, start_date, end_date, location)
 		 VALUES ($1, 'Test Cup', '2026-07-01', '2026-07-03', 'Winnipeg') RETURNING id`, t,
-	).Scan(&tournamentID); err != nil {
+	).Scan(&f.TournamentID); err != nil {
 		return nil, fmt.Errorf("seed tournament: %w", err)
 	}
+	tournamentID := f.TournamentID
 
 	if err := conn.QueryRow(ctx,
 		`INSERT INTO teams (tenant_id, tournament_id, color, captain_id) VALUES ($1, $2, 'Red', $3) RETURNING id`,

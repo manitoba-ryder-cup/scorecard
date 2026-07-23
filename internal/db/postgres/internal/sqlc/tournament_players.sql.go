@@ -83,6 +83,89 @@ func (q *Queries) CreateTournamentPlayer(ctx context.Context, arg CreateTourname
 	return i, err
 }
 
+const listPlayerTournaments = `-- name: ListPlayerTournaments :many
+SELECT
+    t.id AS tournament_id,
+    t.name,
+    t.location,
+    t.start_date,
+    t.end_date,
+    tm.team_id,
+    cap.first_name AS captain_first_name,
+    cap.last_name  AS captain_last_name,
+    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id = mp.team_id) AS wins,
+    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id IS NOT NULL AND mr.leader_team_id <> mp.team_id) AS losses,
+    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id IS NULL) AS ties
+FROM tournament_players tp
+JOIN tournaments t ON t.id = tp.tournament_id AND t.tenant_id = tp.tenant_id
+LEFT JOIN team_members tm ON tm.tournament_id = tp.tournament_id AND tm.player_id = tp.player_id AND tm.tenant_id = tp.tenant_id
+LEFT JOIN teams te ON te.id = tm.team_id AND te.tenant_id = tm.tenant_id
+LEFT JOIN players cap ON cap.id = te.captain_id AND cap.tenant_id = te.tenant_id
+LEFT JOIN match_participants mp ON mp.player_id = tp.player_id AND mp.tournament_id = tp.tournament_id AND mp.tenant_id = tp.tenant_id
+LEFT JOIN match_results mr ON mr.match_id = mp.match_id AND mr.tenant_id = mp.tenant_id
+WHERE tp.player_id = $1 AND tp.tenant_id = $2
+GROUP BY t.id, t.name, t.location, t.start_date, t.end_date, tm.team_id, cap.first_name, cap.last_name
+ORDER BY t.start_date DESC
+`
+
+type ListPlayerTournamentsParams struct {
+	PlayerID uuid.UUID `json:"player_id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+}
+
+type ListPlayerTournamentsRow struct {
+	TournamentID     uuid.UUID  `json:"tournament_id"`
+	Name             string     `json:"name"`
+	Location         string     `json:"location"`
+	StartDate        time.Time  `json:"start_date"`
+	EndDate          time.Time  `json:"end_date"`
+	TeamID           *uuid.UUID `json:"team_id"`
+	CaptainFirstName *string    `json:"captain_first_name"`
+	CaptainLastName  *string    `json:"captain_last_name"`
+	Wins             int64      `json:"wins"`
+	Losses           int64      `json:"losses"`
+	Ties             int64      `json:"ties"`
+}
+
+// ListPlayerTournaments returns a player's tournament history: every event they were
+// entered in, with the event metadata, their team that year (identified by its
+// captain), and their W-L-T within that tournament. The team/captain come via
+// team_members -> teams -> players(captain) (LEFT JOINed, since a player can be
+// entered but undrafted). The record is scoped to the tournament by filtering the
+// participant join to the same tournament. The won/lost/tied vs in-progress verdict
+// needs the tournament standings, so the caller derives it separately. Newest first.
+func (q *Queries) ListPlayerTournaments(ctx context.Context, arg ListPlayerTournamentsParams) ([]ListPlayerTournamentsRow, error) {
+	rows, err := q.db.Query(ctx, listPlayerTournaments, arg.PlayerID, arg.TenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPlayerTournamentsRow{}
+	for rows.Next() {
+		var i ListPlayerTournamentsRow
+		if err := rows.Scan(
+			&i.TournamentID,
+			&i.Name,
+			&i.Location,
+			&i.StartDate,
+			&i.EndDate,
+			&i.TeamID,
+			&i.CaptainFirstName,
+			&i.CaptainLastName,
+			&i.Wins,
+			&i.Losses,
+			&i.Ties,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTournamentPlayers = `-- name: ListTournamentPlayers :many
 SELECT tp.tournament_id, tp.player_id, tp.tenant_id, tp.tier, tp.biography, tp.hdcp, tp.created_at, tp.updated_at, p.first_name, p.last_name, p.email, p.photo_path, tm.team_id
 FROM tournament_players tp

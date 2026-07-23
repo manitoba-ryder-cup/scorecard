@@ -13,6 +13,9 @@ type fakePlayerDB struct {
 
 func (f *fakePlayerDB) GetPlayer(ctx context.Context, id uuid.UUID) (*Player, error) { return nil, nil }
 func (f *fakePlayerDB) ListPlayers(ctx context.Context) ([]Player, error)            { return nil, nil }
+func (f *fakePlayerDB) ListPlayerTournaments(ctx context.Context, playerID uuid.UUID) ([]PlayerTournamentHistory, error) {
+	return nil, nil
+}
 func (f *fakePlayerDB) CreatePlayer(ctx context.Context, in CreatePlayerInput) (*Player, error) {
 	f.created = &in
 	return &Player{ID: playerA, FirstName: in.FirstName, LastName: in.LastName, Email: in.Email, UserID: in.UserID}, nil

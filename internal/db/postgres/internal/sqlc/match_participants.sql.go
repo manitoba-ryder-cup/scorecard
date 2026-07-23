@@ -86,3 +86,53 @@ func (q *Queries) ListMatchParticipants(ctx context.Context, arg ListMatchPartic
 	}
 	return items, nil
 }
+
+const listParticipantsWithPlayersByTournament = `-- name: ListParticipantsWithPlayersByTournament :many
+SELECT mp.match_id, mp.team_id, mp.player_id, p.first_name, p.last_name
+FROM match_participants mp
+JOIN players p ON p.id = mp.player_id AND p.tenant_id = mp.tenant_id
+WHERE mp.tournament_id = $1 AND mp.tenant_id = $2
+ORDER BY mp.match_id, mp.team_id, p.last_name, p.first_name
+`
+
+type ListParticipantsWithPlayersByTournamentParams struct {
+	TournamentID uuid.UUID `json:"tournament_id"`
+	TenantID     uuid.UUID `json:"tenant_id"`
+}
+
+type ListParticipantsWithPlayersByTournamentRow struct {
+	MatchID   uuid.UUID `json:"match_id"`
+	TeamID    uuid.UUID `json:"team_id"`
+	PlayerID  uuid.UUID `json:"player_id"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+}
+
+// ListParticipantsWithPlayersByTournament returns every participant across the
+// tournament's matches, enriched with the player's name — enough to build each
+// match's two sides in one query. Ordered so a match's participants group together.
+func (q *Queries) ListParticipantsWithPlayersByTournament(ctx context.Context, arg ListParticipantsWithPlayersByTournamentParams) ([]ListParticipantsWithPlayersByTournamentRow, error) {
+	rows, err := q.db.Query(ctx, listParticipantsWithPlayersByTournament, arg.TournamentID, arg.TenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListParticipantsWithPlayersByTournamentRow{}
+	for rows.Next() {
+		var i ListParticipantsWithPlayersByTournamentRow
+		if err := rows.Scan(
+			&i.MatchID,
+			&i.TeamID,
+			&i.PlayerID,
+			&i.FirstName,
+			&i.LastName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

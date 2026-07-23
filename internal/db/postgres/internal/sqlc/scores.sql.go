@@ -83,6 +83,54 @@ func (q *Queries) ListScoresByMatch(ctx context.Context, arg ListScoresByMatchPa
 	return items, nil
 }
 
+const listScoresByTournament = `-- name: ListScoresByTournament :many
+SELECT s.id, s.match_id, s.team_id, s.player_id, s.course_id, s.tee_color_id, s.hole_number, s.tenant_id, s.strokes, s.created_at, s.updated_at
+FROM scores s
+JOIN matches m ON m.id = s.match_id AND m.tenant_id = s.tenant_id
+WHERE m.tournament_id = $1 AND s.tenant_id = $2
+ORDER BY s.match_id, s.hole_number
+`
+
+type ListScoresByTournamentParams struct {
+	TournamentID uuid.UUID `json:"tournament_id"`
+	TenantID     uuid.UUID `json:"tenant_id"`
+}
+
+// ListScoresByTournament returns every score across the tournament's matches, so the
+// results view computes each match's progression without a per-match scores query.
+// Ordered by match so the caller groups them cheaply.
+func (q *Queries) ListScoresByTournament(ctx context.Context, arg ListScoresByTournamentParams) ([]Score, error) {
+	rows, err := q.db.Query(ctx, listScoresByTournament, arg.TournamentID, arg.TenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Score{}
+	for rows.Next() {
+		var i Score
+		if err := rows.Scan(
+			&i.ID,
+			&i.MatchID,
+			&i.TeamID,
+			&i.PlayerID,
+			&i.CourseID,
+			&i.TeeColorID,
+			&i.HoleNumber,
+			&i.TenantID,
+			&i.Strokes,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertPlayerScore = `-- name: UpsertPlayerScore :one
 INSERT INTO scores (
     match_id, team_id, player_id, course_id, tee_color_id, hole_number, tenant_id, strokes

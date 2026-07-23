@@ -131,3 +131,68 @@ func (q *Queries) ListMatchesByTournament(ctx context.Context, arg ListMatchesBy
 	}
 	return items, nil
 }
+
+const listMatchesWithDetailsByTournament = `-- name: ListMatchesWithDetailsByTournament :many
+SELECT m.id, m.tournament_id, m.course_id, m.tee_color_id, m.match_format_id, m.tenant_id, m.tee_time, m.handicapped, m.created_at, m.updated_at, mf.name AS format_name, c.name AS course_name
+FROM matches m
+JOIN match_formats mf ON mf.id = m.match_format_id
+JOIN courses c ON c.id = m.course_id AND c.tenant_id = m.tenant_id
+WHERE m.tournament_id = $1 AND m.tenant_id = $2
+ORDER BY m.tee_time NULLS LAST, m.id
+`
+
+type ListMatchesWithDetailsByTournamentParams struct {
+	TournamentID uuid.UUID `json:"tournament_id"`
+	TenantID     uuid.UUID `json:"tenant_id"`
+}
+
+type ListMatchesWithDetailsByTournamentRow struct {
+	ID            uuid.UUID  `json:"id"`
+	TournamentID  uuid.UUID  `json:"tournament_id"`
+	CourseID      uuid.UUID  `json:"course_id"`
+	TeeColorID    uuid.UUID  `json:"tee_color_id"`
+	MatchFormatID uuid.UUID  `json:"match_format_id"`
+	TenantID      uuid.UUID  `json:"tenant_id"`
+	TeeTime       *time.Time `json:"tee_time"`
+	Handicapped   bool       `json:"handicapped"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+	FormatName    string     `json:"format_name"`
+	CourseName    string     `json:"course_name"`
+}
+
+// ListMatchesWithDetailsByTournament returns the tournament's matches joined with the
+// display names (format, course) the results view needs, so the caller resolves both
+// in one query instead of a per-match lookup. Ordered by tee time (unscheduled last).
+func (q *Queries) ListMatchesWithDetailsByTournament(ctx context.Context, arg ListMatchesWithDetailsByTournamentParams) ([]ListMatchesWithDetailsByTournamentRow, error) {
+	rows, err := q.db.Query(ctx, listMatchesWithDetailsByTournament, arg.TournamentID, arg.TenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMatchesWithDetailsByTournamentRow{}
+	for rows.Next() {
+		var i ListMatchesWithDetailsByTournamentRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TournamentID,
+			&i.CourseID,
+			&i.TeeColorID,
+			&i.MatchFormatID,
+			&i.TenantID,
+			&i.TeeTime,
+			&i.Handicapped,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.FormatName,
+			&i.CourseName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

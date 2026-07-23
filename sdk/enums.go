@@ -8,3 +8,12 @@ const (
 	TeamColorRed  = "Red"
 	TeamColorBlue = "Blue"
 )
+
+// Player-tournament outcomes (PlayerTournamentHistory.result). "in_progress" covers a
+// tournament that hasn't finished all its matches yet.
+const (
+	ResultWon        = "won"
+	ResultLost       = "lost"
+	ResultTied       = "tied"
+	ResultInProgress = "in_progress"
+)

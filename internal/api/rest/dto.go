@@ -38,11 +38,25 @@ func toPlayerDTO(p golf.Player) sdk.Player {
 func toPlayerProfileDTO(p golf.Player, rec golf.PlayerRecord) sdk.PlayerProfile {
 	return sdk.PlayerProfile{
 		Player: toPlayerDTO(p),
-		Record: sdk.PlayerRecord{
-			Wins:   rec.Wins,
-			Losses: rec.Losses,
-			Ties:   rec.Ties,
-		},
+		Record: toPlayerRecordDTO(rec),
+	}
+}
+
+func toPlayerRecordDTO(rec golf.PlayerRecord) sdk.PlayerRecord {
+	return sdk.PlayerRecord{Wins: rec.Wins, Losses: rec.Losses, Ties: rec.Ties}
+}
+
+func toPlayerTournamentHistoryDTO(h golf.PlayerTournamentHistory) sdk.PlayerTournamentHistory {
+	return sdk.PlayerTournamentHistory{
+		TournamentID:     h.TournamentID,
+		Name:             h.Name,
+		Location:         h.Location,
+		StartDate:        dateString(h.StartDate),
+		EndDate:          dateString(h.EndDate),
+		CaptainFirstName: h.CaptainFirstName,
+		CaptainLastName:  h.CaptainLastName,
+		Result:           h.Result,
+		Record:           toPlayerRecordDTO(h.Record),
 	}
 }
 
@@ -86,6 +100,44 @@ func toHoleStatusDTO(h golf.HoleResult) sdk.HoleStatus {
 		Lead:           h.Lead,
 		HolesRemaining: h.HolesRemaining,
 		Decided:        h.Decided,
+	}
+}
+
+func toHoleDTO(h golf.Hole) sdk.Hole {
+	return sdk.Hole{Number: h.Number, Par: h.Par, Hdcp: h.Hdcp, Yards: h.Yards}
+}
+
+func toMatchResultDTO(m golf.MatchResult) sdk.MatchResult {
+	var teeTime *string
+	if m.TeeTime != nil {
+		s := m.TeeTime.Format(time.RFC3339)
+		teeTime = &s
+	}
+	// Empty (not null) so the client always gets an array to iterate.
+	holeResults := m.HoleResults
+	if holeResults == nil {
+		holeResults = []*uuid.UUID{}
+	}
+	return sdk.MatchResult{
+		MatchID:        m.MatchID,
+		FormatName:     m.FormatName,
+		Finished:       m.Finished,
+		WinnerTeamID:   m.WinnerTeamID,
+		Lead:           m.Lead,
+		HolesRemaining: m.HolesRemaining,
+		Sides:          mapSlice(m.Sides, toMatchSideDTO),
+		HoleResults:    holeResults,
+		TeeTime:        teeTime,
+		CourseName:     m.CourseName,
+	}
+}
+
+func toMatchSideDTO(s golf.MatchSide) sdk.MatchSide {
+	return sdk.MatchSide{
+		TeamID: s.TeamID,
+		Players: mapSlice(s.Players, func(p golf.MatchSidePlayer) sdk.MatchPlayer {
+			return sdk.MatchPlayer{PlayerID: p.PlayerID, FirstName: p.FirstName, LastName: p.LastName}
+		}),
 	}
 }
 

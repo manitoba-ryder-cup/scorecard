@@ -56,6 +56,11 @@ func (c *Client) CreatePlayer(ctx context.Context, req CreatePlayerRequest) (*Pl
 	return &out, c.do(ctx, http.MethodPost, RouteV1Players, req, &out)
 }
 
+func (c *Client) GetPlayerTournaments(ctx context.Context, id uuid.UUID) ([]PlayerTournamentHistory, error) {
+	var out []PlayerTournamentHistory
+	return out, c.do(ctx, http.MethodGet, pathID(RouteV1PlayerTournaments, id), nil, &out)
+}
+
 // --- Reference data ---
 
 func (c *Client) ListMatchFormats(ctx context.Context) ([]MatchFormat, error) {
@@ -122,6 +127,11 @@ func (c *Client) GetTournamentTeams(ctx context.Context, id uuid.UUID) ([]Tourna
 func (c *Client) GetTournamentWinner(ctx context.Context, id uuid.UUID) (*WinnerResponse, error) {
 	var out WinnerResponse
 	return &out, c.do(ctx, http.MethodGet, pathID(RouteV1TournamentWinner, id), nil, &out)
+}
+
+func (c *Client) GetTournamentResults(ctx context.Context, id uuid.UUID) ([]MatchResult, error) {
+	var out []MatchResult
+	return out, c.do(ctx, http.MethodGet, pathID(RouteV1TournamentResults, id), nil, &out)
 }
 
 func (c *Client) GetTournamentStatus(ctx context.Context, id uuid.UUID) (*FinishedResponse, error) {
@@ -197,6 +207,11 @@ func (c *Client) SubmitScore(ctx context.Context, matchID uuid.UUID, req ScoreSu
 func (c *Client) GetMatchScores(ctx context.Context, matchID uuid.UUID) ([]HoleStatus, error) {
 	var out []HoleStatus
 	return out, c.do(ctx, http.MethodGet, pathID(RouteV1MatchScores, matchID), nil, &out)
+}
+
+func (c *Client) GetMatchHoles(ctx context.Context, matchID uuid.UUID) ([]Hole, error) {
+	var out []Hole
+	return out, c.do(ctx, http.MethodGet, pathID(RouteV1MatchHoles, matchID), nil, &out)
 }
 
 func (c *Client) GetMatchWinner(ctx context.Context, matchID uuid.UUID) (*WinnerResponse, error) {

@@ -17,6 +17,8 @@ type MatchService interface {
 	SubmitScore(ctx context.Context, matchID uuid.UUID, entry golf.ScoreEntry) error
 	CreateMatch(ctx context.Context, in golf.CreateMatchInput) (*golf.Match, error)
 	ListMatches(ctx context.Context, tournamentID uuid.UUID) ([]golf.Match, error)
+	ListMatchHoles(ctx context.Context, matchID uuid.UUID) ([]golf.Hole, error)
+	ListResults(ctx context.Context, tournamentID uuid.UUID) ([]golf.MatchResult, error)
 	AddParticipant(ctx context.Context, matchID, playerID, teamID uuid.UUID) (*golf.MatchParticipant, error)
 	ListParticipants(ctx context.Context, matchID uuid.UUID) ([]golf.MatchParticipant, error)
 }
@@ -91,6 +93,36 @@ func toMatchDTO(m golf.Match) sdk.Match {
 		TeeTime:       teeTime,
 		Handicapped:   m.Handicapped,
 	}
+}
+
+// GET /v1/tournaments/{id}/results
+func (h *MatchesHandler) ListResults(w http.ResponseWriter, r *http.Request) {
+	tournamentID, err := pathUUID(r, "id")
+	if err != nil {
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid tournament ID", err)
+		return
+	}
+	results, err := h.matchService.ListResults(r.Context(), tournamentID)
+	if err != nil {
+		respondDomainError(r.Context(), w, "Failed to list results", err)
+		return
+	}
+	respondJSON(w, http.StatusOK, mapSlice(results, toMatchResultDTO))
+}
+
+// GET /v1/matches/{id}/holes
+func (h *MatchesHandler) GetMatchHoles(w http.ResponseWriter, r *http.Request) {
+	id, err := pathUUID(r, "id")
+	if err != nil {
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid match ID", err)
+		return
+	}
+	holes, err := h.matchService.ListMatchHoles(r.Context(), id)
+	if err != nil {
+		respondDomainError(r.Context(), w, "Failed to list match holes", err)
+		return
+	}
+	respondJSON(w, http.StatusOK, mapSlice(holes, toHoleDTO))
 }
 
 // GET /v1/matches/{id}/participants

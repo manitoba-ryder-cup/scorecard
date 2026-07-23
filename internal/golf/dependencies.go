@@ -11,27 +11,37 @@ type playerDB interface {
 	GetPlayer(ctx context.Context, id uuid.UUID) (*Player, error)
 	ListPlayers(ctx context.Context) ([]Player, error)
 	CreatePlayer(ctx context.Context, in CreatePlayerInput) (*Player, error)
+	// Result is left unset — the service derives it from the standings.
+	ListPlayerTournaments(ctx context.Context, playerID uuid.UUID) ([]PlayerTournamentHistory, error)
 }
 
 // matchDB interface defines database operations for matches
 type matchDB interface {
 	GetMatch(ctx context.Context, id uuid.UUID) (*Match, error)
 	ListMatchesByTournament(ctx context.Context, tournamentID uuid.UUID) ([]Match, error)
+	ListMatchDetailsByTournament(ctx context.Context, tournamentID uuid.UUID) ([]MatchDetail, error)
 	CreateMatch(ctx context.Context, in CreateMatchInput) (*Match, error)
 }
 
 // participantDB interface defines database operations for match participants
 type participantDB interface {
 	ListMatchParticipants(ctx context.Context, matchID uuid.UUID) ([]MatchParticipant, error)
+	ListParticipantsWithPlayersByTournament(ctx context.Context, tournamentID uuid.UUID) ([]MatchParticipantPlayer, error)
 	CreateMatchParticipant(ctx context.Context, tournamentID, matchID, playerID, teamID uuid.UUID) (*MatchParticipant, error)
 }
 
 // scoreDB interface defines database operations for scores
 type scoreDB interface {
 	ListScoresByMatch(ctx context.Context, matchID uuid.UUID) ([]Score, error)
+	ListScoresByTournament(ctx context.Context, tournamentID uuid.UUID) ([]Score, error)
 	// SaveScore upserts one hole score; the repo picks per-player vs team-attributable
 	// storage based on Score.PlayerID being set.
 	SaveScore(ctx context.Context, s Score) error
+}
+
+// holeDB reads a tee set's holes (course setup).
+type holeDB interface {
+	ListHolesByTeeSet(ctx context.Context, courseID, teeColorID uuid.UUID) ([]Hole, error)
 }
 
 // teamDB interface defines database operations for teams
@@ -98,4 +108,7 @@ type resultDB interface {
 	ListTeamPoints(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]float64, error)
 	IsTournamentFinished(ctx context.Context, tournamentID uuid.UUID) (bool, error)
 	GetPlayerRecord(ctx context.Context, playerID uuid.UUID) (PlayerRecord, error)
+	// Batched over a tournament's roster, each keyed by player id.
+	ListTournamentPlayerRecords(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]PlayerRecord, error)
+	ListTournamentPlayerCups(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]int, error)
 }

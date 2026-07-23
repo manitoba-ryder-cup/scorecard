@@ -5,8 +5,9 @@ const (
 	RouteHealth = "/healthz"
 
 	// Players
-	RouteV1Players = "/v1/players"
-	RouteV1Player  = "/v1/players/{id}"
+	RouteV1Players           = "/v1/players"
+	RouteV1Player            = "/v1/players/{id}"
+	RouteV1PlayerTournaments = "/v1/players/{id}/tournaments"
 
 	// Reference data
 	RouteV1MatchFormats = "/v1/match-formats"
@@ -18,10 +19,11 @@ const (
 	RouteV1CourseTees = "/v1/courses/{id}/tees"
 
 	// Tournaments
-	RouteV1Tournaments      = "/v1/tournaments"
-	RouteV1Tournament       = "/v1/tournaments/{id}"
-	RouteV1TournamentWinner = "/v1/tournaments/{id}/winner"
-	RouteV1TournamentStatus = "/v1/tournaments/{id}/status"
+	RouteV1Tournaments       = "/v1/tournaments"
+	RouteV1Tournament        = "/v1/tournaments/{id}"
+	RouteV1TournamentWinner  = "/v1/tournaments/{id}/winner"
+	RouteV1TournamentStatus  = "/v1/tournaments/{id}/status"
+	RouteV1TournamentResults = "/v1/tournaments/{id}/results"
 
 	// Roster (players entered in a tournament)
 	RouteV1TournamentPlayers = "/v1/tournaments/{id}/players"
@@ -37,6 +39,7 @@ const (
 	// Matches
 	RouteV1TournamentMatches = "/v1/tournaments/{id}/matches"
 	RouteV1MatchScores       = "/v1/matches/{id}/scores"
+	RouteV1MatchHoles        = "/v1/matches/{id}/holes"
 	RouteV1MatchWinner       = "/v1/matches/{id}/winner"
 	RouteV1MatchStatus       = "/v1/matches/{id}/status"
 	RouteV1MatchParticipants = "/v1/matches/{id}/participants"

@@ -138,6 +138,140 @@ func (q *Queries) ListTeamPoints(ctx context.Context, arg ListTeamPointsParams) 
 	return items, nil
 }
 
+const listTournamentPlayerCups = `-- name: ListTournamentPlayerCups :many
+WITH team_points AS (
+    SELECT
+        t.tournament_id,
+        t.id AS team_id,
+        COALESCE(SUM(
+            CASE
+                WHEN mr.finished AND mr.leader_team_id = t.id THEN 1.0
+                WHEN mr.finished AND mr.leader_team_id IS NULL THEN 0.5
+                ELSE 0
+            END
+        ), 0)::float8 AS points
+    FROM teams t
+    LEFT JOIN match_results mr ON mr.tournament_id = t.tournament_id AND mr.tenant_id = t.tenant_id
+    WHERE t.tenant_id = $2
+    GROUP BY t.tournament_id, t.id
+),
+finished AS (
+    -- Tournaments with at least one match and no unfinished match.
+    SELECT m.tournament_id
+    FROM matches m
+    LEFT JOIN match_results mr ON mr.match_id = m.id AND mr.tenant_id = m.tenant_id
+    WHERE m.tenant_id = $2
+    GROUP BY m.tournament_id
+    HAVING bool_and(COALESCE(mr.finished, false))
+),
+winners AS (
+    -- The sole top-scoring team in each finished tournament (ties excluded).
+    SELECT tpt.tournament_id, tpt.team_id
+    FROM team_points tpt
+    JOIN finished f ON f.tournament_id = tpt.tournament_id
+    WHERE tpt.points > (
+        SELECT COALESCE(MAX(o.points), -1)
+        FROM team_points o
+        WHERE o.tournament_id = tpt.tournament_id AND o.team_id <> tpt.team_id
+    )
+)
+SELECT tp.player_id, COUNT(w.tournament_id) AS cups_won
+FROM tournament_players tp
+LEFT JOIN team_members tm ON tm.player_id = tp.player_id AND tm.tenant_id = tp.tenant_id
+LEFT JOIN winners w ON w.team_id = tm.team_id AND w.tournament_id = tm.tournament_id
+WHERE tp.tournament_id = $1 AND tp.tenant_id = $2
+GROUP BY tp.player_id
+`
+
+type ListTournamentPlayerCupsParams struct {
+	TournamentID uuid.UUID `json:"tournament_id"`
+	TenantID     uuid.UUID `json:"tenant_id"`
+}
+
+type ListTournamentPlayerCupsRow struct {
+	PlayerID uuid.UUID `json:"player_id"`
+	CupsWon  int64     `json:"cups_won"`
+}
+
+// ListTournamentPlayerCups returns, for every player entered in a tournament, the
+// number of cups they have won: finished tournaments in which their team was the sole
+// points leader. Points mirror ListTeamPoints (1 per win, 0.5 per halved match); a
+// team wins iff it strictly outscores every other side (a Ryder Cup has two), so a
+// tie counts for neither. All computed tenant-wide in one query.
+func (q *Queries) ListTournamentPlayerCups(ctx context.Context, arg ListTournamentPlayerCupsParams) ([]ListTournamentPlayerCupsRow, error) {
+	rows, err := q.db.Query(ctx, listTournamentPlayerCups, arg.TournamentID, arg.TenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTournamentPlayerCupsRow{}
+	for rows.Next() {
+		var i ListTournamentPlayerCupsRow
+		if err := rows.Scan(&i.PlayerID, &i.CupsWon); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTournamentPlayerRecords = `-- name: ListTournamentPlayerRecords :many
+SELECT
+    tp.player_id,
+    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id = mp.team_id) AS wins,
+    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id IS NOT NULL AND mr.leader_team_id <> mp.team_id) AS losses,
+    COUNT(*) FILTER (WHERE mr.finished AND mr.leader_team_id IS NULL) AS ties
+FROM tournament_players tp
+LEFT JOIN match_participants mp ON mp.player_id = tp.player_id AND mp.tenant_id = tp.tenant_id
+LEFT JOIN match_results mr ON mr.match_id = mp.match_id AND mr.tenant_id = mp.tenant_id
+WHERE tp.tournament_id = $1 AND tp.tenant_id = $2
+GROUP BY tp.player_id
+`
+
+type ListTournamentPlayerRecordsParams struct {
+	TournamentID uuid.UUID `json:"tournament_id"`
+	TenantID     uuid.UUID `json:"tenant_id"`
+}
+
+type ListTournamentPlayerRecordsRow struct {
+	PlayerID uuid.UUID `json:"player_id"`
+	Wins     int64     `json:"wins"`
+	Losses   int64     `json:"losses"`
+	Ties     int64     `json:"ties"`
+}
+
+// ListTournamentPlayerRecords returns the all-time W-L-T for every player entered in a
+// tournament, in one query — the batched form of GetPlayerRecord that enriches the
+// roster without a per-player round trip. The record spans every match the player has
+// ever played (the LEFT JOIN yields 0/0/0 for a player with no finished matches).
+func (q *Queries) ListTournamentPlayerRecords(ctx context.Context, arg ListTournamentPlayerRecordsParams) ([]ListTournamentPlayerRecordsRow, error) {
+	rows, err := q.db.Query(ctx, listTournamentPlayerRecords, arg.TournamentID, arg.TenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTournamentPlayerRecordsRow{}
+	for rows.Next() {
+		var i ListTournamentPlayerRecordsRow
+		if err := rows.Scan(
+			&i.PlayerID,
+			&i.Wins,
+			&i.Losses,
+			&i.Ties,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertMatchResult = `-- name: UpsertMatchResult :one
 INSERT INTO match_results (
     match_id, tournament_id, tenant_id, finished, leader_team_id, lead, holes_remaining

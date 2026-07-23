@@ -32,3 +32,12 @@ JOIN holes h ON s.course_id = h.course_id
     AND s.hole_number = h.number
 WHERE s.match_id = $1 AND s.tenant_id = $2
 ORDER BY s.hole_number;
+
+-- Every score across the tournament, ordered by match, so the results view computes
+-- each match's progression without a per-match query.
+-- name: ListScoresByTournament :many
+SELECT s.*
+FROM scores s
+JOIN matches m ON m.id = s.match_id AND m.tenant_id = s.tenant_id
+WHERE m.tournament_id = @tournament_id AND s.tenant_id = @tenant_id
+ORDER BY s.match_id, s.hole_number;

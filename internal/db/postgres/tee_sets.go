@@ -54,6 +54,20 @@ func (t *TeeSetsDB) CreateTeeSet(ctx context.Context, in golf.CreateTeeSetInput)
 	})
 }
 
+func (t *TeeSetsDB) ListHolesByTeeSet(ctx context.Context, courseID, teeColorID uuid.UUID) ([]golf.Hole, error) {
+	return withTenant(ctx, t.db, func(q *sqlc.Queries, tenantID uuid.UUID) ([]golf.Hole, error) {
+		holes, err := q.ListHolesByTeeSet(ctx, sqlc.ListHolesByTeeSetParams{
+			CourseID:   courseID,
+			TeeColorID: teeColorID,
+			TenantID:   tenantID,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("listing holes for tee set %s/%s: %w", courseID, teeColorID, err)
+		}
+		return mapSlice(holes, toDomainHole), nil
+	})
+}
+
 func toDomainTeeSet(ts sqlc.TeeSet) golf.TeeSet {
 	return golf.TeeSet{
 		CourseID:   ts.CourseID,

@@ -14,6 +14,7 @@ type RosterService struct {
 	TournamentPlayerDB tournamentPlayerDB
 	TeamDB             teamDB
 	TeamMemberDB       teamMemberDB
+	ResultDB           resultDB
 }
 
 // EnterPlayerInput is the intent to enter a player in a tournament (or update their
@@ -46,11 +47,24 @@ func (s *RosterService) UpdatePlayer(ctx context.Context, in EnterPlayerInput) (
 	return entry, nil
 }
 
-// ListPlayers returns the tournament's entered players with their identity.
+// ListPlayers returns the tournament's entered players with their identity and their
+// all-time record and cups (the roster view shows both).
 func (s *RosterService) ListPlayers(ctx context.Context, tournamentID uuid.UUID) ([]TournamentPlayer, error) {
 	entries, err := s.TournamentPlayerDB.ListTournamentPlayers(ctx, tournamentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list tournament players: %w", err)
+	}
+	records, err := s.ResultDB.ListTournamentPlayerRecords(ctx, tournamentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list player records: %w", err)
+	}
+	cups, err := s.ResultDB.ListTournamentPlayerCups(ctx, tournamentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list player cups: %w", err)
+	}
+	for i := range entries {
+		entries[i].Record = records[entries[i].PlayerID]
+		entries[i].CupsWon = cups[entries[i].PlayerID]
 	}
 	return entries, nil
 }

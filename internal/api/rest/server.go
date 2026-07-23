@@ -76,6 +76,7 @@ func NewServer(config *Config) *Server {
 	public("GET", "/v1/players", playersHandler.ListPlayers)
 	scoped("POST", "/v1/players", sdk.ScopePlayersWrite, playersHandler.CreatePlayer)
 	public("GET", "/v1/players/{id}", playersHandler.GetPlayer)
+	public("GET", "/v1/players/{id}/tournaments", playersHandler.ListPlayerTournaments)
 
 	// Course reference-data routes
 	public("GET", "/v1/tee-colors", coursesHandler.ListTeeColors)
@@ -89,6 +90,7 @@ func NewServer(config *Config) *Server {
 	public("GET", "/v1/matches/{id}/participants", matchesHandler.ListParticipants)
 	scoped("POST", "/v1/matches/{id}/participants", sdk.ScopeTournamentsWrite, matchesHandler.AddParticipant)
 	public("GET", "/v1/matches/{id}/scores", matchesHandler.GetMatchScores)
+	public("GET", "/v1/matches/{id}/holes", matchesHandler.GetMatchHoles)
 	scoped("POST", "/v1/matches/{id}/scores", sdk.ScopeScoresWrite, matchesHandler.SubmitScore)
 	public("GET", "/v1/matches/{id}/winner", matchesHandler.GetMatchWinner)
 	public("GET", "/v1/matches/{id}/status", matchesHandler.GetMatchStatus)
@@ -98,6 +100,7 @@ func NewServer(config *Config) *Server {
 	scoped("POST", "/v1/tournaments", sdk.ScopeTournamentsWrite, tournamentsHandler.CreateTournament)
 	public("GET", "/v1/tournaments/{id}", tournamentsHandler.GetTournament)
 	public("GET", "/v1/tournaments/{id}/teams", tournamentsHandler.GetTournamentTeams)
+	public("GET", "/v1/tournaments/{id}/results", matchesHandler.ListResults)
 
 	// Match setup routes (matches live under a tournament)
 	public("GET", "/v1/tournaments/{id}/matches", matchesHandler.ListMatches)

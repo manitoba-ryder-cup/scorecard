@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
 // CreatePlayerInput is the intent to add a player to the roster. Email and UserID are
@@ -59,4 +60,47 @@ func (s *PlayerService) GetPlayerRecord(ctx context.Context, playerID uuid.UUID)
 		return PlayerRecord{}, fmt.Errorf("failed to get player record: %w", err)
 	}
 	return record, nil
+}
+
+// ListPlayerTournaments returns the player's tournament history, filling in each
+// event's outcome from its standings (the repo can't, since the verdict depends on
+// which team led on points).
+func (s *PlayerService) ListPlayerTournaments(ctx context.Context, playerID uuid.UUID) ([]PlayerTournamentHistory, error) {
+	history, err := s.PlayerDB.ListPlayerTournaments(ctx, playerID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list player tournaments: %w", err)
+	}
+	for i := range history {
+		result, err := s.tournamentResult(ctx, history[i].TournamentID, history[i].TeamID)
+		if err != nil {
+			return nil, err
+		}
+		history[i].Result = result
+	}
+	return history, nil
+}
+
+// tournamentResult derives a player's team outcome in a tournament: in_progress until
+// every match is finished, then won/lost/tied from the points leader.
+func (s *PlayerService) tournamentResult(ctx context.Context, tournamentID uuid.UUID, teamID *uuid.UUID) (string, error) {
+	finished, err := s.ResultDB.IsTournamentFinished(ctx, tournamentID)
+	if err != nil {
+		return "", fmt.Errorf("failed to check tournament finished: %w", err)
+	}
+	if !finished {
+		return sdk.ResultInProgress, nil
+	}
+	points, err := s.ResultDB.ListTeamPoints(ctx, tournamentID)
+	if err != nil {
+		return "", fmt.Errorf("failed to list team points: %w", err)
+	}
+	winner := winnerFromPoints(points)
+	switch {
+	case winner == nil:
+		return sdk.ResultTied, nil
+	case teamID != nil && *winner == *teamID:
+		return sdk.ResultWon, nil
+	default:
+		return sdk.ResultLost, nil
+	}
 }

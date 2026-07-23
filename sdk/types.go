@@ -141,18 +141,36 @@ type CreateTournamentRequest struct {
 
 // TournamentPlayer is a player entered in a tournament: the per-tournament attributes
 // (tier, biography, handicap) set independently of the draft, the player's identity,
-// and their team assignment. team_id is null when entered but not yet drafted.
+// and their team assignment. team_id is null when entered but not yet drafted. record
+// (all-time W-L-T) and cups_won are populated by the roster listing only.
 type TournamentPlayer struct {
-	TournamentID uuid.UUID  `json:"tournament_id"`
-	PlayerID     uuid.UUID  `json:"player_id"`
-	Tier         string     `json:"tier"`
-	Biography    string     `json:"biography"`
-	Hdcp         float32    `json:"hdcp"`
-	FirstName    string     `json:"first_name"`
-	LastName     string     `json:"last_name"`
-	Email        *string    `json:"email"`
-	PhotoPath    string     `json:"photo_path"`
-	TeamID       *uuid.UUID `json:"team_id"`
+	TournamentID uuid.UUID    `json:"tournament_id"`
+	PlayerID     uuid.UUID    `json:"player_id"`
+	Tier         string       `json:"tier"`
+	Biography    string       `json:"biography"`
+	Hdcp         float32      `json:"hdcp"`
+	FirstName    string       `json:"first_name"`
+	LastName     string       `json:"last_name"`
+	Email        *string      `json:"email"`
+	PhotoPath    string       `json:"photo_path"`
+	TeamID       *uuid.UUID   `json:"team_id"`
+	Record       PlayerRecord `json:"record"`
+	CupsWon      int          `json:"cups_won"`
+}
+
+// PlayerTournamentHistory is one event in a player's history: the event metadata, their
+// team that year (identified by its captain), the outcome, and their W-L-T in that
+// tournament. result is one of the Result* constants.
+type PlayerTournamentHistory struct {
+	TournamentID     uuid.UUID    `json:"tournament_id"`
+	Name             string       `json:"name"`
+	Location         string       `json:"location"`
+	StartDate        string       `json:"start_date"`
+	EndDate          string       `json:"end_date"`
+	CaptainFirstName string       `json:"captain_first_name"`
+	CaptainLastName  string       `json:"captain_last_name"`
+	Result           string       `json:"result"`
+	Record           PlayerRecord `json:"record"`
 }
 
 // EnterTournamentPlayerRequest is the body for POST /v1/tournaments/{id}/players. The
@@ -264,6 +282,37 @@ type HoleStatus struct {
 	Lead           int             `json:"lead"`
 	HolesRemaining int             `json:"holes_remaining"`
 	Decided        bool            `json:"decided"`
+}
+
+// MatchPlayer is a player on one side of a match.
+type MatchPlayer struct {
+	PlayerID  uuid.UUID `json:"player_id"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+}
+
+// MatchSide is one team's lineup in a match, by id. Colour is resolved by the client
+// from the tournament's teams.
+type MatchSide struct {
+	TeamID  uuid.UUID     `json:"team_id"`
+	Players []MatchPlayer `json:"players"`
+}
+
+// MatchResult is a match's outcome for the tournament results view. hole_results holds,
+// per played hole in order, the winning team's id (null = halved); its length is the
+// number of holes played. winner_team_id is null unless finished. tee_time is RFC3339
+// (null if unscheduled).
+type MatchResult struct {
+	MatchID        uuid.UUID    `json:"match_id"`
+	FormatName     string       `json:"format_name"`
+	Finished       bool         `json:"finished"`
+	WinnerTeamID   *uuid.UUID   `json:"winner_team_id"`
+	Lead           int          `json:"lead"`
+	HolesRemaining int          `json:"holes_remaining"`
+	Sides          []MatchSide  `json:"sides"`
+	HoleResults    []*uuid.UUID `json:"hole_results"`
+	TeeTime        *string      `json:"tee_time"`
+	CourseName     string       `json:"course_name"`
 }
 
 // WinnerResponse reports a winning team by id (null = tie/undecided), used for both

@@ -11,7 +11,8 @@ import (
 // --- fakes ---
 
 type fakeMatchDB struct {
-	match *Match
+	match   *Match
+	details []MatchDetail
 }
 
 func (f *fakeMatchDB) GetMatch(ctx context.Context, id uuid.UUID) (*Match, error) {
@@ -20,16 +21,23 @@ func (f *fakeMatchDB) GetMatch(ctx context.Context, id uuid.UUID) (*Match, error
 func (f *fakeMatchDB) ListMatchesByTournament(ctx context.Context, tournamentID uuid.UUID) ([]Match, error) {
 	return nil, nil
 }
+func (f *fakeMatchDB) ListMatchDetailsByTournament(ctx context.Context, tournamentID uuid.UUID) ([]MatchDetail, error) {
+	return f.details, nil
+}
 func (f *fakeMatchDB) CreateMatch(ctx context.Context, in CreateMatchInput) (*Match, error) {
 	return nil, nil
 }
 
 type fakeParticipantDB struct {
 	participants []MatchParticipant
+	withPlayers  []MatchParticipantPlayer
 }
 
 func (f *fakeParticipantDB) ListMatchParticipants(ctx context.Context, matchID uuid.UUID) ([]MatchParticipant, error) {
 	return f.participants, nil
+}
+func (f *fakeParticipantDB) ListParticipantsWithPlayersByTournament(ctx context.Context, tournamentID uuid.UUID) ([]MatchParticipantPlayer, error) {
+	return f.withPlayers, nil
 }
 func (f *fakeParticipantDB) CreateMatchParticipant(ctx context.Context, tournamentID, matchID, playerID, teamID uuid.UUID) (*MatchParticipant, error) {
 	return nil, nil
@@ -41,6 +49,9 @@ type fakeScoreDB struct {
 }
 
 func (f *fakeScoreDB) ListScoresByMatch(ctx context.Context, matchID uuid.UUID) ([]Score, error) {
+	return f.scores, nil
+}
+func (f *fakeScoreDB) ListScoresByTournament(ctx context.Context, tournamentID uuid.UUID) ([]Score, error) {
 	return f.scores, nil
 }
 func (f *fakeScoreDB) SaveScore(ctx context.Context, s Score) error {
@@ -70,6 +81,12 @@ func (f *fakeResultDB) IsTournamentFinished(ctx context.Context, tournamentID uu
 }
 func (f *fakeResultDB) GetPlayerRecord(ctx context.Context, playerID uuid.UUID) (PlayerRecord, error) {
 	return PlayerRecord{}, nil
+}
+func (f *fakeResultDB) ListTournamentPlayerRecords(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]PlayerRecord, error) {
+	return nil, nil
+}
+func (f *fakeResultDB) ListTournamentPlayerCups(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]int, error) {
+	return nil, nil
 }
 
 func twoTeamMatch() (*fakeMatchDB, *fakeParticipantDB) {
@@ -127,5 +144,71 @@ func TestSubmitScore_RejectsTeamNotInMatch(t *testing.T) {
 	}
 	if len(sdb.saved) != 0 || len(rdb.upsertMatch) != 0 {
 		t.Error("must not write or recompute on validation failure")
+	}
+}
+
+func TestListResults_AssemblesSidesProgressAndOutcome(t *testing.T) {
+	m := &fakeMatchDB{details: []MatchDetail{{
+		Match:      Match{ID: matchID, TournamentID: tournamentID, CourseID: courseID, TeeColorID: teeColorID},
+		FormatName: "Singles",
+		CourseName: "Test GC",
+	}}}
+	p := &fakeParticipantDB{withPlayers: []MatchParticipantPlayer{
+		{MatchID: matchID, TeamID: teamA, PlayerID: playerA, FirstName: "Red", LastName: "One"},
+		{MatchID: matchID, TeamID: teamB, PlayerID: playerB, FirstName: "Blue", LastName: "Two"},
+	}}
+	// Red wins holes 1-2 (4 vs 5); the match is still open (2 up, 16 to play).
+	sdb := &fakeScoreDB{scores: []Score{
+		{MatchID: matchID, TeamID: teamA, HoleNumber: 1, Strokes: 4},
+		{MatchID: matchID, TeamID: teamB, HoleNumber: 1, Strokes: 5},
+		{MatchID: matchID, TeamID: teamA, HoleNumber: 2, Strokes: 4},
+		{MatchID: matchID, TeamID: teamB, HoleNumber: 2, Strokes: 5},
+	}}
+	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{}}
+
+	results, err := svc.ListResults(context.Background(), tournamentID)
+	if err != nil {
+		t.Fatalf("ListResults: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("want 1 result, got %d", len(results))
+	}
+	r := results[0]
+	if r.FormatName != "Singles" || r.CourseName != "Test GC" {
+		t.Errorf("display names wrong: %+v", r)
+	}
+	if r.Finished || r.WinnerTeamID != nil || r.Lead != 2 || r.HolesRemaining != 16 {
+		t.Errorf("want open, 2 up with 16 to play: %+v", r)
+	}
+	if len(r.Sides) != 2 {
+		t.Fatalf("want two sides, got %d", len(r.Sides))
+	}
+	if len(r.HoleResults) != 2 || r.HoleResults[0] == nil || *r.HoleResults[0] != teamA {
+		t.Errorf("want two Red-won holes, got %+v", r.HoleResults)
+	}
+}
+
+func TestHoleWinner(t *testing.T) {
+	tests := []struct {
+		name string
+		a, b int32
+		want *uuid.UUID
+	}{
+		{"team A lower", 4, 5, pUUID(teamA)},
+		{"team B lower", 6, 5, pUUID(teamB)},
+		{"halved", 4, 4, nil},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := HoleWinner(HoleResult{TeamScores: []TeamHoleScore{
+				{TeamID: teamA, Strokes: tc.a}, {TeamID: teamB, Strokes: tc.b},
+			}})
+			switch {
+			case tc.want == nil && got != nil:
+				t.Fatalf("want halved, got %v", *got)
+			case tc.want != nil && (got == nil || *got != *tc.want):
+				t.Fatalf("want %v, got %v", *tc.want, got)
+			}
+		})
 	}
 }

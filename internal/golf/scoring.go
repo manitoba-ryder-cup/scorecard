@@ -87,6 +87,23 @@ func ComputeStoredResult(scores []Score, teamAID, teamBID uuid.UUID) StoredResul
 	}
 }
 
+// HoleWinner returns the team that won a scored hole (lower gross), or nil if halved.
+func HoleWinner(h HoleResult) *uuid.UUID {
+	if len(h.TeamScores) != 2 {
+		return nil
+	}
+	switch {
+	case h.TeamScores[0].Strokes < h.TeamScores[1].Strokes:
+		id := h.TeamScores[0].TeamID
+		return &id
+	case h.TeamScores[1].Strokes < h.TeamScores[0].Strokes:
+		id := h.TeamScores[1].TeamID
+		return &id
+	default:
+		return nil // halved
+	}
+}
+
 // minStrokesByHole returns the minimum strokes the given team recorded on each
 // hole (best-ball for two players; the single score for singles/one-ball).
 func minStrokesByHole(scores []Score, teamID uuid.UUID) map[int32]int32 {

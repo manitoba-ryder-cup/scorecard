@@ -93,3 +93,35 @@ func (r *ResultsDB) GetPlayerRecord(ctx context.Context, playerID uuid.UUID) (go
 		}, nil
 	})
 }
+
+func (r *ResultsDB) ListTournamentPlayerRecords(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]golf.PlayerRecord, error) {
+	return withTenant(ctx, r.db, func(q *sqlc.Queries, tenantID uuid.UUID) (map[uuid.UUID]golf.PlayerRecord, error) {
+		rows, err := q.ListTournamentPlayerRecords(ctx, sqlc.ListTournamentPlayerRecordsParams{TournamentID: tournamentID, TenantID: tenantID})
+		if err != nil {
+			return nil, fmt.Errorf("listing tournament player records: %w", err)
+		}
+		records := make(map[uuid.UUID]golf.PlayerRecord, len(rows))
+		for _, row := range rows {
+			records[row.PlayerID] = golf.PlayerRecord{
+				Wins:   int32(row.Wins),
+				Losses: int32(row.Losses),
+				Ties:   int32(row.Ties),
+			}
+		}
+		return records, nil
+	})
+}
+
+func (r *ResultsDB) ListTournamentPlayerCups(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]int, error) {
+	return withTenant(ctx, r.db, func(q *sqlc.Queries, tenantID uuid.UUID) (map[uuid.UUID]int, error) {
+		rows, err := q.ListTournamentPlayerCups(ctx, sqlc.ListTournamentPlayerCupsParams{TournamentID: tournamentID, TenantID: tenantID})
+		if err != nil {
+			return nil, fmt.Errorf("listing tournament player cups: %w", err)
+		}
+		cups := make(map[uuid.UUID]int, len(rows))
+		for _, row := range rows {
+			cups[row.PlayerID] = int(row.CupsWon)
+		}
+		return cups, nil
+	})
+}

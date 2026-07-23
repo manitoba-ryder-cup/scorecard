@@ -150,6 +150,8 @@ func toTournamentPlayerDTO(tp golf.TournamentPlayer) sdk.TournamentPlayer {
 		Email:        tp.Email,
 		PhotoPath:    tp.PhotoPath,
 		TeamID:       tp.TeamID,
+		Record:       toPlayerRecordDTO(tp.Record),
+		CupsWon:      tp.CupsWon,
 	}
 }
 
