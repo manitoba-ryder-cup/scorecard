@@ -84,6 +84,16 @@ func (s *RosterService) DraftPlayer(ctx context.Context, teamID, playerID uuid.U
 	return member, nil
 }
 
+// UndraftPlayer removes a player from a team. ErrNotFound if they weren't on it. The
+// team_members -> match_participants cascade also pulls them from any of that team's
+// matches, so an undrafted player never lingers in a lineup.
+func (s *RosterService) UndraftPlayer(ctx context.Context, teamID, playerID uuid.UUID) error {
+	if err := s.TeamMemberDB.DeleteTeamMember(ctx, teamID, playerID); err != nil {
+		return fmt.Errorf("failed to undraft player: %w", err)
+	}
+	return nil
+}
+
 // ListTeamMembers returns a team's drafted players with their identity — the same
 // roster entry shape, filtered server-side to one team.
 func (s *RosterService) ListTeamMembers(ctx context.Context, teamID uuid.UUID) ([]TournamentPlayer, error) {

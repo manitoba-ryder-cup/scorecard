@@ -31,6 +31,8 @@ func (f *fakeMatchDB) CreateMatch(ctx context.Context, in CreateMatchInput) (*Ma
 type fakeParticipantDB struct {
 	participants []MatchParticipant
 	withPlayers  []MatchParticipantPlayer
+	deleteErr    error       // returned by DeleteMatchParticipant
+	deleted      []uuid.UUID // player ids passed to DeleteMatchParticipant
 }
 
 func (f *fakeParticipantDB) ListMatchParticipants(ctx context.Context, matchID uuid.UUID) ([]MatchParticipant, error) {
@@ -41,6 +43,10 @@ func (f *fakeParticipantDB) ListParticipantsWithPlayersByTournament(ctx context.
 }
 func (f *fakeParticipantDB) CreateMatchParticipant(ctx context.Context, tournamentID, matchID, playerID, teamID uuid.UUID) (*MatchParticipant, error) {
 	return nil, nil
+}
+func (f *fakeParticipantDB) DeleteMatchParticipant(ctx context.Context, matchID, playerID uuid.UUID) error {
+	f.deleted = append(f.deleted, playerID)
+	return f.deleteErr
 }
 
 type fakeScoreDB struct {
@@ -210,5 +216,27 @@ func TestHoleWinner(t *testing.T) {
 				t.Fatalf("want %v, got %v", *tc.want, got)
 			}
 		})
+	}
+}
+
+func TestRemoveParticipant_DelegatesToDB(t *testing.T) {
+	p := &fakeParticipantDB{}
+	svc := &MatchService{ParticipantDB: p}
+
+	if err := svc.RemoveParticipant(context.Background(), matchID, playerA); err != nil {
+		t.Fatalf("RemoveParticipant: %v", err)
+	}
+	if len(p.deleted) != 1 || p.deleted[0] != playerA {
+		t.Fatalf("want delete for player %v, got %v", playerA, p.deleted)
+	}
+}
+
+func TestRemoveParticipant_PropagatesNotFound(t *testing.T) {
+	p := &fakeParticipantDB{deleteErr: ErrNotFound}
+	svc := &MatchService{ParticipantDB: p}
+
+	err := svc.RemoveParticipant(context.Background(), matchID, playerA)
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("want ErrNotFound, got %v", err)
 	}
 }

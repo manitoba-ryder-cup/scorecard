@@ -50,6 +50,26 @@ func (q *Queries) CreateMatchParticipant(ctx context.Context, arg CreateMatchPar
 	return i, err
 }
 
+const deleteMatchParticipant = `-- name: DeleteMatchParticipant :execrows
+DELETE FROM match_participants
+WHERE match_id = $1 AND player_id = $2 AND tenant_id = $3
+`
+
+type DeleteMatchParticipantParams struct {
+	MatchID  uuid.UUID `json:"match_id"`
+	PlayerID uuid.UUID `json:"player_id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+}
+
+// Remove a player from a match (leaves their team draft untouched).
+func (q *Queries) DeleteMatchParticipant(ctx context.Context, arg DeleteMatchParticipantParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteMatchParticipant, arg.MatchID, arg.PlayerID, arg.TenantID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const listMatchParticipants = `-- name: ListMatchParticipants :many
 SELECT tournament_id, match_id, player_id, team_id, tenant_id FROM match_participants
 WHERE match_id = $1 AND tenant_id = $2

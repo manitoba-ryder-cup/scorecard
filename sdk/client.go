@@ -170,6 +170,13 @@ func (c *Client) SetTeamCaptain(ctx context.Context, teamID uuid.UUID, req SetTe
 	return c.do(ctx, http.MethodPut, pathID(RouteV1TeamCaptain, teamID), req, nil)
 }
 
+// UndraftPlayer removes a player from a team. A 204 (no body) is success; 404 if they
+// weren't on the team.
+func (c *Client) UndraftPlayer(ctx context.Context, teamID, playerID uuid.UUID) error {
+	route := strings.Replace(pathID(RouteV1TeamMember, teamID), "{playerId}", playerID.String(), 1)
+	return c.do(ctx, http.MethodDelete, route, nil, nil)
+}
+
 // ListTeamMembers lists a team's drafted players (the roster-entry view, filtered).
 func (c *Client) ListTeamMembers(ctx context.Context, teamID uuid.UUID) ([]TournamentPlayer, error) {
 	var out []TournamentPlayer
@@ -197,6 +204,13 @@ func (c *Client) ListParticipants(ctx context.Context, matchID uuid.UUID) ([]Mat
 func (c *Client) AddParticipant(ctx context.Context, matchID uuid.UUID, req AddParticipantRequest) (*MatchParticipant, error) {
 	var out MatchParticipant
 	return &out, c.do(ctx, http.MethodPost, pathID(RouteV1MatchParticipants, matchID), req, &out)
+}
+
+// RemoveParticipant removes a player from a match. A 204 (no body) is success; 404 if
+// they weren't in it.
+func (c *Client) RemoveParticipant(ctx context.Context, matchID, playerID uuid.UUID) error {
+	route := strings.Replace(pathID(RouteV1MatchParticipant, matchID), "{playerId}", playerID.String(), 1)
+	return c.do(ctx, http.MethodDelete, route, nil, nil)
 }
 
 // SubmitScore records one hole score. A 204 (no body) is success.

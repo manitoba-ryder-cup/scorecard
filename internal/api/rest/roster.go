@@ -14,6 +14,7 @@ type RosterService interface {
 	UpdatePlayer(ctx context.Context, in golf.EnterPlayerInput) (*golf.TournamentPlayer, error)
 	ListPlayers(ctx context.Context, tournamentID uuid.UUID) ([]golf.TournamentPlayer, error)
 	DraftPlayer(ctx context.Context, teamID, playerID uuid.UUID) (*golf.TeamMember, error)
+	UndraftPlayer(ctx context.Context, teamID, playerID uuid.UUID) error
 	ListTeamMembers(ctx context.Context, teamID uuid.UUID) ([]golf.TournamentPlayer, error)
 }
 
@@ -121,6 +122,26 @@ func (h *RosterHandler) DraftPlayer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondJSON(w, http.StatusCreated, toTeamMemberDTO(*member))
+}
+
+// DELETE /v1/teams/{id}/members/{playerId}
+// Undrafts a player from the team; 404 if they weren't on it.
+func (h *RosterHandler) UndraftPlayer(w http.ResponseWriter, r *http.Request) {
+	teamID, err := pathUUID(r, "id")
+	if err != nil {
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid team ID", err)
+		return
+	}
+	playerID, err := pathUUID(r, "playerId")
+	if err != nil {
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid player ID", err)
+		return
+	}
+	if err := h.rosterService.UndraftPlayer(r.Context(), teamID, playerID); err != nil {
+		respondDomainError(r.Context(), w, "Failed to undraft player", err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // GET /v1/teams/{id}/members

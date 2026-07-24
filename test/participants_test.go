@@ -160,3 +160,70 @@ func TestAddParticipantToNonexistentMatchReturns404(t *testing.T) {
 		t.Fatalf("want 404 APIError, got %v", err)
 	}
 }
+
+func TestRemoveParticipant(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	ctx := context.Background()
+	matchID, redTeam, redPlayer := draftedMatch(t, client)
+	if _, err := client.AddParticipant(ctx, matchID, sdk.AddParticipantRequest{PlayerID: redPlayer, TeamID: redTeam}); err != nil {
+		t.Fatalf("add participant: %v", err)
+	}
+
+	if err := client.RemoveParticipant(ctx, matchID, redPlayer); err != nil {
+		t.Fatalf("remove participant: %v", err)
+	}
+
+	parts, err := client.ListParticipants(ctx, matchID)
+	if err != nil {
+		t.Fatalf("list participants: %v", err)
+	}
+	if len(parts) != 0 {
+		t.Fatalf("want 0 participants after removal, got %d", len(parts))
+	}
+	// Removing a match assignment leaves the player drafted on their team.
+	members, err := client.ListTeamMembers(ctx, redTeam)
+	if err != nil {
+		t.Fatalf("list team members: %v", err)
+	}
+	if len(members) != 1 {
+		t.Fatalf("want player still drafted, got %d members", len(members))
+	}
+}
+
+func TestRemoveParticipantNotInMatchReturns404(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	ctx := context.Background()
+	matchID, _, redPlayer := draftedMatch(t, client)
+
+	// Drafted but never added to the match -> not a participant -> 404.
+	err := client.RemoveParticipant(ctx, matchID, redPlayer)
+	var apiErr *sdk.APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+		t.Fatalf("want 404 APIError, got %v", err)
+	}
+}
+
+func TestUndraftRemovesMatchParticipant(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	ctx := context.Background()
+	matchID, redTeam, redPlayer := draftedMatch(t, client)
+	if _, err := client.AddParticipant(ctx, matchID, sdk.AddParticipantRequest{PlayerID: redPlayer, TeamID: redTeam}); err != nil {
+		t.Fatalf("add participant: %v", err)
+	}
+
+	// Undrafting a player cascades (ON DELETE CASCADE): they're pulled from the match too.
+	if err := client.UndraftPlayer(ctx, redTeam, redPlayer); err != nil {
+		t.Fatalf("undraft: %v", err)
+	}
+
+	parts, err := client.ListParticipants(ctx, matchID)
+	if err != nil {
+		t.Fatalf("list participants: %v", err)
+	}
+	if len(parts) != 0 {
+		t.Fatalf("want participant removed via cascade, got %d", len(parts))
+	}
+}

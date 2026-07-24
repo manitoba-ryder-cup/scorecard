@@ -20,6 +20,7 @@ type MatchService interface {
 	ListMatchHoles(ctx context.Context, matchID uuid.UUID) ([]golf.Hole, error)
 	ListResults(ctx context.Context, tournamentID uuid.UUID) ([]golf.MatchResult, error)
 	AddParticipant(ctx context.Context, matchID, playerID, teamID uuid.UUID) (*golf.MatchParticipant, error)
+	RemoveParticipant(ctx context.Context, matchID, playerID uuid.UUID) error
 	ListParticipants(ctx context.Context, matchID uuid.UUID) ([]golf.MatchParticipant, error)
 }
 
@@ -157,6 +158,26 @@ func (h *MatchesHandler) AddParticipant(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	respondJSON(w, http.StatusCreated, toMatchParticipantDTO(*participant))
+}
+
+// DELETE /v1/matches/{id}/participants/{playerId}
+// Removes a player from the match; 404 if they weren't in it.
+func (h *MatchesHandler) RemoveParticipant(w http.ResponseWriter, r *http.Request) {
+	id, err := pathUUID(r, "id")
+	if err != nil {
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid match ID", err)
+		return
+	}
+	playerID, err := pathUUID(r, "playerId")
+	if err != nil {
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid player ID", err)
+		return
+	}
+	if err := h.matchService.RemoveParticipant(r.Context(), id, playerID); err != nil {
+		respondDomainError(r.Context(), w, "Failed to remove participant", err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func toMatchParticipantDTO(p golf.MatchParticipant) sdk.MatchParticipant {

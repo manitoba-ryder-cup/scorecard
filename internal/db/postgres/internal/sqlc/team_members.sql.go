@@ -49,3 +49,23 @@ func (q *Queries) CreateTeamMember(ctx context.Context, arg CreateTeamMemberPara
 	)
 	return i, err
 }
+
+const deleteTeamMember = `-- name: DeleteTeamMember :execrows
+DELETE FROM team_members
+WHERE team_id = $1 AND player_id = $2 AND tenant_id = $3
+`
+
+type DeleteTeamMemberParams struct {
+	TeamID   uuid.UUID `json:"team_id"`
+	PlayerID uuid.UUID `json:"player_id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+}
+
+// Undraft a player. ON DELETE CASCADE pulls them from any match_participants too.
+func (q *Queries) DeleteTeamMember(ctx context.Context, arg DeleteTeamMemberParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteTeamMember, arg.TeamID, arg.PlayerID, arg.TenantID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}

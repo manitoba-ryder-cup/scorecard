@@ -89,6 +89,7 @@ func NewServer(config *Config) *Server {
 	// Match routes
 	public("GET", "/v1/matches/{id}/participants", matchesHandler.ListParticipants)
 	scoped("POST", "/v1/matches/{id}/participants", sdk.ScopeTournamentsWrite, matchesHandler.AddParticipant)
+	scoped("DELETE", "/v1/matches/{id}/participants/{playerId}", sdk.ScopeTournamentsWrite, matchesHandler.RemoveParticipant)
 	public("GET", "/v1/matches/{id}/scores", matchesHandler.GetMatchScores)
 	public("GET", "/v1/matches/{id}/holes", matchesHandler.GetMatchHoles)
 	scoped("POST", "/v1/matches/{id}/scores", sdk.ScopeScoresWrite, matchesHandler.SubmitScore)
@@ -116,6 +117,7 @@ func NewServer(config *Config) *Server {
 	// Team draft routes
 	public("GET", "/v1/teams/{id}/members", rosterHandler.ListTeamMembers)
 	scoped("POST", "/v1/teams/{id}/members", sdk.ScopeTournamentsWrite, rosterHandler.DraftPlayer)
+	scoped("DELETE", "/v1/teams/{id}/members/{playerId}", sdk.ScopeTournamentsWrite, rosterHandler.UndraftPlayer)
 	scoped("PUT", "/v1/teams/{id}/captain", sdk.ScopeTournamentsWrite, teamsHandler.SetCaptain)
 
 	// Global middleware chain. Assembled inner-to-outer, so recoverMiddleware is

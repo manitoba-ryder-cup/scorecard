@@ -229,3 +229,56 @@ func TestUpdateUnenteredPlayerReturns404(t *testing.T) {
 		t.Fatalf("want 404 APIError, got %v", err)
 	}
 }
+
+func TestUndraftPlayer(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	ctx := context.Background()
+	tournamentID, playerID := enterPrereqs(t, client)
+	if _, err := client.EnterTournamentPlayer(ctx, tournamentID, sdk.EnterTournamentPlayerRequest{PlayerID: playerID}); err != nil {
+		t.Fatalf("enter: %v", err)
+	}
+	redTeam := teamByColor(t, client, tournamentID, sdk.TeamColorRed)
+	if _, err := client.DraftPlayer(ctx, redTeam, sdk.DraftPlayerRequest{PlayerID: playerID}); err != nil {
+		t.Fatalf("draft: %v", err)
+	}
+
+	if err := client.UndraftPlayer(ctx, redTeam, playerID); err != nil {
+		t.Fatalf("undraft: %v", err)
+	}
+
+	// The team is empty again.
+	members, err := client.ListTeamMembers(ctx, redTeam)
+	if err != nil {
+		t.Fatalf("list team members: %v", err)
+	}
+	if len(members) != 0 {
+		t.Fatalf("want no members after undraft, got %d", len(members))
+	}
+	// The player is still entered in the tournament, just unassigned (team_id cleared).
+	roster, err := client.ListTournamentPlayers(ctx, tournamentID)
+	if err != nil {
+		t.Fatalf("list roster: %v", err)
+	}
+	if len(roster) != 1 || roster[0].TeamID != nil {
+		t.Fatalf("want entered-but-unassigned player, got %+v", roster)
+	}
+}
+
+func TestUndraftPlayerNotOnTeamReturns404(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	ctx := context.Background()
+	tournamentID, playerID := enterPrereqs(t, client)
+	if _, err := client.EnterTournamentPlayer(ctx, tournamentID, sdk.EnterTournamentPlayerRequest{PlayerID: playerID}); err != nil {
+		t.Fatalf("enter: %v", err)
+	}
+	redTeam := teamByColor(t, client, tournamentID, sdk.TeamColorRed)
+
+	// Entered but never drafted -> not a member -> 404.
+	err := client.UndraftPlayer(ctx, redTeam, playerID)
+	var apiErr *sdk.APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+		t.Fatalf("want 404 APIError, got %v", err)
+	}
+}
