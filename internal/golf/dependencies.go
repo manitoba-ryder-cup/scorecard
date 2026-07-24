@@ -53,6 +53,8 @@ type teamDB interface {
 	ListTeamsByTournament(ctx context.Context, tournamentID uuid.UUID) ([]TeamWithCaptain, error)
 	// SetTeamCaptain assigns a team's captain and returns the updated team.
 	SetTeamCaptain(ctx context.Context, teamID, captainID uuid.UUID) (*Team, error)
+	// ClearCaptainForPlayer clears the player as a team's captain if they are it (no-op otherwise).
+	ClearCaptainForPlayer(ctx context.Context, teamID, playerID uuid.UUID) error
 }
 
 // teamMemberDB interface defines database operations for team members
@@ -87,6 +89,8 @@ type courseDB interface {
 // teeSetDB interface defines database operations for tee sets (with their holes)
 type teeSetDB interface {
 	CreateTeeSet(ctx context.Context, in CreateTeeSetInput) (*TeeSetWithHoles, error)
+	// ListTeeSetsByCourse returns a course's tee sets with their colour name resolved.
+	ListTeeSetsByCourse(ctx context.Context, courseID uuid.UUID) ([]CourseTeeSet, error)
 }
 
 // formatDB interface defines read operations for global match formats

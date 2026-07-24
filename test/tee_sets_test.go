@@ -88,6 +88,29 @@ func TestAddTeeSetToNonexistentCourseReturns404(t *testing.T) {
 	}
 }
 
+func TestListCourseTeeSets(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	ctx := context.Background()
+	courseID, teeColorID, _ := playableCourse(t, client) // creates a "White" tee set
+
+	tees, err := client.ListCourseTeeSets(ctx, courseID)
+	if err != nil {
+		t.Fatalf("list course tee sets: %v", err)
+	}
+	if len(tees) != 1 {
+		t.Fatalf("want one tee set for the course, got %d", len(tees))
+	}
+	ts := tees[0]
+	if ts.CourseID != courseID || ts.TeeColorID != teeColorID {
+		t.Fatalf("unexpected tee set ids: %+v", ts)
+	}
+	// The colour name is joined in, so a picker can label the option without a second call.
+	if ts.Color != "White" || ts.Slope != 113 || ts.Rating != 71.2 {
+		t.Fatalf("want White 113/71.2, got %+v", ts)
+	}
+}
+
 // Sent raw (bypassing the SDK client's validation) to confirm the server also
 // rejects a wrong hole count.
 func TestAddTeeSetWrongHoleCountRejectedByServer(t *testing.T) {

@@ -96,6 +96,16 @@ type TeeSet struct {
 	Holes      []Hole    `json:"holes"`
 }
 
+// TeeSetSummary is a course's tee set with its colour name resolved and no holes — the
+// labelled (course, tee) option a match-setup picker offers.
+type TeeSetSummary struct {
+	CourseID   uuid.UUID `json:"course_id"`
+	TeeColorID uuid.UUID `json:"tee_color_id"`
+	Color      string    `json:"color"`
+	Slope      int32     `json:"slope"`
+	Rating     float64   `json:"rating"`
+}
+
 // CreateTeeSetRequest is the body for POST /v1/courses/{id}/tees. The course comes
 // from the path; tee_color_id references an existing tee color. Exactly 18 holes are
 // required, with unique numbers (1-18) and unique stroke indexes (hdcp, 1-18).

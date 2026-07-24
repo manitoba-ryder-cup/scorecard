@@ -101,6 +101,13 @@ func (c *Client) AddTeeSet(ctx context.Context, courseID uuid.UUID, req CreateTe
 	return &out, c.do(ctx, http.MethodPost, pathID(RouteV1CourseTees, courseID), req, &out)
 }
 
+// ListCourseTeeSets lists a course's configured tee sets (with colour names) — the valid
+// (course, tee) options for setting up a match.
+func (c *Client) ListCourseTeeSets(ctx context.Context, courseID uuid.UUID) ([]TeeSetSummary, error) {
+	var out []TeeSetSummary
+	return out, c.do(ctx, http.MethodGet, pathID(RouteV1CourseTees, courseID), nil, &out)
+}
+
 // --- Tournaments ---
 
 func (c *Client) ListTournaments(ctx context.Context) ([]Tournament, error) {

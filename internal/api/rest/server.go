@@ -84,6 +84,7 @@ func NewServer(config *Config) *Server {
 	public("GET", "/v1/courses", coursesHandler.ListCourses)
 	scoped("POST", "/v1/courses", sdk.ScopeCoursesWrite, coursesHandler.CreateCourse)
 	public("GET", "/v1/courses/{id}", coursesHandler.GetCourse)
+	public("GET", "/v1/courses/{id}/tees", coursesHandler.ListCourseTeeSets)
 	scoped("POST", "/v1/courses/{id}/tees", sdk.ScopeCoursesWrite, coursesHandler.AddTeeSet)
 
 	// Match routes

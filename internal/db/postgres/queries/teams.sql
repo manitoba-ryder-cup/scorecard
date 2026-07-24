@@ -29,3 +29,10 @@ UPDATE teams
 SET captain_id = $3
 WHERE id = $1 AND tenant_id = $2
 RETURNING *;
+
+-- Clears the captain when that player leaves the team (e.g. undrafted), so a team never
+-- keeps a captain who is no longer on it. A no-op when the player wasn't the captain.
+-- name: ClearTeamCaptainForPlayer :exec
+UPDATE teams
+SET captain_id = NULL
+WHERE id = $1 AND captain_id = $2 AND tenant_id = $3;

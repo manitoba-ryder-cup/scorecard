@@ -16,6 +16,7 @@ type CourseService interface {
 	GetCourse(ctx context.Context, id uuid.UUID) (*golf.Course, error)
 	ListCourses(ctx context.Context) ([]golf.Course, error)
 	CreateTeeSet(ctx context.Context, in golf.CreateTeeSetInput) (*golf.TeeSetWithHoles, error)
+	ListCourseTeeSets(ctx context.Context, courseID uuid.UUID) ([]golf.CourseTeeSet, error)
 }
 
 type CoursesHandler struct {
@@ -102,6 +103,22 @@ func (h *CoursesHandler) AddTeeSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondJSON(w, http.StatusCreated, toTeeSetDTO(*teeSet))
+}
+
+// GET /v1/courses/{id}/tees
+// Lists a course's configured tee sets (with colour names) for match setup.
+func (h *CoursesHandler) ListCourseTeeSets(w http.ResponseWriter, r *http.Request) {
+	courseID, err := pathUUID(r, "id")
+	if err != nil {
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid course ID", err)
+		return
+	}
+	teeSets, err := h.courseService.ListCourseTeeSets(r.Context(), courseID)
+	if err != nil {
+		respondDomainError(r.Context(), w, "Failed to list course tee sets", err)
+		return
+	}
+	respondJSON(w, http.StatusOK, mapSlice(teeSets, toCourseTeeSetDTO))
 }
 
 // POST /v1/courses

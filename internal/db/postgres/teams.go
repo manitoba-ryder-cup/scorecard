@@ -63,6 +63,21 @@ func (t *TeamsDB) SetTeamCaptain(ctx context.Context, teamID, captainID uuid.UUI
 	})
 }
 
+// ClearCaptainForPlayer removes the player as a team's captain, if they are it. A no-op
+// otherwise. Used when a captain leaves the team (undrafted) so the role never goes stale.
+func (t *TeamsDB) ClearCaptainForPlayer(ctx context.Context, teamID, playerID uuid.UUID) error {
+	return withTenantExec(ctx, t.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
+		if err := q.ClearTeamCaptainForPlayer(ctx, sqlc.ClearTeamCaptainForPlayerParams{
+			ID:        teamID,
+			CaptainID: &playerID,
+			TenantID:  tenantID,
+		}); err != nil {
+			return fmt.Errorf("clearing captain for team %s: %w", teamID, err)
+		}
+		return nil
+	})
+}
+
 func toDomainTeam(t sqlc.Team) golf.Team {
 	return golf.Team{
 		ID:           t.ID,

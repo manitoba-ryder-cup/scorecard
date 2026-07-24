@@ -98,6 +98,16 @@ func (s *CourseService) CreateTeeSet(ctx context.Context, in CreateTeeSetInput) 
 	return teeSet, nil
 }
 
+// ListCourseTeeSets returns a course's configured tee sets (with colour names) — the
+// valid (course, tee) options for setting up a match.
+func (s *CourseService) ListCourseTeeSets(ctx context.Context, courseID uuid.UUID) ([]CourseTeeSet, error) {
+	teeSets, err := s.TeeSetDB.ListTeeSetsByCourse(ctx, courseID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list course tee sets: %w", err)
+	}
+	return teeSets, nil
+}
+
 func (s *CourseService) ListCourses(ctx context.Context) ([]Course, error) {
 	courses, err := s.CourseDB.ListCourses(ctx)
 	if err != nil {

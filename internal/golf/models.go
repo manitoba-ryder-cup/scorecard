@@ -120,6 +120,16 @@ type TeeSet struct {
 	Rating     float64
 }
 
+// CourseTeeSet is a course's tee set with its colour name resolved — the shape a
+// match-setup picker needs to offer valid, labelled (course, tee) options.
+type CourseTeeSet struct {
+	CourseID   uuid.UUID
+	TeeColorID uuid.UUID
+	Color      string
+	Slope      int32
+	Rating     float64
+}
+
 // MatchFormat represents the type of match
 type MatchFormat struct {
 	ID   uuid.UUID

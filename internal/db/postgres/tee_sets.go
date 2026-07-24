@@ -77,6 +77,25 @@ func toDomainTeeSet(ts sqlc.TeeSet) golf.TeeSet {
 	}
 }
 
+// ListTeeSetsByCourse returns a course's tee sets with their colour name joined in.
+func (t *TeeSetsDB) ListTeeSetsByCourse(ctx context.Context, courseID uuid.UUID) ([]golf.CourseTeeSet, error) {
+	return withTenant(ctx, t.db, func(q *sqlc.Queries, tenantID uuid.UUID) ([]golf.CourseTeeSet, error) {
+		rows, err := q.ListTeeSetsByCourse(ctx, sqlc.ListTeeSetsByCourseParams{CourseID: courseID, TenantID: tenantID})
+		if err != nil {
+			return nil, fmt.Errorf("listing tee sets for course %s: %w", courseID, err)
+		}
+		return mapSlice(rows, func(r sqlc.ListTeeSetsByCourseRow) golf.CourseTeeSet {
+			return golf.CourseTeeSet{
+				CourseID:   r.CourseID,
+				TeeColorID: r.TeeColorID,
+				Color:      r.Color,
+				Slope:      r.Slope,
+				Rating:     r.Rating,
+			}
+		}), nil
+	})
+}
+
 func toDomainHole(h sqlc.Hole) golf.Hole {
 	return golf.Hole{
 		CourseID:   h.CourseID,

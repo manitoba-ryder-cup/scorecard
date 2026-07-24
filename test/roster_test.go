@@ -265,6 +265,46 @@ func TestUndraftPlayer(t *testing.T) {
 	}
 }
 
+func TestUndraftClearsCaptaincy(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	ctx := context.Background()
+	tournamentID, playerID := enterPrereqs(t, client)
+	if _, err := client.EnterTournamentPlayer(ctx, tournamentID, sdk.EnterTournamentPlayerRequest{PlayerID: playerID}); err != nil {
+		t.Fatalf("enter: %v", err)
+	}
+	redTeam := teamByColor(t, client, tournamentID, sdk.TeamColorRed)
+	if _, err := client.DraftPlayer(ctx, redTeam, sdk.DraftPlayerRequest{PlayerID: playerID}); err != nil {
+		t.Fatalf("draft: %v", err)
+	}
+	if err := client.SetTeamCaptain(ctx, redTeam, sdk.SetTeamCaptainRequest{CaptainID: playerID}); err != nil {
+		t.Fatalf("set captain: %v", err)
+	}
+
+	// Undrafting the captain must also strip their captaincy — a team can't keep a captain
+	// who is no longer on it (otherwise the team name derived from the captain goes stale).
+	if err := client.UndraftPlayer(ctx, redTeam, playerID); err != nil {
+		t.Fatalf("undraft: %v", err)
+	}
+
+	teams, err := client.GetTournamentTeams(ctx, tournamentID)
+	if err != nil {
+		t.Fatalf("get teams: %v", err)
+	}
+	var red *sdk.TournamentTeam
+	for i := range teams {
+		if teams[i].ID == redTeam {
+			red = &teams[i]
+		}
+	}
+	if red == nil {
+		t.Fatalf("red team not found in %+v", teams)
+	}
+	if red.Captain != nil {
+		t.Fatalf("want captain cleared after undraft, got %+v", red.Captain)
+	}
+}
+
 func TestUndraftPlayerNotOnTeamReturns404(t *testing.T) {
 	t.Parallel()
 	client := freshClient(t)

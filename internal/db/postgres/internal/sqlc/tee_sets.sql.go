@@ -49,3 +49,52 @@ func (q *Queries) CreateTeeSet(ctx context.Context, arg CreateTeeSetParams) (Tee
 	)
 	return i, err
 }
+
+const listTeeSetsByCourse = `-- name: ListTeeSetsByCourse :many
+SELECT ts.course_id, ts.tee_color_id, tc.color, ts.slope, ts.rating
+FROM tee_sets ts
+JOIN tee_colors tc ON tc.id = ts.tee_color_id AND tc.tenant_id = ts.tenant_id
+WHERE ts.course_id = $1 AND ts.tenant_id = $2
+ORDER BY tc.color
+`
+
+type ListTeeSetsByCourseParams struct {
+	CourseID uuid.UUID `json:"course_id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+}
+
+type ListTeeSetsByCourseRow struct {
+	CourseID   uuid.UUID `json:"course_id"`
+	TeeColorID uuid.UUID `json:"tee_color_id"`
+	Color      string    `json:"color"`
+	Slope      int32     `json:"slope"`
+	Rating     float64   `json:"rating"`
+}
+
+// A course's configured tee sets with their colour name joined in, so a match-setup
+// picker can offer valid (course, tee) options labelled without a second lookup.
+func (q *Queries) ListTeeSetsByCourse(ctx context.Context, arg ListTeeSetsByCourseParams) ([]ListTeeSetsByCourseRow, error) {
+	rows, err := q.db.Query(ctx, listTeeSetsByCourse, arg.CourseID, arg.TenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTeeSetsByCourseRow{}
+	for rows.Next() {
+		var i ListTeeSetsByCourseRow
+		if err := rows.Scan(
+			&i.CourseID,
+			&i.TeeColorID,
+			&i.Color,
+			&i.Slope,
+			&i.Rating,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

@@ -11,6 +11,25 @@ import (
 	"github.com/google/uuid"
 )
 
+const clearTeamCaptainForPlayer = `-- name: ClearTeamCaptainForPlayer :exec
+UPDATE teams
+SET captain_id = NULL
+WHERE id = $1 AND captain_id = $2 AND tenant_id = $3
+`
+
+type ClearTeamCaptainForPlayerParams struct {
+	ID        uuid.UUID  `json:"id"`
+	CaptainID *uuid.UUID `json:"captain_id"`
+	TenantID  uuid.UUID  `json:"tenant_id"`
+}
+
+// Clears the captain when that player leaves the team (e.g. undrafted), so a team never
+// keeps a captain who is no longer on it. A no-op when the player wasn't the captain.
+func (q *Queries) ClearTeamCaptainForPlayer(ctx context.Context, arg ClearTeamCaptainForPlayerParams) error {
+	_, err := q.db.Exec(ctx, clearTeamCaptainForPlayer, arg.ID, arg.CaptainID, arg.TenantID)
+	return err
+}
+
 const createTeam = `-- name: CreateTeam :one
 INSERT INTO teams (
     tenant_id,

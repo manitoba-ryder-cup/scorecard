@@ -165,6 +165,16 @@ func toCourseDTO(c golf.Course) sdk.Course {
 	return sdk.Course{ID: c.ID, Name: c.Name}
 }
 
+func toCourseTeeSetDTO(ts golf.CourseTeeSet) sdk.TeeSetSummary {
+	return sdk.TeeSetSummary{
+		CourseID:   ts.CourseID,
+		TeeColorID: ts.TeeColorID,
+		Color:      ts.Color,
+		Slope:      ts.Slope,
+		Rating:     ts.Rating,
+	}
+}
+
 // dateString formats a date as YYYY-MM-DD, or "" if unset.
 func dateString(d time.Time) string {
 	if d.IsZero() {

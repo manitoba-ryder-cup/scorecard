@@ -91,6 +91,10 @@ func (s *RosterService) UndraftPlayer(ctx context.Context, teamID, playerID uuid
 	if err := s.TeamMemberDB.DeleteTeamMember(ctx, teamID, playerID); err != nil {
 		return fmt.Errorf("failed to undraft player: %w", err)
 	}
+	// A player who leaves the team can't remain its captain.
+	if err := s.TeamDB.ClearCaptainForPlayer(ctx, teamID, playerID); err != nil {
+		return fmt.Errorf("failed to clear captain after undraft: %w", err)
+	}
 	return nil
 }
 
