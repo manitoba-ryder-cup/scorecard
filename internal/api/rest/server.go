@@ -120,6 +120,7 @@ func NewServer(config *Config) *Server {
 	scoped("POST", "/v1/teams/{id}/members", sdk.ScopeTournamentsWrite, rosterHandler.DraftPlayer)
 	scoped("DELETE", "/v1/teams/{id}/members/{playerId}", sdk.ScopeTournamentsWrite, rosterHandler.UndraftPlayer)
 	scoped("PUT", "/v1/teams/{id}/captain", sdk.ScopeTournamentsWrite, teamsHandler.SetCaptain)
+	scoped("DELETE", "/v1/teams/{id}/captain", sdk.ScopeTournamentsWrite, teamsHandler.ClearCaptain)
 
 	// Global middleware chain. Assembled inner-to-outer, so recoverMiddleware is
 	// outermost (wraps everything) and RequestID runs before ClientIP/UserAgent.

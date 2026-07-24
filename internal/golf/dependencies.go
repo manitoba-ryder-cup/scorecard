@@ -55,6 +55,8 @@ type teamDB interface {
 	SetTeamCaptain(ctx context.Context, teamID, captainID uuid.UUID) (*Team, error)
 	// ClearCaptainForPlayer clears the player as a team's captain if they are it (no-op otherwise).
 	ClearCaptainForPlayer(ctx context.Context, teamID, playerID uuid.UUID) error
+	// ClearCaptain unsets a team's captain outright; ErrNotFound if the team doesn't exist.
+	ClearCaptain(ctx context.Context, teamID uuid.UUID) error
 }
 
 // teamMemberDB interface defines database operations for team members

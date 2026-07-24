@@ -177,6 +177,12 @@ func (c *Client) SetTeamCaptain(ctx context.Context, teamID uuid.UUID, req SetTe
 	return c.do(ctx, http.MethodPut, pathID(RouteV1TeamCaptain, teamID), req, nil)
 }
 
+// ClearTeamCaptain unsets a team's captain (used to reassign). 204 is success; 404 if the
+// team doesn't exist.
+func (c *Client) ClearTeamCaptain(ctx context.Context, teamID uuid.UUID) error {
+	return c.do(ctx, http.MethodDelete, pathID(RouteV1TeamCaptain, teamID), nil, nil)
+}
+
 // UndraftPlayer removes a player from a team. A 204 (no body) is success; 404 if they
 // weren't on the team.
 func (c *Client) UndraftPlayer(ctx context.Context, teamID, playerID uuid.UUID) error {

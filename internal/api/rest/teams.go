@@ -11,6 +11,7 @@ import (
 
 type TeamService interface {
 	SetCaptain(ctx context.Context, teamID, captainID uuid.UUID) (*golf.Team, error)
+	ClearCaptain(ctx context.Context, teamID uuid.UUID) error
 }
 
 type TeamsHandler struct {
@@ -35,6 +36,21 @@ func (h *TeamsHandler) SetCaptain(w http.ResponseWriter, r *http.Request) {
 	// Unknown team -> 404, unknown player -> 400 (FK), both via respondDomainError.
 	if _, err := h.teamService.SetCaptain(r.Context(), teamID, req.CaptainID); err != nil {
 		respondDomainError(r.Context(), w, "Failed to set team captain", err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// DELETE /v1/teams/{id}/captain
+// Unsets the team's captain (used to reassign); 404 if the team doesn't exist.
+func (h *TeamsHandler) ClearCaptain(w http.ResponseWriter, r *http.Request) {
+	teamID, err := pathUUID(r, "id")
+	if err != nil {
+		respondError(r.Context(), w, http.StatusBadRequest, "Invalid team ID", err)
+		return
+	}
+	if err := h.teamService.ClearCaptain(r.Context(), teamID); err != nil {
+		respondDomainError(r.Context(), w, "Failed to clear team captain", err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

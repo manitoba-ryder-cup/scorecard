@@ -23,6 +23,14 @@ func (s *TeamService) SetCaptain(ctx context.Context, teamID, captainID uuid.UUI
 	return team, nil
 }
 
+// ClearCaptain unsets a team's captain (used to reassign). ErrNotFound if no such team.
+func (s *TeamService) ClearCaptain(ctx context.Context, teamID uuid.UUID) error {
+	if err := s.TeamDB.ClearCaptain(ctx, teamID); err != nil {
+		return fmt.Errorf("failed to clear captain: %w", err)
+	}
+	return nil
+}
+
 // ListTeamsByTournament retrieves a tournament's two teams with their captains resolved.
 func (s *TeamService) ListTeamsByTournament(ctx context.Context, tournamentID uuid.UUID) ([]TeamWithCaptain, error) {
 	teams, err := s.TeamDB.ListTeamsByTournament(ctx, tournamentID)

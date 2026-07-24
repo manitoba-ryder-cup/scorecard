@@ -11,6 +11,27 @@ import (
 	"github.com/google/uuid"
 )
 
+const clearTeamCaptain = `-- name: ClearTeamCaptain :execrows
+UPDATE teams
+SET captain_id = NULL
+WHERE id = $1 AND tenant_id = $2
+`
+
+type ClearTeamCaptainParams struct {
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+}
+
+// Unset a team's captain outright (used to reassign). Rows affected = 0 only when the
+// team doesn't exist, which the caller turns into a 404.
+func (q *Queries) ClearTeamCaptain(ctx context.Context, arg ClearTeamCaptainParams) (int64, error) {
+	result, err := q.db.Exec(ctx, clearTeamCaptain, arg.ID, arg.TenantID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearTeamCaptainForPlayer = `-- name: ClearTeamCaptainForPlayer :exec
 UPDATE teams
 SET captain_id = NULL

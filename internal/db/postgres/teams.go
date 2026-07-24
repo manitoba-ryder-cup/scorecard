@@ -78,6 +78,20 @@ func (t *TeamsDB) ClearCaptainForPlayer(ctx context.Context, teamID, playerID uu
 	})
 }
 
+// ClearCaptain unsets a team's captain outright. ErrNotFound if the team doesn't exist.
+func (t *TeamsDB) ClearCaptain(ctx context.Context, teamID uuid.UUID) error {
+	rows, err := withTenant(ctx, t.db, func(q *sqlc.Queries, tenantID uuid.UUID) (int64, error) {
+		return q.ClearTeamCaptain(ctx, sqlc.ClearTeamCaptainParams{ID: teamID, TenantID: tenantID})
+	})
+	if err != nil {
+		return fmt.Errorf("clearing captain for team %s: %w", teamID, err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("clearing captain for team %s: %w", teamID, golf.ErrNotFound)
+	}
+	return nil
+}
+
 func toDomainTeam(t sqlc.Team) golf.Team {
 	return golf.Team{
 		ID:           t.ID,

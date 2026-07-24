@@ -36,3 +36,10 @@ RETURNING *;
 UPDATE teams
 SET captain_id = NULL
 WHERE id = $1 AND captain_id = $2 AND tenant_id = $3;
+
+-- Unset a team's captain outright (used to reassign). Rows affected = 0 only when the
+-- team doesn't exist, which the caller turns into a 404.
+-- name: ClearTeamCaptain :execrows
+UPDATE teams
+SET captain_id = NULL
+WHERE id = $1 AND tenant_id = $2;
