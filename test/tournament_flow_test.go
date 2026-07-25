@@ -296,3 +296,99 @@ func fmtUUIDPtr(p *uuid.UUID) string {
 	}
 	return p.String()
 }
+
+// cupWithCourse creates a tournament, its two teams, and one playable course, returning the
+// ids needed to enter players and add Singles matches (course setup done once per cup).
+func cupWithCourse(t *testing.T, client *sdk.Client, name string) (tourID, redTeam, blueTeam, courseID, teeColorID, singles uuid.UUID) {
+	t.Helper()
+	ctx := context.Background()
+	tour, err := client.CreateTournament(ctx, sdk.CreateTournamentRequest{
+		Name: name, StartDate: "2026-08-01", EndDate: "2026-08-02", Location: "Winnipeg",
+	})
+	if err != nil {
+		t.Fatalf("create tournament: %v", err)
+	}
+	redTeam = teamByColor(t, client, tour.ID, sdk.TeamColorRed)
+	blueTeam = teamByColor(t, client, tour.ID, sdk.TeamColorBlue)
+	courseID, teeColorID, singles = playableCourse(t, client)
+	return tour.ID, redTeam, blueTeam, courseID, teeColorID, singles
+}
+
+// addSinglesMatch enters+drafts one player per side (named with `tag`) and puts them in a
+// new Singles match. Returns the match and the two players.
+func addSinglesMatch(t *testing.T, client *sdk.Client, tourID, redTeam, blueTeam, courseID, teeColorID, singles uuid.UUID, tag string) (matchID, redP, blueP uuid.UUID) {
+	t.Helper()
+	ctx := context.Background()
+	redP = enterAndDraft(t, client, tourID, redTeam, "Red", tag)
+	blueP = enterAndDraft(t, client, tourID, blueTeam, "Blue", tag)
+	match, err := client.CreateMatch(ctx, tourID, sdk.CreateMatchRequest{CourseID: courseID, TeeColorID: teeColorID, MatchFormatID: singles})
+	if err != nil {
+		t.Fatalf("create match: %v", err)
+	}
+	if _, err := client.AddParticipant(ctx, match.ID, sdk.AddParticipantRequest{PlayerID: redP, TeamID: redTeam}); err != nil {
+		t.Fatalf("add red: %v", err)
+	}
+	if _, err := client.AddParticipant(ctx, match.ID, sdk.AddParticipantRequest{PlayerID: blueP, TeamID: blueTeam}); err != nil {
+		t.Fatalf("add blue: %v", err)
+	}
+	return match.ID, redP, blueP
+}
+
+// A Cup that finishes level on points has no winner — the holder retains it. A single
+// halved match is the minimal tie (0.5 each).
+func TestTiedCupIsFinishedWithNoWinner(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	ctx := context.Background()
+	tourID, redTeam, blueTeam, courseID, teeColorID, singles := cupWithCourse(t, client, "Tied Cup")
+	m, redP, blueP := addSinglesMatch(t, client, tourID, redTeam, blueTeam, courseID, teeColorID, singles, "One")
+
+	playMatch(t, client, m, redTeam, blueTeam, []uuid.UUID{redP}, []uuid.UUID{blueP}, halved)
+
+	if status, err := client.GetTournamentStatus(ctx, tourID); err != nil {
+		t.Fatalf("status: %v", err)
+	} else if !status.Finished {
+		t.Fatal("a tournament with all matches done should be finished")
+	}
+	w, err := client.GetTournamentWinner(ctx, tourID)
+	if err != nil {
+		t.Fatalf("winner: %v", err)
+	}
+	if !w.Finished || w.WinnerTeamID != nil {
+		t.Fatalf("a tied Cup should be finished with no winner (retained), got %+v", w)
+	}
+	teams, err := client.GetTournamentTeams(ctx, tourID)
+	if err != nil {
+		t.Fatalf("teams: %v", err)
+	}
+	for _, tm := range teams {
+		if tm.Points != 0.5 {
+			t.Fatalf("want 0.5 points each on a halved match, got %v for %s", tm.Points, tm.Color)
+		}
+	}
+}
+
+// The Cup is only decided once every match is final — no early "clinch" — so it stays
+// unfinished while any match is unscored, even if a side already leads.
+func TestCupNotFinishedWhileAMatchRemains(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	ctx := context.Background()
+	tourID, redTeam, blueTeam, courseID, teeColorID, singles := cupWithCourse(t, client, "Unfinished Cup")
+	m1, redP, blueP := addSinglesMatch(t, client, tourID, redTeam, blueTeam, courseID, teeColorID, singles, "One")
+	addSinglesMatch(t, client, tourID, redTeam, blueTeam, courseID, teeColorID, singles, "Two") // second match, left unscored
+
+	// Finish only the first match (Red win); the second stays unscored.
+	playMatch(t, client, m1, redTeam, blueTeam, []uuid.UUID{redP}, []uuid.UUID{blueP}, redWin)
+
+	if status, err := client.GetTournamentStatus(ctx, tourID); err != nil {
+		t.Fatalf("status: %v", err)
+	} else if status.Finished {
+		t.Fatal("the Cup must not be finished while a match is unscored")
+	}
+	if w, err := client.GetTournamentWinner(ctx, tourID); err != nil {
+		t.Fatalf("winner: %v", err)
+	} else if w.Finished || w.WinnerTeamID != nil {
+		t.Fatalf("no Cup winner while a match remains, got %+v", w)
+	}
+}
