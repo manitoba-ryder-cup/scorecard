@@ -79,4 +79,13 @@ var (
 		EnvVars:     []string{"SCORECARD_PUBLIC_TENANT_ID"},
 		Destination: &config.PublicTenantID,
 	}
+
+	// ProxySecretFlag requires an X-Proxy-Secret header (set by the trusted edge) on all
+	// non-health requests. Leave unset to disable the check (local dev).
+	ProxySecretFlag = &cli.StringFlag{
+		Name:        "proxy-secret",
+		Usage:       "Shared secret required in the X-Proxy-Secret header (empty = disabled)",
+		EnvVars:     []string{"PROXY_SECRET"},
+		Destination: &config.ProxySecret,
+	}
 )

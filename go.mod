@@ -6,7 +6,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.19.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.6
-	github.com/travisbale/knowhere v0.0.0-20260715205303-40d1823ecf70
+	github.com/travisbale/knowhere v0.0.0-20260725115553-5427a6a59a36
 	github.com/urfave/cli/v2 v2.27.7
 	golang.org/x/sync v0.17.0
 )

@@ -21,6 +21,7 @@ var startCmd = &cli.Command{
 		JWTPublicKeyFlag,
 		EnvironmentFlag,
 		TrustedProxyModeFlag,
+		ProxySecretFlag,
 		PublicTenantIDFlag,
 	},
 	Action: func(c *cli.Context) error {

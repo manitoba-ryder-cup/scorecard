@@ -17,6 +17,9 @@ type Config struct {
 	JWTPublicKeyPath string
 	Environment      string
 	TrustedProxyMode bool
+	// ProxySecret, when set, requires an X-Proxy-Secret header on every request except
+	// the health check (only the trusted edge is served). Empty disables the check.
+	ProxySecret string
 	// PublicTenantID, when set, enables anonymous read access scoped to that tenant
 	// (a single-tenant public site). Empty on a multi-tenant deployment.
 	PublicTenantID string
@@ -69,6 +72,7 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 		Address:           config.HTTPAddress,
 		JWTValidator:      jwtValidator,
 		TrustedProxyMode:  config.TrustedProxyMode,
+		ProxySecret:       config.ProxySecret,
 		PublicTenantID:    publicTenantID,
 		DB:                db,
 		PlayerService:     services.Player,

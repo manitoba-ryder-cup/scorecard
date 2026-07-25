@@ -27,6 +27,10 @@ type Config struct {
 	// Proxy configuration
 	TrustedProxyMode bool
 
+	// ProxySecret gates all non-health requests on a matching X-Proxy-Secret header
+	// (set by the trusted edge). Empty disables the check.
+	ProxySecret string
+
 	// PublicTenantID enables anonymous public reads scoped to this tenant (empty on a
 	// multi-tenant deployment)
 	PublicTenantID string
@@ -43,6 +47,7 @@ func (c *Config) ToAppConfig() *app.Config {
 		JWTPublicKeyPath: c.JWTPublicKeyPath,
 		Environment:      c.Environment,
 		TrustedProxyMode: c.TrustedProxyMode,
+		ProxySecret:      c.ProxySecret,
 		PublicTenantID:   c.PublicTenantID,
 	}
 }

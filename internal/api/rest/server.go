@@ -25,6 +25,10 @@ type Config struct {
 	Address          string
 	JWTValidator     *jwt.Validator
 	TrustedProxyMode bool // Trust X-Forwarded-For headers from reverse proxy
+	// ProxySecret, when set, requires a matching X-Proxy-Secret header on every request
+	// except the health check, so only traffic through the trusted edge (the Cloudflare
+	// Worker) is served. Empty disables the check (local dev).
+	ProxySecret string
 	// PublicTenantID enables anonymous read access for a single-tenant public site
 	// (e.g. manitobarydercup.com): reads without a token resolve to this tenant. Nil
 	// on a multi-tenant deployment, where every request must carry a token.
@@ -128,6 +132,7 @@ func NewServer(config *Config) *Server {
 	handler = identity.UserAgent(handler)
 	handler = identity.ClientIP(config.TrustedProxyMode)(handler)
 	handler = identity.RequestID(handler)
+	handler = identity.RequireProxySecret(config.ProxySecret, sdk.RouteHealth)(handler)
 	handler = recoverMiddleware(handler)
 
 	return &Server{
