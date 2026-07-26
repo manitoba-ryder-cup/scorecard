@@ -3,6 +3,7 @@ package golf
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -125,16 +126,14 @@ func (s *MatchService) SubmitScore(ctx context.Context, matchID uuid.UUID, entry
 		Strokes:    entry.Strokes,
 	}
 	// A finished match takes corrections to the holes it was played over, but nothing
-	// past them: extending a decided match is only ever a stale client still walking
-	// forward. Both callbacks run inside the repo's transaction — the guard against the
-	// scores as they were, the recompute against them after the write — because the
-	// write and the recompute must share one serialized transaction or concurrent
-	// submissions lose each other's result.
+	// past them: extending a decided match is only ever a stale client walking forward.
+	// Handed to the repo rather than run here so the check, the write and the recompute
+	// share one serialized transaction — otherwise concurrent submissions race it.
 	guard := func(before []Score) error {
-		if !ComputeStoredResult(before, teamA, teamB).Finished || holeIsScored(before, entry.HoleNumber) {
-			return nil
+		if ComputeStoredResult(before, teamA, teamB).Finished && !holeIsScored(before, entry.HoleNumber) {
+			return fmt.Errorf("%w: match %s is complete; hole %d cannot be scored", ErrConflict, matchID, entry.HoleNumber)
 		}
-		return fmt.Errorf("%w: match %s is complete; hole %d cannot be scored", ErrConflict, matchID, entry.HoleNumber)
+		return nil
 	}
 	recompute := func(after []Score) StoredResult {
 		return ComputeStoredResult(after, teamA, teamB)
@@ -149,12 +148,7 @@ func (s *MatchService) SubmitScore(ctx context.Context, matchID uuid.UUID, entry
 // holeIsScored reports whether a hole already carries any score, which is what separates
 // correcting a played hole from adding one.
 func holeIsScored(scores []Score, hole int32) bool {
-	for _, s := range scores {
-		if s.HoleNumber == hole {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(scores, func(s Score) bool { return s.HoleNumber == hole })
 }
 
 // CalculateMatchScores computes the live hole-by-hole match-play progression.
@@ -276,9 +270,7 @@ func buildMatchResult(m MatchDetail, sides []MatchSide, scores []Score) MatchRes
 	result.Lead = stored.Lead
 	result.HolesRemaining = stored.HolesRemaining
 	result.LeaderTeamID = stored.LeaderTeamID
-	if stored.Finished {
-		result.WinnerTeamID = stored.LeaderTeamID
-	}
+	result.WinnerTeamID = stored.Winner()
 	return result
 }
 
@@ -292,7 +284,7 @@ func (s *MatchService) GetOutcome(ctx context.Context, matchID uuid.UUID) (Match
 	if r == nil || !r.Finished {
 		return MatchOutcome{}, nil
 	}
-	return MatchOutcome{Finished: true, WinnerTeamID: r.LeaderTeamID}, nil
+	return MatchOutcome{Finished: true, WinnerTeamID: r.Winner()}, nil
 }
 
 // matchTeams returns the two distinct team IDs among a match's participants.

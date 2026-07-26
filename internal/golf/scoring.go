@@ -134,11 +134,10 @@ func teamScoresByHole(scores []Score, teamID uuid.UUID) map[int32]TeamHoleScore 
 		}
 		m[s.HoleNumber] = t
 	}
-	for h, t := range m {
+	for _, t := range m {
 		slices.SortFunc(t.PlayerScores, func(a, b PlayerHoleScore) int {
 			return bytes.Compare(a.PlayerID[:], b.PlayerID[:])
 		})
-		m[h] = t
 	}
 	return m
 }

@@ -264,6 +264,15 @@ type StoredResult struct {
 	HolesRemaining int
 }
 
+// Winner is the leader once the match is decided, nil while it is live or halved.
+// The one place "the leader is the winner once it's finished" is written down.
+func (r StoredResult) Winner() *uuid.UUID {
+	if !r.Finished {
+		return nil
+	}
+	return r.LeaderTeamID
+}
+
 // HoleResult is the match-play state after a scored hole. It refers to the two
 // sides by team ID — color ("Red"/"Blue") is a display attribute of the team, not
 // scoring state. LeaderTeamID identifies who is ahead (nil = all square); Lead is
