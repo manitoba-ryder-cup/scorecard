@@ -1,4 +1,4 @@
-.PHONY: build dev test test-keys test-setup test-teardown integration coverage-html clean sqlc protoc fmt lint tidy download docker-build migrate-up migrate-down help
+.PHONY: build dev test test-keys test-setup test-teardown integration coverage-html clean sqlc fmt lint tidy download docker-build migrate-up migrate-down help
 
 # Version is derived from git tags
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -74,8 +74,7 @@ fmt:
 	@go fmt ./...
 	@go run golang.org/x/tools/cmd/goimports@v0.38.0 -w $(shell \
 		find . -type f -name '*.go' \
-			-not -path './internal/pb/*' \
-			-not -path './internal/db/*' )
+			-not -path './internal/db/postgres/internal/sqlc/*' )
 
 # Lint code
 lint:
@@ -86,18 +85,6 @@ lint:
 sqlc:
 	@echo "Generating sqlc code..."
 	@docker run --rm --user $(shell id -u):$(shell id -g) -v $(shell pwd):/src -w /src sqlc/sqlc generate
-
-# Generate protobuf code
-protoc:
-	@echo "Generating protobuf code..."
-	@docker build -q -t go-protoc:latest -f proto/Dockerfile . > /dev/null
-	@docker run --rm -v $(shell pwd):/proto --user $(shell id -u):$(shell id -g) \
-		-w /proto \
-		go-protoc:latest \
-		-I proto \
-		--go_out=internal/pb --go_opt=paths=source_relative \
-		--go-grpc_out=internal/pb --go-grpc_opt=paths=source_relative \
-		proto/*.proto
 
 # Install dependencies
 deps:
@@ -134,7 +121,6 @@ help:
 	@echo "  clean          - Clean build artifacts"
 	@echo "  deps           - Install and tidy Go dependencies"
 	@echo "  sqlc           - Generate sqlc code from queries"
-	@echo "  protoc         - Generate protobuf/gRPC code"
 	@echo "  migrate-up     - Apply database migrations"
 	@echo "  migrate-down   - Roll back latest migration"
 	@echo ""
