@@ -110,6 +110,37 @@ func (q *Queries) GetTeam(ctx context.Context, arg GetTeamParams) (Team, error) 
 	return i, err
 }
 
+const listAllTeams = `-- name: ListAllTeams :many
+SELECT tournament_id, id AS team_id FROM teams
+WHERE tenant_id = $1
+`
+
+type ListAllTeamsRow struct {
+	TournamentID uuid.UUID `json:"tournament_id"`
+	TeamID       uuid.UUID `json:"team_id"`
+}
+
+// Every team by tournament, so the domain can settle each Cup's winner.
+func (q *Queries) ListAllTeams(ctx context.Context, tenantID uuid.UUID) ([]ListAllTeamsRow, error) {
+	rows, err := q.db.Query(ctx, listAllTeams, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAllTeamsRow{}
+	for rows.Next() {
+		var i ListAllTeamsRow
+		if err := rows.Scan(&i.TournamentID, &i.TeamID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTeamsByTournament = `-- name: ListTeamsByTournament :many
 SELECT
     t.id, t.tenant_id, t.tournament_id, t.color, t.captain_id,

@@ -37,61 +37,34 @@ func (q *Queries) GetMatchResult(ctx context.Context, arg GetMatchResultParams) 
 	return i, err
 }
 
-const getTournamentOutcome = `-- name: GetTournamentOutcome :one
+const listAllMatchOutcomes = `-- name: ListAllMatchOutcomes :many
 SELECT
-    (f.tournament_id IS NOT NULL)::boolean AS finished,
-    w.team_id AS winner_team_id
-FROM tournaments t
-LEFT JOIN finished_tournaments f ON f.tournament_id = t.id AND f.tenant_id = t.tenant_id
-LEFT JOIN tournament_winners w ON w.tournament_id = t.id AND w.tenant_id = t.tenant_id
-WHERE t.id = $1 AND t.tenant_id = $2
+    m.tournament_id,
+    COALESCE(mr.finished, false)::boolean AS finished,
+    mr.leader_team_id
+FROM matches m
+LEFT JOIN match_results mr ON mr.match_id = m.id AND mr.tenant_id = m.tenant_id
+WHERE m.tenant_id = $1
 `
 
-type GetTournamentOutcomeParams struct {
-	TournamentID uuid.UUID `json:"tournament_id"`
-	TenantID     uuid.UUID `json:"tenant_id"`
-}
-
-type GetTournamentOutcomeRow struct {
+type ListAllMatchOutcomesRow struct {
+	TournamentID uuid.UUID  `json:"tournament_id"`
 	Finished     bool       `json:"finished"`
-	WinnerTeamID *uuid.UUID `json:"winner_team_id"`
+	LeaderTeamID *uuid.UUID `json:"leader_team_id"`
 }
 
-// Finished state and winner in one round trip. Driven off tournaments so the LEFT JOINs
-// make both columns nullable: winner_team_id is NULL when unfinished or tied.
-func (q *Queries) GetTournamentOutcome(ctx context.Context, arg GetTournamentOutcomeParams) (GetTournamentOutcomeRow, error) {
-	row := q.db.QueryRow(ctx, getTournamentOutcome, arg.TournamentID, arg.TenantID)
-	var i GetTournamentOutcomeRow
-	err := row.Scan(&i.Finished, &i.WinnerTeamID)
-	return i, err
-}
-
-const listTeamPoints = `-- name: ListTeamPoints :many
-SELECT team_id, points FROM team_points
-WHERE tournament_id = $1 AND tenant_id = $2
-`
-
-type ListTeamPointsParams struct {
-	TournamentID uuid.UUID `json:"tournament_id"`
-	TenantID     uuid.UUID `json:"tenant_id"`
-}
-
-type ListTeamPointsRow struct {
-	TeamID uuid.UUID `json:"team_id"`
-	Points float64   `json:"points"`
-}
-
-// Ryder-cup points per team for a tournament (see the team_points view).
-func (q *Queries) ListTeamPoints(ctx context.Context, arg ListTeamPointsParams) ([]ListTeamPointsRow, error) {
-	rows, err := q.db.Query(ctx, listTeamPoints, arg.TournamentID, arg.TenantID)
+// Every tournament's match outcomes, for the all-time aggregates the domain derives
+// (which Cup each side won).
+func (q *Queries) ListAllMatchOutcomes(ctx context.Context, tenantID uuid.UUID) ([]ListAllMatchOutcomesRow, error) {
+	rows, err := q.db.Query(ctx, listAllMatchOutcomes, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListTeamPointsRow{}
+	items := []ListAllMatchOutcomesRow{}
 	for rows.Next() {
-		var i ListTeamPointsRow
-		if err := rows.Scan(&i.TeamID, &i.Points); err != nil {
+		var i ListAllMatchOutcomesRow
+		if err := rows.Scan(&i.TournamentID, &i.Finished, &i.LeaderTeamID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -102,38 +75,38 @@ func (q *Queries) ListTeamPoints(ctx context.Context, arg ListTeamPointsParams) 
 	return items, nil
 }
 
-const listTournamentPlayerCups = `-- name: ListTournamentPlayerCups :many
-SELECT tp.player_id, COUNT(w.tournament_id) AS cups_won
-FROM tournament_players tp
-LEFT JOIN team_members tm ON tm.player_id = tp.player_id AND tm.tenant_id = tp.tenant_id
-LEFT JOIN tournament_winners w ON w.tenant_id = tm.tenant_id AND w.tournament_id = tm.tournament_id AND w.team_id = tm.team_id
-WHERE tp.tournament_id = $1 AND tp.tenant_id = $2
-GROUP BY tp.player_id
+const listMatchOutcomes = `-- name: ListMatchOutcomes :many
+SELECT
+    COALESCE(mr.finished, false)::boolean AS finished,
+    mr.leader_team_id
+FROM matches m
+LEFT JOIN match_results mr ON mr.match_id = m.id AND mr.tenant_id = m.tenant_id
+WHERE m.tournament_id = $1 AND m.tenant_id = $2
 `
 
-type ListTournamentPlayerCupsParams struct {
+type ListMatchOutcomesParams struct {
 	TournamentID uuid.UUID `json:"tournament_id"`
 	TenantID     uuid.UUID `json:"tenant_id"`
 }
 
-type ListTournamentPlayerCupsRow struct {
-	PlayerID uuid.UUID `json:"player_id"`
-	CupsWon  int64     `json:"cups_won"`
+type ListMatchOutcomesRow struct {
+	Finished     bool       `json:"finished"`
+	LeaderTeamID *uuid.UUID `json:"leader_team_id"`
 }
 
-// Cups won (finished tournaments where the player's team was the sole points leader)
-// for every player entered in a tournament (finished tournaments their team won
-// outright). tournament_winners is the winning team per tournament.
-func (q *Queries) ListTournamentPlayerCups(ctx context.Context, arg ListTournamentPlayerCupsParams) ([]ListTournamentPlayerCupsRow, error) {
-	rows, err := q.db.Query(ctx, listTournamentPlayerCups, arg.TournamentID, arg.TenantID)
+// Every match in the tournament with its stored outcome. A match with no result row has
+// not been scored, so it reads as unfinished — the standings rules live in the domain and
+// take these rows as input.
+func (q *Queries) ListMatchOutcomes(ctx context.Context, arg ListMatchOutcomesParams) ([]ListMatchOutcomesRow, error) {
+	rows, err := q.db.Query(ctx, listMatchOutcomes, arg.TournamentID, arg.TenantID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListTournamentPlayerCupsRow{}
+	items := []ListMatchOutcomesRow{}
 	for rows.Next() {
-		var i ListTournamentPlayerCupsRow
-		if err := rows.Scan(&i.PlayerID, &i.CupsWon); err != nil {
+		var i ListMatchOutcomesRow
+		if err := rows.Scan(&i.Finished, &i.LeaderTeamID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

@@ -69,3 +69,35 @@ func (q *Queries) DeleteTeamMember(ctx context.Context, arg DeleteTeamMemberPara
 	}
 	return result.RowsAffected(), nil
 }
+
+const listTeamMemberships = `-- name: ListTeamMemberships :many
+SELECT player_id, tournament_id, team_id FROM team_members
+WHERE tenant_id = $1
+`
+
+type ListTeamMembershipsRow struct {
+	PlayerID     uuid.UUID `json:"player_id"`
+	TournamentID uuid.UUID `json:"tournament_id"`
+	TeamID       uuid.UUID `json:"team_id"`
+}
+
+// Every draft record, linking a Cup win to the players who won it.
+func (q *Queries) ListTeamMemberships(ctx context.Context, tenantID uuid.UUID) ([]ListTeamMembershipsRow, error) {
+	rows, err := q.db.Query(ctx, listTeamMemberships, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTeamMembershipsRow{}
+	for rows.Next() {
+		var i ListTeamMembershipsRow
+		if err := rows.Scan(&i.PlayerID, &i.TournamentID, &i.TeamID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

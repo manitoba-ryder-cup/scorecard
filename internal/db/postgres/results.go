@@ -38,33 +38,15 @@ func (r *ResultsDB) GetMatchResult(ctx context.Context, matchID uuid.UUID) (*gol
 	})
 }
 
-func (r *ResultsDB) ListTeamPoints(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]float64, error) {
-	return withTenant(ctx, r.db, func(q *sqlc.Queries, tenantID uuid.UUID) (map[uuid.UUID]float64, error) {
-		rows, err := q.ListTeamPoints(ctx, sqlc.ListTeamPointsParams{TournamentID: tournamentID, TenantID: tenantID})
+func (r *ResultsDB) ListMatchOutcomes(ctx context.Context, tournamentID uuid.UUID) ([]golf.MatchOutcome, error) {
+	return withTenant(ctx, r.db, func(q *sqlc.Queries, tenantID uuid.UUID) ([]golf.MatchOutcome, error) {
+		rows, err := q.ListMatchOutcomes(ctx, sqlc.ListMatchOutcomesParams{TournamentID: tournamentID, TenantID: tenantID})
 		if err != nil {
-			return nil, fmt.Errorf("listing team points: %w", err)
+			return nil, fmt.Errorf("listing match outcomes: %w", err)
 		}
-		points := make(map[uuid.UUID]float64, len(rows))
-		for _, row := range rows {
-			points[row.TeamID] = row.Points
-		}
-		return points, nil
-	})
-}
-
-// GetTournamentOutcome reports whether every match is final and which team won. An
-// unknown tournament reads as unfinished rather than an error, matching what the
-// status and winner endpoints have always returned for one.
-func (r *ResultsDB) GetTournamentOutcome(ctx context.Context, tournamentID uuid.UUID) (golf.TournamentOutcome, error) {
-	return withTenant(ctx, r.db, func(q *sqlc.Queries, tenantID uuid.UUID) (golf.TournamentOutcome, error) {
-		row, err := q.GetTournamentOutcome(ctx, sqlc.GetTournamentOutcomeParams{TournamentID: tournamentID, TenantID: tenantID})
-		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				return golf.TournamentOutcome{}, nil
-			}
-			return golf.TournamentOutcome{}, fmt.Errorf("getting tournament outcome: %w", err)
-		}
-		return golf.TournamentOutcome{Finished: row.Finished, WinnerTeamID: row.WinnerTeamID}, nil
+		return mapSlice(rows, func(row sqlc.ListMatchOutcomesRow) golf.MatchOutcome {
+			return golf.MatchOutcome{Finished: row.Finished, WinnerTeamID: row.LeaderTeamID}
+		}), nil
 	})
 }
 
@@ -86,16 +68,55 @@ func (r *ResultsDB) ListTournamentPlayerRecords(ctx context.Context, tournamentI
 	})
 }
 
-func (r *ResultsDB) ListTournamentPlayerCups(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]int, error) {
-	return withTenant(ctx, r.db, func(q *sqlc.Queries, tenantID uuid.UUID) (map[uuid.UUID]int, error) {
-		rows, err := q.ListTournamentPlayerCups(ctx, sqlc.ListTournamentPlayerCupsParams{TournamentID: tournamentID, TenantID: tenantID})
+// ListAllTournamentStandings returns every tournament's teams and match outcomes in one
+// transaction, so the domain can settle each Cup without a query per tournament.
+func (r *ResultsDB) ListAllTournamentStandings(ctx context.Context) (map[uuid.UUID]golf.TournamentStandings, error) {
+	return withTenant(ctx, r.db, func(q *sqlc.Queries, tenantID uuid.UUID) (map[uuid.UUID]golf.TournamentStandings, error) {
+		return tournamentStandings(ctx, q, tenantID)
+	})
+}
+
+func tournamentStandings(ctx context.Context, q *sqlc.Queries, tenantID uuid.UUID) (map[uuid.UUID]golf.TournamentStandings, error) {
+	teams, err := q.ListAllTeams(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("listing teams: %w", err)
+	}
+	outcomes, err := q.ListAllMatchOutcomes(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("listing match outcomes: %w", err)
+	}
+
+	standings := make(map[uuid.UUID]golf.TournamentStandings)
+	for _, t := range teams {
+		s := standings[t.TournamentID]
+		s.TeamIDs = append(s.TeamIDs, t.TeamID)
+		standings[t.TournamentID] = s
+	}
+	for _, o := range outcomes {
+		s := standings[o.TournamentID]
+		s.Outcomes = append(s.Outcomes, golf.MatchOutcome{Finished: o.Finished, WinnerTeamID: o.LeaderTeamID})
+		standings[o.TournamentID] = s
+	}
+	return standings, nil
+}
+
+// ListCupData fetches the standings and the draft records together, so counting Cups is
+// one round trip rather than two.
+func (r *ResultsDB) ListCupData(ctx context.Context) (golf.CupData, error) {
+	return withTenant(ctx, r.db, func(q *sqlc.Queries, tenantID uuid.UUID) (golf.CupData, error) {
+		standings, err := tournamentStandings(ctx, q, tenantID)
 		if err != nil {
-			return nil, fmt.Errorf("listing tournament player cups: %w", err)
+			return golf.CupData{}, err
 		}
-		cups := make(map[uuid.UUID]int, len(rows))
-		for _, row := range rows {
-			cups[row.PlayerID] = int(row.CupsWon)
+		rows, err := q.ListTeamMemberships(ctx, tenantID)
+		if err != nil {
+			return golf.CupData{}, fmt.Errorf("listing team memberships: %w", err)
 		}
-		return cups, nil
+		return golf.CupData{
+			Standings: standings,
+			Memberships: mapSlice(rows, func(row sqlc.ListTeamMembershipsRow) golf.TeamMembership {
+				return golf.TeamMembership{PlayerID: row.PlayerID, TournamentID: row.TournamentID, TeamID: row.TeamID}
+			}),
+		}, nil
 	})
 }

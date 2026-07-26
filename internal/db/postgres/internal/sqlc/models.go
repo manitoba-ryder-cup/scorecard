@@ -16,11 +16,6 @@ type Course struct {
 	Name     string    `json:"name"`
 }
 
-type FinishedTournament struct {
-	TenantID     uuid.UUID `json:"tenant_id"`
-	TournamentID uuid.UUID `json:"tournament_id"`
-}
-
 type Hole struct {
 	CourseID   uuid.UUID `json:"course_id"`
 	TeeColorID uuid.UUID `json:"tee_color_id"`
@@ -119,13 +114,6 @@ type TeamMember struct {
 	TenantID     uuid.UUID `json:"tenant_id"`
 }
 
-type TeamPoint struct {
-	TenantID     uuid.UUID `json:"tenant_id"`
-	TournamentID uuid.UUID `json:"tournament_id"`
-	TeamID       uuid.UUID `json:"team_id"`
-	Points       float64   `json:"points"`
-}
-
 type TeeColor struct {
 	ID       uuid.UUID `json:"id"`
 	TenantID uuid.UUID `json:"tenant_id"`
@@ -160,10 +148,4 @@ type TournamentPlayer struct {
 	Hdcp         float32   `json:"hdcp"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
-}
-
-type TournamentWinner struct {
-	TenantID     uuid.UUID `json:"tenant_id"`
-	TournamentID uuid.UUID `json:"tournament_id"`
-	TeamID       uuid.UUID `json:"team_id"`
 }

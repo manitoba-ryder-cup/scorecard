@@ -69,8 +69,7 @@ func toDomainPlayerRecord(r sqlc.PlayerRecordsRow) golf.Player {
 	return golf.Player{
 		ID: r.ID, UserID: r.UserID, Email: r.Email,
 		FirstName: r.FirstName, LastName: r.LastName, PhotoPath: r.PhotoPath,
-		Record:  golf.PlayerRecord{Wins: int32(r.Wins), Losses: int32(r.Losses), Ties: int32(r.Ties)},
-		CupsWon: int(r.CupsWon),
+		Record: golf.PlayerRecord{Wins: int32(r.Wins), Losses: int32(r.Losses), Ties: int32(r.Ties)},
 	}
 }
 
@@ -95,7 +94,7 @@ func toPlayerTournamentHistory(row sqlc.ListPlayerTournamentsRow) golf.PlayerTou
 		EndDate:          row.EndDate,
 		CaptainFirstName: derefString(row.CaptainFirstName),
 		CaptainLastName:  derefString(row.CaptainLastName),
-		Result:           row.Result,
+		TeamID:           row.TeamID,
 		Record: golf.PlayerRecord{
 			Wins:   int32(row.Wins),
 			Losses: int32(row.Losses),

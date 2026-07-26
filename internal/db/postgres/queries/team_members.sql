@@ -16,3 +16,8 @@ INSERT INTO team_members (
 -- name: DeleteTeamMember :execrows
 DELETE FROM team_members
 WHERE team_id = $1 AND player_id = $2 AND tenant_id = $3;
+
+-- Every draft record, linking a Cup win to the players who won it.
+-- name: ListTeamMemberships :many
+SELECT player_id, tournament_id, team_id FROM team_members
+WHERE tenant_id = $1;

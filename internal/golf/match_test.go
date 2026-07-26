@@ -78,17 +78,17 @@ type fakeResultDB struct{}
 func (f *fakeResultDB) GetMatchResult(ctx context.Context, matchID uuid.UUID) (*StoredResult, error) {
 	return nil, nil
 }
-func (f *fakeResultDB) ListTeamPoints(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]float64, error) {
+func (f *fakeResultDB) ListMatchOutcomes(ctx context.Context, tournamentID uuid.UUID) ([]MatchOutcome, error) {
 	return nil, nil
-}
-func (f *fakeResultDB) GetTournamentOutcome(ctx context.Context, tournamentID uuid.UUID) (TournamentOutcome, error) {
-	return TournamentOutcome{}, nil
 }
 func (f *fakeResultDB) ListTournamentPlayerRecords(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]PlayerRecord, error) {
 	return nil, nil
 }
-func (f *fakeResultDB) ListTournamentPlayerCups(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]int, error) {
+func (f *fakeResultDB) ListAllTournamentStandings(ctx context.Context) (map[uuid.UUID]TournamentStandings, error) {
 	return nil, nil
+}
+func (f *fakeResultDB) ListCupData(ctx context.Context) (CupData, error) {
+	return CupData{}, nil
 }
 
 func twoTeamMatch() (*fakeMatchDB, *fakeParticipantDB) {

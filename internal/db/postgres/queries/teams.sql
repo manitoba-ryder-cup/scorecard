@@ -42,3 +42,8 @@ WHERE id = $1 AND captain_id = $2 AND tenant_id = $3;
 UPDATE teams
 SET captain_id = NULL
 WHERE id = $1 AND tenant_id = $2;
+
+-- Every team by tournament, so the domain can settle each Cup's winner.
+-- name: ListAllTeams :many
+SELECT tournament_id, id AS team_id FROM teams
+WHERE tenant_id = $1;

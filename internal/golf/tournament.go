@@ -43,13 +43,29 @@ type TournamentService struct {
 }
 
 // GetOutcome reports whether every match is final and which team won (nil when
-// unfinished or tied).
+// unfinished or tied). The teams are only needed to settle a winner, so an in-progress
+// Cup — the common case during an event — costs a single query.
 func (s *TournamentService) GetOutcome(ctx context.Context, tournamentID uuid.UUID) (TournamentOutcome, error) {
-	outcome, err := s.ResultDB.GetTournamentOutcome(ctx, tournamentID)
+	outcomes, err := s.ResultDB.ListMatchOutcomes(ctx, tournamentID)
 	if err != nil {
-		return TournamentOutcome{}, fmt.Errorf("failed to get tournament outcome: %w", err)
+		return TournamentOutcome{}, fmt.Errorf("failed to list match outcomes: %w", err)
 	}
-	return outcome, nil
+	if !IsTournamentComplete(outcomes) {
+		return TournamentOutcome{}, nil
+	}
+	teams, err := s.TeamService.ListTeamsByTournament(ctx, tournamentID)
+	if err != nil {
+		return TournamentOutcome{}, fmt.Errorf("failed to list teams: %w", err)
+	}
+	return ComputeTournamentOutcome(outcomes, teamIDs(teams)), nil
+}
+
+func teamIDs(teams []TeamWithCaptain) []uuid.UUID {
+	ids := make([]uuid.UUID, len(teams))
+	for i, t := range teams {
+		ids[i] = t.ID
+	}
+	return ids
 }
 
 // GetTeamsData builds each team's summary (color, captain, points) for a tournament.
@@ -58,10 +74,11 @@ func (s *TournamentService) GetTeamsData(ctx context.Context, tournamentID uuid.
 	if err != nil {
 		return nil, fmt.Errorf("failed to list teams: %w", err)
 	}
-	points, err := s.ResultDB.ListTeamPoints(ctx, tournamentID)
+	outcomes, err := s.ResultDB.ListMatchOutcomes(ctx, tournamentID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list team points: %w", err)
+		return nil, fmt.Errorf("failed to list match outcomes: %w", err)
 	}
+	points := ComputeTeamPoints(outcomes, teamIDs(teams))
 
 	result := []TeamData{}
 	for _, team := range teams {

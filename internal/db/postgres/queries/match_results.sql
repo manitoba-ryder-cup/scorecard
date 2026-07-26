@@ -16,11 +16,6 @@ RETURNING *;
 SELECT * FROM match_results
 WHERE match_id = $1 AND tenant_id = $2;
 
--- name: ListTeamPoints :many
--- Ryder-cup points per team for a tournament (see the team_points view).
-SELECT team_id, points FROM team_points
-WHERE tournament_id = $1 AND tenant_id = $2;
-
 -- All-time W-L-T for every player entered in a tournament, so the roster enriches
 -- without a per-player round trip. Records span every match the player has played.
 -- name: ListTournamentPlayerRecords :many
@@ -34,24 +29,24 @@ LEFT JOIN player_match_outcomes o ON o.player_id = tp.player_id AND o.tenant_id 
 WHERE tp.tournament_id = @tournament_id AND tp.tenant_id = @tenant_id
 GROUP BY tp.player_id;
 
--- Cups won (finished tournaments where the player's team was the sole points leader)
--- for every player entered in a tournament (finished tournaments their team won
--- outright). tournament_winners is the winning team per tournament.
--- name: ListTournamentPlayerCups :many
-SELECT tp.player_id, COUNT(w.tournament_id) AS cups_won
-FROM tournament_players tp
-LEFT JOIN team_members tm ON tm.player_id = tp.player_id AND tm.tenant_id = tp.tenant_id
-LEFT JOIN tournament_winners w ON w.tenant_id = tm.tenant_id AND w.tournament_id = tm.tournament_id AND w.team_id = tm.team_id
-WHERE tp.tournament_id = @tournament_id AND tp.tenant_id = @tenant_id
-GROUP BY tp.player_id;
-
--- Finished state and winner in one round trip. Driven off tournaments so the LEFT JOINs
--- make both columns nullable: winner_team_id is NULL when unfinished or tied.
--- name: GetTournamentOutcome :one
+-- Every match in the tournament with its stored outcome. A match with no result row has
+-- not been scored, so it reads as unfinished — the standings rules live in the domain and
+-- take these rows as input.
+-- name: ListMatchOutcomes :many
 SELECT
-    (f.tournament_id IS NOT NULL)::boolean AS finished,
-    w.team_id AS winner_team_id
-FROM tournaments t
-LEFT JOIN finished_tournaments f ON f.tournament_id = t.id AND f.tenant_id = t.tenant_id
-LEFT JOIN tournament_winners w ON w.tournament_id = t.id AND w.tenant_id = t.tenant_id
-WHERE t.id = @tournament_id AND t.tenant_id = @tenant_id;
+    COALESCE(mr.finished, false)::boolean AS finished,
+    mr.leader_team_id
+FROM matches m
+LEFT JOIN match_results mr ON mr.match_id = m.id AND mr.tenant_id = m.tenant_id
+WHERE m.tournament_id = @tournament_id AND m.tenant_id = @tenant_id;
+
+-- Every tournament's match outcomes, for the all-time aggregates the domain derives
+-- (which Cup each side won).
+-- name: ListAllMatchOutcomes :many
+SELECT
+    m.tournament_id,
+    COALESCE(mr.finished, false)::boolean AS finished,
+    mr.leader_team_id
+FROM matches m
+LEFT JOIN match_results mr ON mr.match_id = m.id AND mr.tenant_id = m.tenant_id
+WHERE m.tenant_id = @tenant_id;

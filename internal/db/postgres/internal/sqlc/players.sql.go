@@ -59,23 +59,13 @@ func (q *Queries) CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Pla
 }
 
 const playerRecords = `-- name: PlayerRecords :many
-WITH cups AS (
-    SELECT tm.player_id, COUNT(*) AS cups_won
-    FROM team_members tm
-    JOIN tournament_winners w
-        ON w.tenant_id = tm.tenant_id AND w.tournament_id = tm.tournament_id AND w.team_id = tm.team_id
-    WHERE tm.tenant_id = $1
-    GROUP BY tm.player_id
-)
 SELECT
     p.id, p.tenant_id, p.user_id, p.email, p.first_name, p.last_name, p.photo_path, p.created_at, p.updated_at,
     COUNT(*) FILTER (WHERE o.won) AS wins,
     COUNT(*) FILTER (WHERE o.lost) AS losses,
-    COUNT(*) FILTER (WHERE o.tied) AS ties,
-    COALESCE(MAX(c.cups_won), 0)::bigint AS cups_won
+    COUNT(*) FILTER (WHERE o.tied) AS ties
 FROM players p
 LEFT JOIN player_match_outcomes o ON o.player_id = p.id AND o.tenant_id = p.tenant_id
-LEFT JOIN cups c ON c.player_id = p.id
 WHERE p.tenant_id = $1
   AND ($2::uuid IS NULL OR p.id = $2)
 GROUP BY p.id
@@ -100,13 +90,11 @@ type PlayerRecordsRow struct {
 	Wins      int64      `json:"wins"`
 	Losses    int64      `json:"losses"`
 	Ties      int64      `json:"ties"`
-	CupsWon   int64      `json:"cups_won"`
 }
 
-// PlayerRecords returns players with their all-time record and cups (both 0 with no
-// finished matches / no winning tournaments) joined in — one query for the whole list
-// (id null) or a single player (id set). Cups is pre-aggregated once (a per-player CTE)
-// rather than a subquery per row; the record aggregates the per-match outcomes.
+// PlayerRecords returns players with their all-time W-L-T — one query for the whole list
+// (id null) or a single player (id set). Cups won is derived in the domain, since which
+// side won a Cup is a scoring rule rather than a retrieval concern.
 func (q *Queries) PlayerRecords(ctx context.Context, arg PlayerRecordsParams) ([]PlayerRecordsRow, error) {
 	rows, err := q.db.Query(ctx, playerRecords, arg.TenantID, arg.ID)
 	if err != nil {
@@ -129,7 +117,6 @@ func (q *Queries) PlayerRecords(ctx context.Context, arg PlayerRecordsParams) ([
 			&i.Wins,
 			&i.Losses,
 			&i.Ties,
-			&i.CupsWon,
 		); err != nil {
 			return nil, err
 		}

@@ -71,15 +71,25 @@ func (s *RosterService) ListPlayers(ctx context.Context, tournamentID uuid.UUID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list player records: %w", err)
 	}
-	cups, err := s.ResultDB.ListTournamentPlayerCups(ctx, tournamentID)
+	cups, err := s.cupsWon(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list player cups: %w", err)
+		return nil, err
 	}
 	for i := range entries {
 		entries[i].Record = records[entries[i].PlayerID]
 		entries[i].CupsWon = cups[entries[i].PlayerID]
 	}
 	return entries, nil
+}
+
+// cupsWon counts every player's Cup wins. Which side won a Cup is a scoring rule, so it
+// is settled here from the raw standings rather than in SQL.
+func (s *RosterService) cupsWon(ctx context.Context) (map[uuid.UUID]int, error) {
+	data, err := s.ResultDB.ListCupData(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list cup data: %w", err)
+	}
+	return ComputeCupsWon(data), nil
 }
 
 // DraftPlayer assigns an entered player to a team. The tournament is derived from the

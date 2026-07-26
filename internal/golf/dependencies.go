@@ -115,10 +115,13 @@ type tournamentDB interface {
 // from it (team points, tournament-finished, player records).
 type resultDB interface {
 	GetMatchResult(ctx context.Context, matchID uuid.UUID) (*StoredResult, error)
-	ListTeamPoints(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]float64, error)
-	// GetTournamentOutcome returns finished state and winner in one read.
-	GetTournamentOutcome(ctx context.Context, tournamentID uuid.UUID) (TournamentOutcome, error)
-	// Batched over a tournament's roster, each keyed by player id.
+	// ListMatchOutcomes returns one entry per match in the tournament; the standings
+	// rules that consume them live in standings.go.
+	ListMatchOutcomes(ctx context.Context, tournamentID uuid.UUID) ([]MatchOutcome, error)
+	// Batched over a tournament's roster, keyed by player id.
 	ListTournamentPlayerRecords(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]PlayerRecord, error)
-	ListTournamentPlayerCups(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]int, error)
+	// The raw material for cups won and a player's history verdict, both decided in
+	// standings.go rather than in SQL. Each is a single round trip.
+	ListAllTournamentStandings(ctx context.Context) (map[uuid.UUID]TournamentStandings, error)
+	ListCupData(ctx context.Context) (CupData, error)
 }

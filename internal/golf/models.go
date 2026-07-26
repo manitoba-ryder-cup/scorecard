@@ -176,6 +176,7 @@ type PlayerTournamentHistory struct {
 	EndDate          time.Time
 	CaptainFirstName string
 	CaptainLastName  string
+	TeamID           *uuid.UUID // nil when entered but never drafted
 	Result           string
 	Record           PlayerRecord
 }
