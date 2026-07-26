@@ -334,7 +334,8 @@ func addSinglesMatch(t *testing.T, client *sdk.Client, tourID, redTeam, blueTeam
 	return match.ID, redP, blueP
 }
 
-// A Cup that finishes level on points has no winner — the holder retains it. A single
+// A Cup that finishes level on points has no winner. There is no holder to retain it;
+// a real tie would be replayed by the last group, which has never happened. A single
 // halved match is the minimal tie (0.5 each).
 func TestTiedCupIsFinishedWithNoWinner(t *testing.T) {
 	t.Parallel()
@@ -355,7 +356,7 @@ func TestTiedCupIsFinishedWithNoWinner(t *testing.T) {
 		t.Fatalf("winner: %v", err)
 	}
 	if !w.Finished || w.WinnerTeamID != nil {
-		t.Fatalf("a tied Cup should be finished with no winner (retained), got %+v", w)
+		t.Fatalf("a tied Cup should be finished with no winner, got %+v", w)
 	}
 	teams, err := client.GetTournamentTeams(ctx, tourID)
 	if err != nil {

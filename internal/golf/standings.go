@@ -50,8 +50,10 @@ func IsTournamentComplete(outcomes []MatchOutcome) bool {
 }
 
 // ComputeTournamentOutcome decides the Cup: it is settled only once every match is final
-// (no early clinch), and won by the sole points leader. A tie leaves no winner — the
-// holder retains the Cup, which is not modelled here.
+// (no early clinch), and won by the sole points leader. A tie leaves no winner. There is
+// no holder to retain it — the captains change every year — and the tie-break (the last,
+// most tightly contested group goes back out) has never been needed, so it is not
+// modelled.
 func ComputeTournamentOutcome(outcomes []MatchOutcome, teamIDs []uuid.UUID) TournamentOutcome {
 	if !IsTournamentComplete(outcomes) {
 		return TournamentOutcome{}

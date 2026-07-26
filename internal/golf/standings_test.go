@@ -82,7 +82,7 @@ func TestComputeTournamentOutcome(t *testing.T) {
 		wantWinner   *uuid.UUID
 	}{
 		{"sole leader wins the cup", []MatchOutcome{won(teamA), halved()}, true, &teamA},
-		// A tie retains the cup for the holder, so nobody wins it outright.
+		// Level on points means nobody wins it outright.
 		{"a tie has no winner", []MatchOutcome{won(teamA), won(teamB)}, true, nil},
 		{"all halved is a tie", []MatchOutcome{halved(), halved()}, true, nil},
 		// No early clinch: the Cup is undecided while any match is outstanding, even
