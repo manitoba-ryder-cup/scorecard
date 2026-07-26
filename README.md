@@ -30,7 +30,7 @@ stroke indexes so it can be added later, but all scoring is currently gross.
 
 ### Prerequisites
 
-- Go 1.25+
+- Go 1.26+
 - PostgreSQL 16+
 - Docker (for the test stack, linting, and code generation)
 - Make

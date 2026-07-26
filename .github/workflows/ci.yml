@@ -19,7 +19,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           # Minor only: patch releases are picked up automatically.
-          go-version: '1.25'
+          go-version: '1.26'
           cache: true
 
       - name: Check formatting
@@ -52,7 +52,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           # Minor only: patch releases are picked up automatically.
-          go-version: '1.25'
+          go-version: '1.26'
           cache: true
 
       - name: Build binary
@@ -72,7 +72,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           # Minor only: patch releases are picked up automatically.
-          go-version: '1.25'
+          go-version: '1.26'
           cache: true
 
       - name: Run unit tests
@@ -107,7 +107,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           # Minor only: patch releases are picked up automatically.
-          go-version: '1.25'
+          go-version: '1.26'
           cache: true
 
       - name: Run govulncheck
@@ -126,7 +126,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           # Minor only: patch releases are picked up automatically.
-          go-version: '1.25'
+          go-version: '1.26'
           cache: true
 
       # sqlc runs via Docker (see the sqlc target); no local install needed.
@@ -189,7 +189,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           # Minor only: patch releases are picked up automatically.
-          go-version: '1.25'
+          go-version: '1.26'
           cache: true
 
       - name: Build binary

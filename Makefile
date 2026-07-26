@@ -79,7 +79,7 @@ fmt:
 # Lint code
 lint:
 	@echo "Linting code..."
-	@docker run -t --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:v2.6.0 golangci-lint run
+	@docker run -t --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:v2.11.4 golangci-lint run
 
 # Generate sqlc code (uses version from go.mod)
 sqlc:
