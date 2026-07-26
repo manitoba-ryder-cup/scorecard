@@ -71,13 +71,8 @@ func TestConcurrentScoreSubmissionsMaterializeEveryHole(t *testing.T) {
 			t.Errorf("match %d: finished = false after all 10 holes were scored; match_results is stale", i)
 			continue
 		}
-
-		winner, err := client.GetMatchWinner(ctx, fix.MatchID)
-		if err != nil {
-			t.Fatalf("match %d: get winner: %v", i, err)
-		}
-		if winner.WinnerTeamID == nil || *winner.WinnerTeamID != fix.TeamRed {
-			t.Errorf("match %d: winner = %v, want Red (%s)", i, winner.WinnerTeamID, fix.TeamRed)
+		if status.WinnerTeamID == nil || *status.WinnerTeamID != fix.TeamRed {
+			t.Errorf("match %d: winner = %v, want Red (%s)", i, status.WinnerTeamID, fix.TeamRed)
 		}
 	}
 }

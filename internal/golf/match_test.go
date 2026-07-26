@@ -279,7 +279,7 @@ func TestListResults_AssemblesSidesProgressAndOutcome(t *testing.T) {
 	if r.FormatName != "Singles" || r.CourseName != "Test GC" {
 		t.Errorf("display names wrong: %+v", r)
 	}
-	if r.Finished || r.WinnerTeamID != nil || r.Lead != 2 || r.HolesRemaining != 16 {
+	if r.Finished || r.Winner() != nil || r.Lead != 2 || r.HolesRemaining != 16 {
 		t.Errorf("want open, 2 up with 16 to play: %+v", r)
 	}
 	if len(r.Sides) != 2 {
@@ -364,8 +364,8 @@ func TestListResults_ReportsTheLeaderOfAnUnfinishedMatch(t *testing.T) {
 	if r.LeaderTeamID == nil || *r.LeaderTeamID != teamA {
 		t.Errorf("leader = %v, want team A", r.LeaderTeamID)
 	}
-	if r.WinnerTeamID != nil {
-		t.Errorf("winner = %v, want none while unfinished", r.WinnerTeamID)
+	if r.Winner() != nil {
+		t.Errorf("winner = %v, want none while unfinished", r.Winner())
 	}
 }
 

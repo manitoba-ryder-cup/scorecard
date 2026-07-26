@@ -243,13 +243,9 @@ func (c *Client) GetMatchHoles(ctx context.Context, matchID uuid.UUID) ([]Hole, 
 	return out, c.do(ctx, http.MethodGet, pathID(RouteV1MatchHoles, matchID), nil, &out)
 }
 
-func (c *Client) GetMatchWinner(ctx context.Context, matchID uuid.UUID) (*WinnerResponse, error) {
-	var out WinnerResponse
-	return &out, c.do(ctx, http.MethodGet, pathID(RouteV1MatchWinner, matchID), nil, &out)
-}
-
-func (c *Client) GetMatchStatus(ctx context.Context, matchID uuid.UUID) (*FinishedResponse, error) {
-	var out FinishedResponse
+// GetMatchStatus reads a match's outcome. RouteV1MatchWinner answers identically.
+func (c *Client) GetMatchStatus(ctx context.Context, matchID uuid.UUID) (*MatchStatus, error) {
+	var out MatchStatus
 	return &out, c.do(ctx, http.MethodGet, pathID(RouteV1MatchStatus, matchID), nil, &out)
 }
 

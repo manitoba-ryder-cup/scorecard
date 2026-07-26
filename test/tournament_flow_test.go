@@ -144,9 +144,9 @@ func TestFullRyderCupCorrectness(t *testing.T) {
 	for _, pl := range plans {
 		playMatch(t, client, pl.id, redTeam, blueTeam, pl.redPs, pl.bluePs, pl.out)
 
-		got, err := client.GetMatchWinner(ctx, pl.id)
+		got, err := client.GetMatchStatus(ctx, pl.id)
 		if err != nil {
-			t.Fatalf("get match %s winner: %v", pl.id, err)
+			t.Fatalf("get match %s status: %v", pl.id, err)
 		}
 		if !got.Finished {
 			t.Fatalf("match %s should be finished after scoring", pl.id)

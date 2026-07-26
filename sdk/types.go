@@ -322,22 +322,20 @@ type MatchSide struct {
 // reports who is ahead at any point (null = all square) so a live leaderboard needs no
 // client-side derivation. tee_time is RFC3339 (null if unscheduled).
 type MatchResult struct {
-	MatchID        uuid.UUID    `json:"match_id"`
-	FormatName     string       `json:"format_name"`
-	Finished       bool         `json:"finished"`
-	WinnerTeamID   *uuid.UUID   `json:"winner_team_id"`
-	LeaderTeamID   *uuid.UUID   `json:"leader_team_id"`
-	Lead           int          `json:"lead"`
-	HolesRemaining int          `json:"holes_remaining"`
-	Sides          []MatchSide  `json:"sides"`
-	HoleResults    []*uuid.UUID `json:"hole_results"`
-	TeeTime        *string      `json:"tee_time"`
-	CourseName     string       `json:"course_name"`
+	MatchStatus              // finished/winner/leader/lead/holes_remaining, flattened into this object
+	MatchID     uuid.UUID    `json:"match_id"`
+	FormatName  string       `json:"format_name"`
+	Sides       []MatchSide  `json:"sides"`
+	HoleResults []*uuid.UUID `json:"hole_results"`
+	TeeTime     *string      `json:"tee_time"`
+	CourseName  string       `json:"course_name"`
 }
 
-// MatchStatus is a match's outcome state, returned when a score is recorded so the
-// client learns the new state from the write instead of re-deriving the close-out rule.
-// winner_team_id is the leader once finished, null otherwise.
+// MatchStatus is a match's outcome state: the one shape for it, returned by the match
+// status/winner reads, by a score write (so the client learns the new state from the
+// write instead of re-deriving the close-out rule), and embedded in MatchResult.
+// winner_team_id is the leader once finished, null otherwise; leader_team_id reports who
+// is ahead at any point (null = all square) so a live leaderboard needs no derivation.
 type MatchStatus struct {
 	Finished       bool       `json:"finished"`
 	WinnerTeamID   *uuid.UUID `json:"winner_team_id"`
@@ -346,14 +344,14 @@ type MatchStatus struct {
 	HolesRemaining int        `json:"holes_remaining"`
 }
 
-// WinnerResponse reports a winning team by id (null = tie/undecided), used for both
-// match and tournament outcomes. winner_team_id is meaningful only once finished.
+// WinnerResponse reports a winning team by id (null = tie/undecided) for a tournament.
+// A match answers with the richer MatchStatus.
 type WinnerResponse struct {
 	Finished     bool       `json:"finished"`
 	WinnerTeamID *uuid.UUID `json:"winner_team_id"`
 }
 
-// FinishedResponse reports whether a match or tournament is complete.
+// FinishedResponse reports whether a tournament is complete.
 type FinishedResponse struct {
 	Finished bool `json:"finished"`
 }

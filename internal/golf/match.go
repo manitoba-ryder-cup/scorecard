@@ -245,13 +245,13 @@ func groupSides(participants []MatchParticipantPlayer) map[uuid.UUID][]MatchSide
 // reads as unplayed.
 func buildMatchResult(m MatchDetail, sides []MatchSide, scores []Score) MatchResult {
 	result := MatchResult{
-		MatchID:        m.ID,
-		FormatName:     m.FormatName,
-		CourseName:     m.CourseName,
-		TeeTime:        m.TeeTime,
-		Sides:          sides,
-		HolesRemaining: 18,
-		HoleResults:    []*uuid.UUID{},
+		MatchID:      m.ID,
+		FormatName:   m.FormatName,
+		CourseName:   m.CourseName,
+		TeeTime:      m.TeeTime,
+		Sides:        sides,
+		StoredResult: StoredResult{HolesRemaining: 18},
+		HoleResults:  []*uuid.UUID{},
 	}
 	if len(sides) != 2 {
 		return result
@@ -265,26 +265,22 @@ func buildMatchResult(m MatchDetail, sides []MatchSide, scores []Score) MatchRes
 	}
 	result.HoleResults = holeResults
 
-	stored := ComputeStoredResult(scores, teamA, teamB)
-	result.Finished = stored.Finished
-	result.Lead = stored.Lead
-	result.HolesRemaining = stored.HolesRemaining
-	result.LeaderTeamID = stored.LeaderTeamID
-	result.WinnerTeamID = stored.Winner()
+	result.StoredResult = ComputeStoredResult(scores, teamA, teamB)
 	return result
 }
 
-// GetOutcome reports whether the match is complete and which team won (nil while it is
-// undecided), from the single stored result.
-func (s *MatchService) GetOutcome(ctx context.Context, matchID uuid.UUID) (MatchOutcome, error) {
+// MatchStatus reads a match's stored outcome — the same state a score write returns, so
+// polling it and recording a score describe the match identically. An unplayed match has
+// no stored row and reads as the zero result.
+func (s *MatchService) MatchStatus(ctx context.Context, matchID uuid.UUID) (StoredResult, error) {
 	r, err := s.ResultDB.GetMatchResult(ctx, matchID)
 	if err != nil {
-		return MatchOutcome{}, fmt.Errorf("failed to get match result: %w", err)
+		return StoredResult{}, fmt.Errorf("failed to get match result: %w", err)
 	}
-	if r == nil || !r.Finished {
-		return MatchOutcome{}, nil
+	if r == nil {
+		return StoredResult{HolesRemaining: 18}, nil
 	}
-	return MatchOutcome{Finished: true, WinnerTeamID: r.Winner()}, nil
+	return *r, nil
 }
 
 // matchTeams returns the two distinct team IDs among a match's participants.

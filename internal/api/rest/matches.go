@@ -11,7 +11,7 @@ import (
 )
 
 type MatchService interface {
-	GetOutcome(ctx context.Context, matchID uuid.UUID) (golf.MatchOutcome, error)
+	MatchStatus(ctx context.Context, matchID uuid.UUID) (golf.StoredResult, error)
 	CalculateMatchScores(ctx context.Context, matchID uuid.UUID) ([]golf.HoleResult, error)
 	SubmitScore(ctx context.Context, matchID uuid.UUID, entry golf.ScoreEntry) (golf.StoredResult, error)
 	CreateMatch(ctx context.Context, in golf.CreateMatchInput) (*golf.Match, error)
@@ -225,29 +225,18 @@ func (h *MatchesHandler) SubmitScore(w http.ResponseWriter, r *http.Request) {
 }
 
 // GET /v1/matches/{id}/winner
-func (h *MatchesHandler) GetMatchWinner(w http.ResponseWriter, r *http.Request) {
-	id, ok := pathUUIDOr400(w, r, "id", "match")
-	if !ok {
-		return
-	}
-	outcome, err := h.matchService.GetOutcome(r.Context(), id)
-	if err != nil {
-		respondDomainError(r.Context(), w, "Failed to get match winner", err)
-		return
-	}
-	respondJSON(w, http.StatusOK, sdk.WinnerResponse{Finished: outcome.Finished, WinnerTeamID: outcome.WinnerTeamID})
-}
-
 // GET /v1/matches/{id}/status
+// Both report the match's outcome, in the same shape a score write returns — the winner
+// and "is it over" are two questions about one state, so they get one answer.
 func (h *MatchesHandler) GetMatchStatus(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathUUIDOr400(w, r, "id", "match")
 	if !ok {
 		return
 	}
-	outcome, err := h.matchService.GetOutcome(r.Context(), id)
+	status, err := h.matchService.MatchStatus(r.Context(), id)
 	if err != nil {
-		respondDomainError(r.Context(), w, "Failed to check match status", err)
+		respondDomainError(r.Context(), w, "Failed to get match status", err)
 		return
 	}
-	respondJSON(w, http.StatusOK, sdk.FinishedResponse{Finished: outcome.Finished})
+	respondJSON(w, http.StatusOK, toMatchStatusDTO(status))
 }

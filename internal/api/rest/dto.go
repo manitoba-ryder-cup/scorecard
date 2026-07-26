@@ -139,17 +139,13 @@ func toMatchResultDTO(m golf.MatchResult) sdk.MatchResult {
 		holeResults = []*uuid.UUID{}
 	}
 	return sdk.MatchResult{
-		MatchID:        m.MatchID,
-		FormatName:     m.FormatName,
-		Finished:       m.Finished,
-		WinnerTeamID:   m.WinnerTeamID,
-		LeaderTeamID:   m.LeaderTeamID,
-		Lead:           m.Lead,
-		HolesRemaining: m.HolesRemaining,
-		Sides:          mapSlice(m.Sides, toMatchSideDTO),
-		HoleResults:    holeResults,
-		TeeTime:        teeTime,
-		CourseName:     m.CourseName,
+		MatchStatus: toMatchStatusDTO(m.StoredResult),
+		MatchID:     m.MatchID,
+		FormatName:  m.FormatName,
+		Sides:       mapSlice(m.Sides, toMatchSideDTO),
+		HoleResults: holeResults,
+		TeeTime:     teeTime,
+		CourseName:  m.CourseName,
 	}
 }
 

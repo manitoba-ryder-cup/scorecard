@@ -84,7 +84,7 @@ func TestScoreEntryClosesTheMaterializationLoop(t *testing.T) {
 	}
 
 	// Materialized winner.
-	winner, err := client.GetMatchWinner(ctx, fix.MatchID)
+	winner, err := client.GetMatchStatus(ctx, fix.MatchID)
 	if err != nil {
 		t.Fatalf("get winner: %v", err)
 	}
