@@ -25,30 +25,49 @@ func (s *ScoresDB) SaveScoreAndRecompute(
 	ctx context.Context,
 	score golf.Score,
 	tournamentID uuid.UUID,
+	guard func([]golf.Score) error,
 	recompute func([]golf.Score) golf.StoredResult,
-) error {
-	return withTenantExec(ctx, s.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
-		// Before the write, so the recompute below always sees a committed, complete set.
+) (golf.StoredResult, error) {
+	return withTenant(ctx, s.db, func(q *sqlc.Queries, tenantID uuid.UUID) (golf.StoredResult, error) {
+		var zero golf.StoredResult
+		list := func() ([]golf.Score, error) {
+			rows, err := q.ListScoresByMatch(ctx, sqlc.ListScoresByMatchParams{
+				MatchID:  score.MatchID,
+				TenantID: tenantID,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("listing scores for match %s: %w", score.MatchID, err)
+			}
+			return mapSlice(rows, toDomainScore), nil
+		}
+
+		// Before the write, so the guard and recompute below both see a committed,
+		// complete set — and so the guard's decision can't be raced by another writer.
 		if _, err := q.LockMatchForScoring(ctx, sqlc.LockMatchForScoringParams{
 			ID:       score.MatchID,
 			TenantID: tenantID,
 		}); err != nil {
-			return fmt.Errorf("locking match %s: %w", score.MatchID, mapReadErr(err))
+			return zero, fmt.Errorf("locking match %s: %w", score.MatchID, mapReadErr(err))
+		}
+
+		before, err := list()
+		if err != nil {
+			return zero, err
+		}
+		if err := guard(before); err != nil {
+			return zero, err
 		}
 
 		if err := upsertScore(ctx, q, score, tenantID); err != nil {
-			return err
+			return zero, err
 		}
 
-		rows, err := q.ListScoresByMatch(ctx, sqlc.ListScoresByMatchParams{
-			MatchID:  score.MatchID,
-			TenantID: tenantID,
-		})
+		after, err := list()
 		if err != nil {
-			return fmt.Errorf("listing scores for match %s: %w", score.MatchID, err)
+			return zero, err
 		}
 
-		result := recompute(mapSlice(rows, toDomainScore))
+		result := recompute(after)
 		if _, err := q.UpsertMatchResult(ctx, sqlc.UpsertMatchResultParams{
 			MatchID:        score.MatchID,
 			TournamentID:   tournamentID,
@@ -58,9 +77,9 @@ func (s *ScoresDB) SaveScoreAndRecompute(
 			Lead:           int32(result.Lead),
 			HolesRemaining: int32(result.HolesRemaining),
 		}); err != nil {
-			return fmt.Errorf("upserting match result %s: %w", score.MatchID, mapWriteErr(err))
+			return zero, fmt.Errorf("upserting match result %s: %w", score.MatchID, mapWriteErr(err))
 		}
-		return nil
+		return result, nil
 	})
 }
 

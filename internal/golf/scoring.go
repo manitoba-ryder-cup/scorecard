@@ -1,6 +1,11 @@
 package golf
 
-import "github.com/google/uuid"
+import (
+	"bytes"
+	"slices"
+
+	"github.com/google/uuid"
+)
 
 // ComputeMatchProgress computes the hole-by-hole match-play state from the
 // recorded scores for a match between teamA and teamB (identified by ID; the
@@ -14,9 +19,12 @@ import "github.com/google/uuid"
 // LeaderTeamID (nil = all square), and the Lead margin. Decided marks the hole the
 // match ended on; whether it ended early is HolesRemaining > 0. Rendering it as text
 // is the frontend's concern.
+//
+// Each TeamScore also carries its per-player breakdown, so a client that recorded a
+// score per player can read back more than the side's best ball.
 func ComputeMatchProgress(scores []Score, teamAID, teamBID uuid.UUID) []HoleResult {
-	a := minStrokesByHole(scores, teamAID)
-	b := minStrokesByHole(scores, teamBID)
+	a := teamScoresByHole(scores, teamAID)
+	b := teamScoresByHole(scores, teamBID)
 
 	// Holes scored by both teams, in order.
 	var holes []int32
@@ -33,9 +41,9 @@ func ComputeMatchProgress(scores []Score, teamAID, teamBID uuid.UUID) []HoleResu
 	for i, h := range holes {
 		sa, sb := a[h], b[h]
 		switch {
-		case sb > sa:
+		case sb.Strokes > sa.Strokes:
 			signed++ // teamA wins the hole (lower score)
-		case sa > sb:
+		case sa.Strokes > sb.Strokes:
 			signed-- // teamB wins the hole
 		}
 
@@ -57,7 +65,7 @@ func ComputeMatchProgress(scores []Score, teamAID, teamBID uuid.UUID) []HoleResu
 
 		result = append(result, HoleResult{
 			HoleNumber:     h,
-			TeamScores:     []TeamHoleScore{{TeamID: teamAID, Strokes: sa}, {TeamID: teamBID, Strokes: sb}},
+			TeamScores:     []TeamHoleScore{sa, sb},
 			LeaderTeamID:   leader,
 			Lead:           lead,
 			HolesRemaining: holesRemaining,
@@ -105,17 +113,32 @@ func HoleWinner(h HoleResult) *uuid.UUID {
 	}
 }
 
-// minStrokesByHole returns the minimum strokes the given team recorded on each
-// hole (best-ball for two players; the single score for singles/one-ball).
-func minStrokesByHole(scores []Score, teamID uuid.UUID) map[int32]int32 {
-	m := make(map[int32]int32)
+// teamScoresByHole groups the given team's scores by hole: the minimum strokes recorded
+// (best-ball for two players; the single score for singles/one-ball), plus the individual
+// scores behind it so a client can recover what each player shot. Sorted by player ID
+// because the store orders by hole only.
+func teamScoresByHole(scores []Score, teamID uuid.UUID) map[int32]TeamHoleScore {
+	m := make(map[int32]TeamHoleScore)
 	for _, s := range scores {
 		if s.TeamID != teamID {
 			continue
 		}
-		if v, ok := m[s.HoleNumber]; !ok || s.Strokes < v {
-			m[s.HoleNumber] = s.Strokes
+		t, ok := m[s.HoleNumber]
+		if !ok {
+			t = TeamHoleScore{TeamID: teamID, Strokes: s.Strokes}
+		} else if s.Strokes < t.Strokes {
+			t.Strokes = s.Strokes
 		}
+		if s.PlayerID != nil {
+			t.PlayerScores = append(t.PlayerScores, PlayerHoleScore{PlayerID: *s.PlayerID, Strokes: s.Strokes})
+		}
+		m[s.HoleNumber] = t
+	}
+	for h, t := range m {
+		slices.SortFunc(t.PlayerScores, func(a, b PlayerHoleScore) int {
+			return bytes.Compare(a.PlayerID[:], b.PlayerID[:])
+		})
+		m[h] = t
 	}
 	return m
 }

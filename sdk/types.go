@@ -274,10 +274,19 @@ type ScoreSubmission struct {
 	PlayerID   *uuid.UUID `json:"player_id"`
 }
 
-// TeamHoleScore is a side's gross score on a hole, identified by team_id.
+// TeamHoleScore is a side's gross score on a hole, identified by team_id. strokes is the
+// best ball in fourball, so player_scores carries what each player actually shot, ordered
+// by player_id. Empty for a one-ball format, where the score belongs to the team.
 type TeamHoleScore struct {
-	TeamID  uuid.UUID `json:"team_id"`
-	Strokes int32     `json:"strokes"`
+	TeamID       uuid.UUID         `json:"team_id"`
+	Strokes      int32             `json:"strokes"`
+	PlayerScores []PlayerHoleScore `json:"player_scores"`
+}
+
+// PlayerHoleScore is one player's strokes on a hole.
+type PlayerHoleScore struct {
+	PlayerID uuid.UUID `json:"player_id"`
+	Strokes  int32     `json:"strokes"`
 }
 
 // HoleStatus is the match-play state after a scored hole. It refers to teams by
@@ -324,6 +333,17 @@ type MatchResult struct {
 	HoleResults    []*uuid.UUID `json:"hole_results"`
 	TeeTime        *string      `json:"tee_time"`
 	CourseName     string       `json:"course_name"`
+}
+
+// MatchStatus is a match's outcome state, returned when a score is recorded so the
+// client learns the new state from the write instead of re-deriving the close-out rule.
+// winner_team_id is the leader once finished, null otherwise.
+type MatchStatus struct {
+	Finished       bool       `json:"finished"`
+	WinnerTeamID   *uuid.UUID `json:"winner_team_id"`
+	LeaderTeamID   *uuid.UUID `json:"leader_team_id"`
+	Lead           int        `json:"lead"`
+	HolesRemaining int        `json:"holes_remaining"`
 }
 
 // WinnerResponse reports a winning team by id (null = tie/undecided), used for both

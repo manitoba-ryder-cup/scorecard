@@ -76,9 +76,29 @@ func TestComputeMatchProgress_FourballUsesBestBall(t *testing.T) {
 
 	got := ComputeMatchProgress(scores, teamA, teamB)
 
-	want := []TeamHoleScore{{TeamID: teamA, Strokes: 4}, {TeamID: teamB, Strokes: 5}}
+	want := []TeamHoleScore{
+		{TeamID: teamA, Strokes: 4, PlayerScores: []PlayerHoleScore{{PlayerID: playerA, Strokes: 5}, {PlayerID: playerA2, Strokes: 4}}},
+		{TeamID: teamB, Strokes: 5, PlayerScores: []PlayerHoleScore{{PlayerID: playerB, Strokes: 5}, {PlayerID: playerB2, Strokes: 6}}},
+	}
 	if len(got) != 1 || !reflect.DeepEqual(got[0].TeamScores, want) || got[0].Lead != 1 || *got[0].LeaderTeamID != teamA {
 		t.Errorf("want teamA 4 teamB 5, leader A lead 1, got %+v", got[0])
+	}
+}
+
+func TestComputeMatchProgress_PlayerScoresAreOrderedByPlayerID(t *testing.T) {
+	// Scores come back from the store ordered by hole only, so the per-player breakdown
+	// is sorted by player id to keep the response stable between reads.
+	scores := []Score{
+		{TeamID: teamA, PlayerID: pUUID(playerA2), HoleNumber: 1, Strokes: 4},
+		{TeamID: teamA, PlayerID: pUUID(playerA), HoleNumber: 1, Strokes: 5},
+		{TeamID: teamB, PlayerID: pUUID(playerB), HoleNumber: 1, Strokes: 6},
+	}
+
+	got := ComputeMatchProgress(scores, teamA, teamB)
+
+	want := []PlayerHoleScore{{PlayerID: playerA, Strokes: 5}, {PlayerID: playerA2, Strokes: 4}}
+	if len(got) != 1 || !reflect.DeepEqual(got[0].TeamScores[0].PlayerScores, want) {
+		t.Errorf("want player scores in id order %+v, got %+v", want, got[0].TeamScores[0].PlayerScores)
 	}
 }
 
@@ -93,6 +113,30 @@ func TestComputeMatchProgress_OneBallTeamScore(t *testing.T) {
 
 	if len(got) != 1 || got[0].Lead != 1 || *got[0].LeaderTeamID != teamA {
 		t.Errorf("want lead 1 leader A, got %+v", got[0])
+	}
+	// No player recorded the score, so there is no breakdown to report — the team score
+	// is the whole truth for a one-ball format.
+	if got[0].TeamScores[0].PlayerScores != nil {
+		t.Errorf("want no player breakdown for a one-ball format, got %+v", got[0].TeamScores[0].PlayerScores)
+	}
+}
+
+func TestComputeMatchProgress_SinglesPlayerScoreMatchesTeamScore(t *testing.T) {
+	// One player per side: the breakdown names the player behind the team's score, which
+	// is what lets a client re-open a scored hole with the right value per player.
+	scores := []Score{
+		{TeamID: teamA, PlayerID: pUUID(playerA), HoleNumber: 1, Strokes: 4},
+		{TeamID: teamB, PlayerID: pUUID(playerB), HoleNumber: 1, Strokes: 5},
+	}
+
+	got := ComputeMatchProgress(scores, teamA, teamB)
+
+	want := []TeamHoleScore{
+		{TeamID: teamA, Strokes: 4, PlayerScores: []PlayerHoleScore{{PlayerID: playerA, Strokes: 4}}},
+		{TeamID: teamB, Strokes: 5, PlayerScores: []PlayerHoleScore{{PlayerID: playerB, Strokes: 5}}},
+	}
+	if len(got) != 1 || !reflect.DeepEqual(got[0].TeamScores, want) {
+		t.Errorf("got %+v, want %+v", got[0].TeamScores, want)
 	}
 }
 

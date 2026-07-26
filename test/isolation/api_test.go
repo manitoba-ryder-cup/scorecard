@@ -189,7 +189,7 @@ func TestTenantIsolation_MatchesAndScores(t *testing.T) {
 	})
 
 	t.Run("tenant B cannot submit a score to tenant A match", func(t *testing.T) {
-		err := tenantB.SubmitScore(ctx, fixA.MatchID, sdk.ScoreSubmission{
+		_, err := tenantB.SubmitScore(ctx, fixA.MatchID, sdk.ScoreSubmission{
 			HoleNumber: 1, Strokes: 4, TeamID: fixA.TeamRed, PlayerID: &fixA.RedPlayer,
 		})
 		requireRejected(t, err, "submit score")

@@ -71,12 +71,12 @@ func TestScoreEntryClosesTheMaterializationLoop(t *testing.T) {
 	for h := int32(1); h <= 10; h++ {
 		red := fix.RedPlayer
 		blue := fix.BluePlayer
-		if err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
+		if _, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
 			HoleNumber: h, Strokes: 4, TeamID: fix.TeamRed, PlayerID: &red,
 		}); err != nil {
 			t.Fatalf("submit red hole %d: %v", h, err)
 		}
-		if err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
+		if _, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
 			HoleNumber: h, Strokes: 5, TeamID: fix.TeamBlue, PlayerID: &blue,
 		}); err != nil {
 			t.Fatalf("submit blue hole %d: %v", h, err)
@@ -125,6 +125,83 @@ func TestScoreEntryClosesTheMaterializationLoop(t *testing.T) {
 	}
 }
 
+// TestSubmitScoreReturnsTheRecomputedStatus checks the write's own response tracks the
+// match, so a client never has to re-derive the close-out rule to know it just ended.
+func TestSubmitScoreReturnsTheRecomputedStatus(t *testing.T) {
+	t.Parallel()
+	client, fix := authedClient(t)
+	ctx := context.Background()
+	red, blue := fix.RedPlayer, fix.BluePlayer
+
+	var status sdk.MatchStatus
+	for h := int32(1); h <= 10; h++ {
+		if _, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
+			HoleNumber: h, Strokes: 4, TeamID: fix.TeamRed, PlayerID: &red,
+		}); err != nil {
+			t.Fatalf("submit red hole %d: %v", h, err)
+		}
+		var err error
+		if status, err = client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
+			HoleNumber: h, Strokes: 5, TeamID: fix.TeamBlue, PlayerID: &blue,
+		}); err != nil {
+			t.Fatalf("submit blue hole %d: %v", h, err)
+		}
+		// Only the hole that closes it out reports finished.
+		if want := h == 10; status.Finished != want {
+			t.Fatalf("hole %d: want finished=%v, got %+v", h, want, status)
+		}
+	}
+
+	if status.WinnerTeamID == nil || *status.WinnerTeamID != fix.TeamRed {
+		t.Errorf("want Red as winner, got %+v", status)
+	}
+	if status.Lead != 10 || status.HolesRemaining != 8 {
+		t.Errorf("want 10 & 8, got %+v", status)
+	}
+}
+
+// TestSubmitScoreRejectsHolesAfterTheCloseOut locks a finished match against new holes —
+// the stale-client case where "next hole" keeps walking past the end of the match.
+func TestSubmitScoreRejectsHolesAfterTheCloseOut(t *testing.T) {
+	t.Parallel()
+	client, fix := authedClient(t)
+	ctx := context.Background()
+	red, blue := fix.RedPlayer, fix.BluePlayer
+
+	// Red wins holes 1-10 outright: 10 up with 8 to play closes the match out.
+	for h := int32(1); h <= 10; h++ {
+		if _, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
+			HoleNumber: h, Strokes: 4, TeamID: fix.TeamRed, PlayerID: &red,
+		}); err != nil {
+			t.Fatalf("submit red hole %d: %v", h, err)
+		}
+		if _, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
+			HoleNumber: h, Strokes: 5, TeamID: fix.TeamBlue, PlayerID: &blue,
+		}); err != nil {
+			t.Fatalf("submit blue hole %d: %v", h, err)
+		}
+	}
+
+	_, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
+		HoleNumber: 11, Strokes: 4, TeamID: fix.TeamRed, PlayerID: &red,
+	})
+	var apiErr *sdk.APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
+		t.Fatalf("want 409 for a hole after the close-out, got %v", err)
+	}
+
+	// A hole that was played stays correctable: a typo can be what ended the match early.
+	status, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
+		HoleNumber: 5, Strokes: 9, TeamID: fix.TeamRed, PlayerID: &red,
+	})
+	if err != nil {
+		t.Fatalf("want the correction accepted, got %v", err)
+	}
+	if status.Finished || status.Lead != 8 {
+		t.Errorf("want the correction to reopen the match at 8 up, got %+v", status)
+	}
+}
+
 // TestSubmitScoreUpsertsHole confirms the ON CONFLICT update path: re-submitting the
 // same hole overwrites the prior strokes rather than inserting a duplicate.
 func TestSubmitScoreUpsertsHole(t *testing.T) {
@@ -136,14 +213,14 @@ func TestSubmitScoreUpsertsHole(t *testing.T) {
 
 	// A match-play hole only surfaces in the progression once both sides have scored
 	// it, so give Blue a score on hole 1; the test then upserts Red's score.
-	if err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
+	if _, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
 		HoleNumber: 1, Strokes: 5, TeamID: fix.TeamBlue, PlayerID: &blue,
 	}); err != nil {
 		t.Fatalf("submit blue: %v", err)
 	}
 
 	submit := func(strokes int32) {
-		if err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
+		if _, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
 			HoleNumber: 1, Strokes: strokes, TeamID: fix.TeamRed, PlayerID: &red,
 		}); err != nil {
 			t.Fatalf("submit strokes %d: %v", strokes, err)
@@ -198,7 +275,7 @@ func TestSubmitScoreToNonexistentMatchReturns404(t *testing.T) {
 	t.Parallel()
 	client := freshClient(t)
 
-	err := client.SubmitScore(context.Background(), uuid.New(), sdk.ScoreSubmission{
+	_, err := client.SubmitScore(context.Background(), uuid.New(), sdk.ScoreSubmission{
 		HoleNumber: 1, Strokes: 4, TeamID: uuid.New(),
 	})
 	var apiErr *sdk.APIError

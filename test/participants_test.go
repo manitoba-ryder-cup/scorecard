@@ -69,10 +69,10 @@ func TestFullTournamentFlowToScoring(t *testing.T) {
 	}
 
 	// Score hole 1: Red 4, Blue 5. Red leads — the whole chain works end to end.
-	if err := client.SubmitScore(ctx, match.ID, sdk.ScoreSubmission{HoleNumber: 1, Strokes: 4, TeamID: redTeam, PlayerID: &redPlayer}); err != nil {
+	if _, err := client.SubmitScore(ctx, match.ID, sdk.ScoreSubmission{HoleNumber: 1, Strokes: 4, TeamID: redTeam, PlayerID: &redPlayer}); err != nil {
 		t.Fatalf("submit red score: %v", err)
 	}
-	if err := client.SubmitScore(ctx, match.ID, sdk.ScoreSubmission{HoleNumber: 1, Strokes: 5, TeamID: blueTeam, PlayerID: &bluePlayer}); err != nil {
+	if _, err := client.SubmitScore(ctx, match.ID, sdk.ScoreSubmission{HoleNumber: 1, Strokes: 5, TeamID: blueTeam, PlayerID: &bluePlayer}); err != nil {
 		t.Fatalf("submit blue score: %v", err)
 	}
 	holes, err := client.GetMatchScores(ctx, match.ID)

@@ -63,14 +63,42 @@ func (f *fakeScoreDB) ListScoresByTournament(ctx context.Context, tournamentID u
 	return f.scores, nil
 }
 
-// SaveScoreAndRecompute mirrors the repository: the write is visible to the recompute,
-// because both happen in one transaction.
-func (f *fakeScoreDB) SaveScoreAndRecompute(ctx context.Context, s Score, tournamentID uuid.UUID, recompute func([]Score) StoredResult) error {
+// SaveScoreAndRecompute mirrors the repository: the guard sees the scores as they were
+// before the write, and the recompute sees them after, because it is all one transaction.
+func (f *fakeScoreDB) SaveScoreAndRecompute(
+	ctx context.Context,
+	s Score,
+	tournamentID uuid.UUID,
+	guard func([]Score) error,
+	recompute func([]Score) StoredResult,
+) (StoredResult, error) {
+	if err := guard(f.scores); err != nil {
+		return StoredResult{}, err
+	}
 	f.saved = append(f.saved, s)
-	f.scores = append(f.scores, s)
+	f.scores = upsert(f.scores, s)
 	f.recomputedFor = append(f.recomputedFor, s.MatchID)
-	f.recomputed = append(f.recomputed, recompute(f.scores))
-	return nil
+	result := recompute(f.scores)
+	f.recomputed = append(f.recomputed, result)
+	return result, nil
+}
+
+// upsert replaces the row for the same hole/team/player, matching the repo's ON CONFLICT
+// write — appending instead would leave a stale score for best-ball to pick up.
+func upsert(scores []Score, s Score) []Score {
+	samePlayer := func(a, b *uuid.UUID) bool {
+		if a == nil || b == nil {
+			return a == b
+		}
+		return *a == *b
+	}
+	for i, existing := range scores {
+		if existing.HoleNumber == s.HoleNumber && existing.TeamID == s.TeamID && samePlayer(existing.PlayerID, s.PlayerID) {
+			scores[i] = s
+			return scores
+		}
+	}
+	return append(scores, s)
 }
 
 type fakeResultDB struct{}
@@ -108,7 +136,7 @@ func TestSubmitScore_WritesScoreWithMatchCourseAndRecomputes(t *testing.T) {
 	rdb := &fakeResultDB{}
 	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: rdb}
 
-	err := svc.SubmitScore(context.Background(), matchID, ScoreEntry{
+	_, err := svc.SubmitScore(context.Background(), matchID, ScoreEntry{
 		HoleNumber: 1, Strokes: 4, TeamID: teamA, PlayerID: pUUID(playerA),
 	})
 	if err != nil {
@@ -138,7 +166,7 @@ func TestSubmitScore_RejectsTeamNotInMatch(t *testing.T) {
 	rdb := &fakeResultDB{}
 	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: rdb}
 
-	err := svc.SubmitScore(context.Background(), matchID, ScoreEntry{
+	_, err := svc.SubmitScore(context.Background(), matchID, ScoreEntry{
 		HoleNumber: 1, Strokes: 4, TeamID: uuid.New(),
 	})
 	if !errors.Is(err, ErrInvalidInput) {
@@ -146,6 +174,78 @@ func TestSubmitScore_RejectsTeamNotInMatch(t *testing.T) {
 	}
 	if len(sdb.saved) != 0 || len(sdb.recomputedFor) != 0 {
 		t.Error("must not write or recompute on validation failure")
+	}
+}
+
+// decidedMatch is a match teamA has already won 10 & 8: holes 1-10 scored, teamA taking
+// every one, so the lead can no longer be caught.
+func decidedMatch() []Score {
+	var scores []Score
+	for h := int32(1); h <= 10; h++ {
+		scores = append(scores,
+			Score{MatchID: matchID, TeamID: teamA, PlayerID: pUUID(playerA), HoleNumber: h, Strokes: 4},
+			Score{MatchID: matchID, TeamID: teamB, PlayerID: pUUID(playerB), HoleNumber: h, Strokes: 5},
+		)
+	}
+	return scores
+}
+
+func TestSubmitScore_ReturnsTheRecomputedStatus(t *testing.T) {
+	// The caller gets the new state back, so a client never has to re-derive the
+	// close-out rule to know the score it just entered ended the match.
+	m, p := twoTeamMatch()
+	sdb := &fakeScoreDB{scores: decidedMatch()[:18]} // holes 1-9, teamA 9 up with 9 to play
+	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{}}
+
+	got, err := svc.SubmitScore(context.Background(), matchID, ScoreEntry{
+		HoleNumber: 10, Strokes: 4, TeamID: teamA, PlayerID: pUUID(playerA),
+	})
+	if err != nil {
+		t.Fatalf("SubmitScore: %v", err)
+	}
+
+	// teamB has not scored hole 10, so it isn't counted yet: still 9 up with 9 to play.
+	if got.Finished || got.Lead != 9 || got.LeaderTeamID == nil || *got.LeaderTeamID != teamA {
+		t.Errorf("want unfinished, teamA 9 up, got %+v", got)
+	}
+}
+
+func TestSubmitScore_RejectsANewHoleOnAFinishedMatch(t *testing.T) {
+	m, p := twoTeamMatch()
+	sdb := &fakeScoreDB{scores: decidedMatch()}
+	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{}}
+
+	_, err := svc.SubmitScore(context.Background(), matchID, ScoreEntry{
+		HoleNumber: 11, Strokes: 4, TeamID: teamA, PlayerID: pUUID(playerA),
+	})
+
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("want ErrConflict for a hole played after the close-out, got %v", err)
+	}
+	if len(sdb.saved) != 0 {
+		t.Error("must not write past the hole the match was decided on")
+	}
+}
+
+func TestSubmitScore_AllowsCorrectingAScoredHoleOnAFinishedMatch(t *testing.T) {
+	// A typo can be what closed the match out early, so the holes that were played stay
+	// correctable — otherwise the bad score is the reason it can't be fixed.
+	m, p := twoTeamMatch()
+	sdb := &fakeScoreDB{scores: decidedMatch()}
+	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{}}
+
+	got, err := svc.SubmitScore(context.Background(), matchID, ScoreEntry{
+		HoleNumber: 5, Strokes: 9, TeamID: teamA, PlayerID: pUUID(playerA),
+	})
+	if err != nil {
+		t.Fatalf("want the correction accepted, got %v", err)
+	}
+	if len(sdb.saved) != 1 {
+		t.Fatalf("want the correction written, got %d writes", len(sdb.saved))
+	}
+	// teamA now loses hole 5, so the lead drops and the match is no longer closed out.
+	if got.Finished || got.Lead != 8 {
+		t.Errorf("want the result recomputed to an open match 8 up, got %+v", got)
 	}
 }
 

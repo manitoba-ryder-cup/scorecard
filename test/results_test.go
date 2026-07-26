@@ -19,12 +19,12 @@ func closeOutRedWin(t *testing.T, client *sdk.Client, fix *util.Fixture) {
 	ctx := context.Background()
 	red, blue := fix.RedPlayer, fix.BluePlayer
 	for h := int32(1); h <= 10; h++ {
-		if err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
+		if _, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
 			HoleNumber: h, Strokes: 4, TeamID: fix.TeamRed, PlayerID: &red,
 		}); err != nil {
 			t.Fatalf("submit red hole %d: %v", h, err)
 		}
-		if err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
+		if _, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
 			HoleNumber: h, Strokes: 5, TeamID: fix.TeamBlue, PlayerID: &blue,
 		}); err != nil {
 			t.Fatalf("submit blue hole %d: %v", h, err)

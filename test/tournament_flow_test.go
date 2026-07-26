@@ -225,7 +225,7 @@ func playMatch(t *testing.T, client *sdk.Client, matchID, redTeam, blueTeam uuid
 	ctx := context.Background()
 	post := func(hole int32, team, player uuid.UUID, strokes int32) {
 		p := player
-		if err := client.SubmitScore(ctx, matchID, sdk.ScoreSubmission{
+		if _, err := client.SubmitScore(ctx, matchID, sdk.ScoreSubmission{
 			HoleNumber: hole, Strokes: strokes, TeamID: team, PlayerID: &p,
 		}); err != nil {
 			t.Fatalf("submit score (match %s hole %d): %v", matchID, hole, err)

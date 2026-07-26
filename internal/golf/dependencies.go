@@ -37,9 +37,17 @@ type scoreDB interface {
 	ListScoresByMatch(ctx context.Context, matchID uuid.UUID) ([]Score, error)
 	ListScoresByTournament(ctx context.Context, tournamentID uuid.UUID) ([]Score, error)
 	// SaveScoreAndRecompute upserts one hole score (per-player when PlayerID is set,
-	// else one team row) and rewrites the match's stored result, atomically. The repo
-	// serializes concurrent submissions on a match so neither lands a stale result.
-	SaveScoreAndRecompute(ctx context.Context, s Score, tournamentID uuid.UUID, recompute func([]Score) StoredResult) error
+	// else one team row) and rewrites the match's stored result, atomically, returning
+	// that result. The repo serializes concurrent submissions on a match so neither
+	// lands a stale result. guard sees the match's scores before the write and can
+	// refuse it; recompute sees them after.
+	SaveScoreAndRecompute(
+		ctx context.Context,
+		s Score,
+		tournamentID uuid.UUID,
+		guard func(before []Score) error,
+		recompute func(after []Score) StoredResult,
+	) (StoredResult, error)
 }
 
 // holeDB reads a tee set's holes (course setup).

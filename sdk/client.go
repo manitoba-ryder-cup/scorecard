@@ -226,9 +226,11 @@ func (c *Client) RemoveParticipant(ctx context.Context, matchID, playerID uuid.U
 	return c.do(ctx, http.MethodDelete, route, nil, nil)
 }
 
-// SubmitScore records one hole score. A 204 (no body) is success.
-func (c *Client) SubmitScore(ctx context.Context, matchID uuid.UUID, req ScoreSubmission) error {
-	return c.do(ctx, http.MethodPost, pathID(RouteV1MatchScores, matchID), req, nil)
+// SubmitScore records one hole score and returns the match's recomputed state, so a
+// caller knows whether that score closed the match out.
+func (c *Client) SubmitScore(ctx context.Context, matchID uuid.UUID, req ScoreSubmission) (MatchStatus, error) {
+	var out MatchStatus
+	return out, c.do(ctx, http.MethodPost, pathID(RouteV1MatchScores, matchID), req, &out)
 }
 
 func (c *Client) GetMatchScores(ctx context.Context, matchID uuid.UUID) ([]HoleStatus, error) {

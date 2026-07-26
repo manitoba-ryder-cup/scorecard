@@ -91,7 +91,11 @@ func toTournamentTeamDTO(td golf.TeamData) sdk.TournamentTeam {
 func toHoleStatusDTO(h golf.HoleResult) sdk.HoleStatus {
 	scores := make([]sdk.TeamHoleScore, len(h.TeamScores))
 	for i, ts := range h.TeamScores {
-		scores[i] = sdk.TeamHoleScore{TeamID: ts.TeamID, Strokes: ts.Strokes}
+		scores[i] = sdk.TeamHoleScore{
+			TeamID:       ts.TeamID,
+			Strokes:      ts.Strokes,
+			PlayerScores: mapSlice(ts.PlayerScores, toPlayerHoleScoreDTO),
+		}
 	}
 	return sdk.HoleStatus{
 		HoleNumber:     h.HoleNumber,
@@ -101,6 +105,25 @@ func toHoleStatusDTO(h golf.HoleResult) sdk.HoleStatus {
 		HolesRemaining: h.HolesRemaining,
 		Decided:        h.Decided,
 	}
+}
+
+// toMatchStatusDTO surfaces the winner explicitly rather than leaving every client to
+// re-encode "the leader is the winner once it's finished".
+func toMatchStatusDTO(r golf.StoredResult) sdk.MatchStatus {
+	status := sdk.MatchStatus{
+		Finished:       r.Finished,
+		LeaderTeamID:   r.LeaderTeamID,
+		Lead:           r.Lead,
+		HolesRemaining: r.HolesRemaining,
+	}
+	if r.Finished {
+		status.WinnerTeamID = r.LeaderTeamID
+	}
+	return status
+}
+
+func toPlayerHoleScoreDTO(p golf.PlayerHoleScore) sdk.PlayerHoleScore {
+	return sdk.PlayerHoleScore{PlayerID: p.PlayerID, Strokes: p.Strokes}
 }
 
 func toHoleDTO(h golf.Hole) sdk.Hole {

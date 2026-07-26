@@ -215,10 +215,20 @@ type MatchResult struct {
 	HoleResults    []*uuid.UUID
 }
 
-// TeamHoleScore is one side's gross score on a hole, tagged by team ID.
+// TeamHoleScore is one side's gross score on a hole, tagged by team ID. Strokes alone
+// can't be unwound — it's the best ball in fourball — so PlayerScores keeps the
+// individual scores behind it, ordered by player ID. Nil for a one-ball format, where
+// the score is recorded against the team.
 type TeamHoleScore struct {
-	TeamID  uuid.UUID
-	Strokes int32
+	TeamID       uuid.UUID
+	Strokes      int32
+	PlayerScores []PlayerHoleScore
+}
+
+// PlayerHoleScore is one player's strokes on a hole.
+type PlayerHoleScore struct {
+	PlayerID uuid.UUID
+	Strokes  int32
 }
 
 // PlayerRecord is a player's win/loss/tie tally across finished matches, derived
