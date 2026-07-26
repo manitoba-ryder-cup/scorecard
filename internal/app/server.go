@@ -25,10 +25,22 @@ type Config struct {
 	PublicTenantID string
 }
 
-// Server wraps the HTTP server and its dependencies
+// drainer is satisfied by *rest.Server.
+type drainer interface {
+	ListenAndServe() error
+	Shutdown(ctx context.Context) error
+}
+
+// closer is satisfied by *postgres.DB.
+type closer interface {
+	Close()
+}
+
+// Server wraps the HTTP server and its dependencies. Held as interfaces so the
+// shutdown ordering is testable without real infrastructure.
 type Server struct {
-	httpServer *rest.Server
-	db         *postgres.DB
+	httpServer drainer
+	db         closer
 }
 
 // NewServer creates a new server instance with all dependencies
@@ -96,11 +108,10 @@ func (s *Server) Start() error {
 	return s.httpServer.ListenAndServe()
 }
 
-// Shutdown gracefully shuts down the server
+// Shutdown drains in-flight requests before releasing the pool. The order matters:
+// Shutdown blocks until active handlers return, and those handlers are still querying.
+// The deferred Close runs even if draining fails, so a timeout can't leak connections.
 func (s *Server) Shutdown(ctx context.Context) error {
-	// Close database connection
-	s.db.Close()
-
-	// Shutdown HTTP server
+	defer s.db.Close()
 	return s.httpServer.Shutdown(ctx)
 }

@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -58,10 +60,16 @@ var startCmd = &cli.Command{
 			return server.Shutdown(shutdownCtx)
 		})
 
-		if err := group.Wait(); err != nil && err != context.Canceled {
-			return err
-		}
-
-		return nil
+		return shutdownErr(group.Wait())
 	},
+}
+
+// shutdownErr reports whether a finished run actually failed. ErrServerClosed and
+// Canceled are the expected outcome of a SIGTERM, so returning them would exit non-zero
+// on every ordinary redeploy or scale-down.
+func shutdownErr(err error) error {
+	if errors.Is(err, http.ErrServerClosed) || errors.Is(err, context.Canceled) {
+		return nil
+	}
+	return err
 }
