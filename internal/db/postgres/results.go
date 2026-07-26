@@ -20,24 +20,6 @@ func NewResultsDB(db *DB) *ResultsDB {
 	return &ResultsDB{db: db}
 }
 
-func (r *ResultsDB) UpsertMatchResult(ctx context.Context, matchID, tournamentID uuid.UUID, res golf.StoredResult) error {
-	return withTenantExec(ctx, r.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
-		_, err := q.UpsertMatchResult(ctx, sqlc.UpsertMatchResultParams{
-			MatchID:        matchID,
-			TournamentID:   tournamentID,
-			TenantID:       tenantID,
-			Finished:       res.Finished,
-			LeaderTeamID:   res.LeaderTeamID,
-			Lead:           int32(res.Lead),
-			HolesRemaining: int32(res.HolesRemaining),
-		})
-		if err != nil {
-			return fmt.Errorf("upserting match result %s: %w", matchID, mapWriteErr(err))
-		}
-		return nil
-	})
-}
-
 func (r *ResultsDB) GetMatchResult(ctx context.Context, matchID uuid.UUID) (*golf.StoredResult, error) {
 	return withTenant(ctx, r.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.StoredResult, error) {
 		row, err := q.GetMatchResult(ctx, sqlc.GetMatchResultParams{MatchID: matchID, TenantID: tenantID})

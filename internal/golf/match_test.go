@@ -50,8 +50,10 @@ func (f *fakeParticipantDB) DeleteMatchParticipant(ctx context.Context, matchID,
 }
 
 type fakeScoreDB struct {
-	scores []Score
-	saved  []Score
+	scores        []Score
+	saved         []Score
+	recomputedFor []uuid.UUID
+	recomputed    []StoredResult
 }
 
 func (f *fakeScoreDB) ListScoresByMatch(ctx context.Context, matchID uuid.UUID) ([]Score, error) {
@@ -60,22 +62,19 @@ func (f *fakeScoreDB) ListScoresByMatch(ctx context.Context, matchID uuid.UUID) 
 func (f *fakeScoreDB) ListScoresByTournament(ctx context.Context, tournamentID uuid.UUID) ([]Score, error) {
 	return f.scores, nil
 }
-func (f *fakeScoreDB) SaveScore(ctx context.Context, s Score) error {
+
+// SaveScoreAndRecompute mirrors the repository: the write is visible to the recompute,
+// because both happen in one transaction.
+func (f *fakeScoreDB) SaveScoreAndRecompute(ctx context.Context, s Score, tournamentID uuid.UUID, recompute func([]Score) StoredResult) error {
 	f.saved = append(f.saved, s)
-	f.scores = append(f.scores, s) // make the write visible to the recompute read
+	f.scores = append(f.scores, s)
+	f.recomputedFor = append(f.recomputedFor, s.MatchID)
+	f.recomputed = append(f.recomputed, recompute(f.scores))
 	return nil
 }
 
-type fakeResultDB struct {
-	upserted    []StoredResult
-	upsertMatch []uuid.UUID
-}
+type fakeResultDB struct{}
 
-func (f *fakeResultDB) UpsertMatchResult(ctx context.Context, matchID, tournamentID uuid.UUID, r StoredResult) error {
-	f.upsertMatch = append(f.upsertMatch, matchID)
-	f.upserted = append(f.upserted, r)
-	return nil
-}
 func (f *fakeResultDB) GetMatchResult(ctx context.Context, matchID uuid.UUID) (*StoredResult, error) {
 	return nil, nil
 }
@@ -130,9 +129,9 @@ func TestSubmitScore_WritesScoreWithMatchCourseAndRecomputes(t *testing.T) {
 	if got.TeamID != teamA || got.PlayerID == nil || *got.PlayerID != playerA || got.HoleNumber != 1 || got.Strokes != 4 {
 		t.Errorf("score fields wrong: %+v", got)
 	}
-	// The write must trigger a materialization recompute for this match.
-	if len(rdb.upsertMatch) != 1 || rdb.upsertMatch[0] != matchID {
-		t.Errorf("want recompute for the match, got %v", rdb.upsertMatch)
+	// Recompute must happen in the same call — that is what makes the pair atomic.
+	if len(sdb.recomputedFor) != 1 || sdb.recomputedFor[0] != matchID {
+		t.Errorf("want recompute for the match, got %v", sdb.recomputedFor)
 	}
 }
 
@@ -148,7 +147,7 @@ func TestSubmitScore_RejectsTeamNotInMatch(t *testing.T) {
 	if !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("want ErrInvalidInput for team not in match, got %v", err)
 	}
-	if len(sdb.saved) != 0 || len(rdb.upsertMatch) != 0 {
+	if len(sdb.saved) != 0 || len(sdb.recomputedFor) != 0 {
 		t.Error("must not write or recompute on validation failure")
 	}
 }

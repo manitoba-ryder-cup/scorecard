@@ -15,6 +15,15 @@ INSERT INTO matches (
 SELECT * FROM matches
 WHERE id = $1 AND tenant_id = $2;
 
+-- Serializes a match's score writes. Submitting a score is a read-modify-write of
+-- match_results, so without this lock two concurrent submissions can each recompute
+-- from a snapshot taken before the other committed, and the later write wins with a
+-- partial view.
+-- name: LockMatchForScoring :one
+SELECT id FROM matches
+WHERE id = $1 AND tenant_id = $2
+FOR UPDATE;
+
 -- name: ListMatchesByTournament :many
 SELECT m.* FROM matches m
 WHERE m.tournament_id = $1 AND m.tenant_id = $2

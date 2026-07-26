@@ -36,9 +36,10 @@ type participantDB interface {
 type scoreDB interface {
 	ListScoresByMatch(ctx context.Context, matchID uuid.UUID) ([]Score, error)
 	ListScoresByTournament(ctx context.Context, tournamentID uuid.UUID) ([]Score, error)
-	// SaveScore upserts one hole score; the repo picks per-player vs team-attributable
-	// storage based on Score.PlayerID being set.
-	SaveScore(ctx context.Context, s Score) error
+	// SaveScoreAndRecompute upserts one hole score (per-player when PlayerID is set,
+	// else one team row) and rewrites the match's stored result, atomically. The repo
+	// serializes concurrent submissions on a match so neither lands a stale result.
+	SaveScoreAndRecompute(ctx context.Context, s Score, tournamentID uuid.UUID, recompute func([]Score) StoredResult) error
 }
 
 // holeDB reads a tee set's holes (course setup).
@@ -113,7 +114,6 @@ type tournamentDB interface {
 // resultDB reads/writes the materialized match_results and the aggregates derived
 // from it (team points, tournament-finished, player records).
 type resultDB interface {
-	UpsertMatchResult(ctx context.Context, matchID, tournamentID uuid.UUID, r StoredResult) error
 	GetMatchResult(ctx context.Context, matchID uuid.UUID) (*StoredResult, error)
 	ListTeamPoints(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]float64, error)
 	IsTournamentFinished(ctx context.Context, tournamentID uuid.UUID) (bool, error)

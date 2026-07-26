@@ -17,31 +17,62 @@ func NewScoresDB(db *DB) *ScoresDB {
 	return &ScoresDB{db: db}
 }
 
-// SaveScore upserts one hole score. PlayerID present -> per-player row (singles/
-// fourball); nil -> one team-attributable row (alt shot/scramble). The two paths hit
-// different partial unique indexes, so the write must pick the matching statement.
-func (s *ScoresDB) SaveScore(ctx context.Context, score golf.Score) error {
+// SaveScoreAndRecompute upserts one hole score and rewrites the match's materialized
+// result — the single write path keeping match_results in sync. The scoring rule stays
+// in the domain (recompute); the repository supplies only the transaction and lock that
+// make the pair atomic.
+func (s *ScoresDB) SaveScoreAndRecompute(
+	ctx context.Context,
+	score golf.Score,
+	tournamentID uuid.UUID,
+	recompute func([]golf.Score) golf.StoredResult,
+) error {
 	return withTenantExec(ctx, s.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
-		if score.PlayerID != nil {
-			_, err := q.UpsertPlayerScore(ctx, sqlc.UpsertPlayerScoreParams{
-				MatchID:    score.MatchID,
-				TeamID:     score.TeamID,
-				PlayerID:   score.PlayerID,
-				CourseID:   score.CourseID,
-				TeeColorID: score.TeeColorID,
-				HoleNumber: score.HoleNumber,
-				TenantID:   tenantID,
-				Strokes:    score.Strokes,
-			})
-			if err != nil {
-				// A bad player_id (not a participant) trips the composite FK -> 400, not 500.
-				return fmt.Errorf("upserting player score: %w", mapWriteErr(err))
-			}
-			return nil
+		// Before the write, so the recompute below always sees a committed, complete set.
+		if _, err := q.LockMatchForScoring(ctx, sqlc.LockMatchForScoringParams{
+			ID:       score.MatchID,
+			TenantID: tenantID,
+		}); err != nil {
+			return fmt.Errorf("locking match %s: %w", score.MatchID, mapReadErr(err))
 		}
-		_, err := q.UpsertTeamScore(ctx, sqlc.UpsertTeamScoreParams{
+
+		if err := upsertScore(ctx, q, score, tenantID); err != nil {
+			return err
+		}
+
+		rows, err := q.ListScoresByMatch(ctx, sqlc.ListScoresByMatchParams{
+			MatchID:  score.MatchID,
+			TenantID: tenantID,
+		})
+		if err != nil {
+			return fmt.Errorf("listing scores for match %s: %w", score.MatchID, err)
+		}
+
+		result := recompute(mapSlice(rows, toDomainScore))
+		if _, err := q.UpsertMatchResult(ctx, sqlc.UpsertMatchResultParams{
+			MatchID:        score.MatchID,
+			TournamentID:   tournamentID,
+			TenantID:       tenantID,
+			Finished:       result.Finished,
+			LeaderTeamID:   result.LeaderTeamID,
+			Lead:           int32(result.Lead),
+			HolesRemaining: int32(result.HolesRemaining),
+		}); err != nil {
+			return fmt.Errorf("upserting match result %s: %w", score.MatchID, mapWriteErr(err))
+		}
+		return nil
+	})
+}
+
+// upsertScore writes one hole score. PlayerID present -> per-player row (singles/
+// fourball); nil -> one team row (alt shot/scramble). The two grains hit different
+// partial unique indexes, so the write must pick the matching statement.
+func upsertScore(ctx context.Context, q *sqlc.Queries, score golf.Score, tenantID uuid.UUID) error {
+	if score.PlayerID != nil {
+		_, err := q.UpsertPlayerScore(ctx, sqlc.UpsertPlayerScoreParams{
 			MatchID:    score.MatchID,
 			TeamID:     score.TeamID,
+			PlayerID:   score.PlayerID,
 			CourseID:   score.CourseID,
 			TeeColorID: score.TeeColorID,
 			HoleNumber: score.HoleNumber,
@@ -49,10 +80,24 @@ func (s *ScoresDB) SaveScore(ctx context.Context, score golf.Score) error {
 			Strokes:    score.Strokes,
 		})
 		if err != nil {
-			return fmt.Errorf("upserting team score: %w", mapWriteErr(err))
+			// A bad player_id (not a participant) trips the composite FK -> 400, not 500.
+			return fmt.Errorf("upserting player score: %w", mapWriteErr(err))
 		}
 		return nil
+	}
+	_, err := q.UpsertTeamScore(ctx, sqlc.UpsertTeamScoreParams{
+		MatchID:    score.MatchID,
+		TeamID:     score.TeamID,
+		CourseID:   score.CourseID,
+		TeeColorID: score.TeeColorID,
+		HoleNumber: score.HoleNumber,
+		TenantID:   tenantID,
+		Strokes:    score.Strokes,
 	})
+	if err != nil {
+		return fmt.Errorf("upserting team score: %w", mapWriteErr(err))
+	}
+	return nil
 }
 
 func (s *ScoresDB) ListScoresByMatch(ctx context.Context, matchID uuid.UUID) ([]golf.Score, error) {
@@ -81,8 +126,6 @@ func (s *ScoresDB) ListScoresByTournament(ctx context.Context, tournamentID uuid
 	})
 }
 
-// ListScoresByMatch returns extra hole columns (par/hdcp/yards) the domain Score
-// drops; toDomainScoreWithHole reads only the fields the scoring engine needs.
 func toDomainScore(s sqlc.Score) golf.Score {
 	return golf.Score{
 		ID:         s.ID,

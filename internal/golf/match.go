@@ -121,11 +121,15 @@ func (s *MatchService) SubmitScore(ctx context.Context, matchID uuid.UUID, entry
 		HoleNumber: entry.HoleNumber,
 		Strokes:    entry.Strokes,
 	}
-	if err := s.ScoreDB.SaveScore(ctx, score); err != nil {
+	// Handed to the repo rather than run here: the write and the recompute must share
+	// one serialized transaction or concurrent submissions lose each other's result.
+	recompute := func(scores []Score) StoredResult {
+		return ComputeStoredResult(scores, teamA, teamB)
+	}
+	if err := s.ScoreDB.SaveScoreAndRecompute(ctx, score, match.TournamentID, recompute); err != nil {
 		return fmt.Errorf("failed to save score: %w", err)
 	}
-	// Reuse the match/teams already loaded above rather than re-fetching them.
-	return s.recompute(ctx, matchID, match.TournamentID, teamA, teamB)
+	return nil
 }
 
 // CalculateMatchScores computes the live hole-by-hole match-play progression.
@@ -250,19 +254,6 @@ func buildMatchResult(m MatchDetail, sides []MatchSide, scores []Score) MatchRes
 		result.WinnerTeamID = stored.LeaderTeamID
 	}
 	return result
-}
-
-// recompute recomputes a match's materialized result from its scores and upserts it to
-// match_results, given the already-resolved tournament and two teams. Kept separate so
-// the hot SubmitScore path can pass values it already loaded instead of re-fetching the
-// match and participants.
-func (s *MatchService) recompute(ctx context.Context, matchID, tournamentID, teamA, teamB uuid.UUID) error {
-	scores, err := s.ScoreDB.ListScoresByMatch(ctx, matchID)
-	if err != nil {
-		return fmt.Errorf("failed to list scores: %w", err)
-	}
-	result := ComputeStoredResult(scores, teamA, teamB)
-	return s.ResultDB.UpsertMatchResult(ctx, matchID, tournamentID, result)
 }
 
 // IsFinished reports whether the match is complete, from the stored result.
