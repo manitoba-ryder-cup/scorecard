@@ -49,16 +49,37 @@ func validateDate(value, field string) (time.Time, error) {
 
 // Validate checks a tee-color creation request.
 func (r CreateTeeColorRequest) Validate(ctx context.Context) error {
-	return validateRequired(r.Color, "color")
+	if err := validateRequired(r.Color, "color"); err != nil {
+		return err
+	}
+	return validateMaxLen(r.Color, "color", maxColorLen)
 }
 
 // Validate checks a course creation request.
 func (r CreateCourseRequest) Validate(ctx context.Context) error {
-	return validateRequired(r.Name, "name")
+	if err := validateRequired(r.Name, "name"); err != nil {
+		return err
+	}
+	return validateMaxLen(r.Name, "name", maxTitleLen)
 }
 
-// maxTierLen matches the tier column's VARCHAR(32).
-const maxTierLen = 32
+// Length caps mirror the schema's VARCHAR widths, so an over-long value is a client
+// error at the boundary instead of a truncation error from Postgres.
+const (
+	maxTierLen     = 32
+	maxNameLen     = 32  // players.first_name / last_name
+	maxColorLen    = 32  // tee_colors.color
+	maxTitleLen    = 255 // courses.name, tournaments.name
+	maxLocationLen = 255 // tournaments.location
+	maxEmailLen    = 255 // players.email
+)
+
+func validateMaxLen(value, field string, max int) error {
+	if len(value) > max {
+		return fmt.Errorf("%s must be at most %d characters", field, max)
+	}
+	return nil
+}
 
 // Validate checks a tournament-entry request: a player reference and a tier that fits.
 func (r EnterTournamentPlayerRequest) Validate(ctx context.Context) error {
@@ -174,10 +195,19 @@ func (r CreatePlayerRequest) Validate(ctx context.Context) error {
 	if err := validateRequired(r.FirstName, "first_name"); err != nil {
 		return err
 	}
+	if err := validateMaxLen(r.FirstName, "first_name", maxNameLen); err != nil {
+		return err
+	}
 	if err := validateRequired(r.LastName, "last_name"); err != nil {
 		return err
 	}
+	if err := validateMaxLen(r.LastName, "last_name", maxNameLen); err != nil {
+		return err
+	}
 	if r.Email != nil {
+		if err := validateMaxLen(*r.Email, "email", maxEmailLen); err != nil {
+			return err
+		}
 		if err := validateEmail(*r.Email); err != nil {
 			return err
 		}
@@ -189,6 +219,12 @@ func (r CreatePlayerRequest) Validate(ctx context.Context) error {
 // the end not before the start.
 func (r CreateTournamentRequest) Validate(ctx context.Context) error {
 	if err := validateRequired(r.Name, "name"); err != nil {
+		return err
+	}
+	if err := validateMaxLen(r.Name, "name", maxTitleLen); err != nil {
+		return err
+	}
+	if err := validateMaxLen(r.Location, "location", maxLocationLen); err != nil {
 		return err
 	}
 	start, err := validateDate(r.StartDate, "start_date")

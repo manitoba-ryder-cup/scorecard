@@ -2,6 +2,7 @@ package sdk
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -138,6 +139,32 @@ func TestScoreSubmission_Validate(t *testing.T) {
 			err := tc.req.Validate(ctx)
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("Validate() err = %v, wantErr = %v", err, tc.wantErr)
+			}
+		})
+	}
+}
+
+// Length caps mirror the schema's VARCHARs so an over-long value fails as a client
+// error at the boundary, instead of reaching Postgres and tripping a truncation error.
+func TestValidateRejectsOverlongFields(t *testing.T) {
+	long := strings.Repeat("a", 300)
+
+	tests := []struct {
+		name string
+		req  interface{ Validate(context.Context) error }
+	}{
+		{"player first name", CreatePlayerRequest{FirstName: long, LastName: "Smith"}},
+		{"player last name", CreatePlayerRequest{FirstName: "Bob", LastName: long}},
+		{"tee color", CreateTeeColorRequest{Color: long}},
+		{"course name", CreateCourseRequest{Name: long}},
+		{"tournament name", CreateTournamentRequest{Name: long, StartDate: "2026-08-01", EndDate: "2026-08-03"}},
+		{"tournament location", CreateTournamentRequest{Name: "Cup", StartDate: "2026-08-01", EndDate: "2026-08-03", Location: long}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := tc.req.Validate(context.Background()); err == nil {
+				t.Error("want a validation error for an over-long value, got nil")
 			}
 		})
 	}

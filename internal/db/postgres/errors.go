@@ -13,6 +13,7 @@ import (
 const (
 	pgUniqueViolation     = "23505" // duplicate key
 	pgForeignKeyViolation = "23503" // referenced row does not exist
+	pgStringTooLong       = "22001" // value longer than its column
 )
 
 // mapReadErr translates a single-row read error into a domain sentinel: the driver's
@@ -46,6 +47,9 @@ func mapWriteErr(err error) error {
 			// A body field references a row that doesn't exist (e.g. an unknown
 			// tee_color_id or player_id) — a client error, not a server fault.
 			return fmt.Errorf("%w: %s", golf.ErrInvalidInput, pgErr.ConstraintName)
+		case pgStringTooLong:
+			// Backstop for a length the SDK's Validate did not cap.
+			return fmt.Errorf("%w: value too long for %s", golf.ErrInvalidInput, pgErr.ColumnName)
 		}
 	}
 	return err
