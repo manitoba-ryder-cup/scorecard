@@ -151,3 +151,38 @@ func TestComputeMatchProgress_DormieThenClosesOut(t *testing.T) {
 		t.Errorf("hole 17: want decided A 3 up, 1 to play, got %+v", last)
 	}
 }
+
+func TestComputeMatchProgress_EighteenHolesIsDecided(t *testing.T) {
+	// Halve holes 1-17, then A wins 18. The lead never exceeds the holes remaining, so
+	// nothing closes out early — but the match is over once the 18th is played.
+	var scores []Score
+	for h := int32(1); h <= 17; h++ {
+		scores = append(scores, Score{TeamID: teamA, HoleNumber: h, Strokes: 4})
+		scores = append(scores, Score{TeamID: teamB, HoleNumber: h, Strokes: 4})
+	}
+	scores = append(scores, Score{TeamID: teamA, HoleNumber: 18, Strokes: 4})
+	scores = append(scores, Score{TeamID: teamB, HoleNumber: 18, Strokes: 5})
+
+	got := ComputeMatchProgress(scores, teamA, teamB)
+
+	last := got[len(got)-1]
+	if !last.Decided {
+		t.Errorf("hole 18: want decided (every hole played), got %+v", last)
+	}
+}
+
+func TestComputeMatchProgress_HalvedAfterEighteenIsDecided(t *testing.T) {
+	// All square after 18: the match is halved, which is still over.
+	var scores []Score
+	for h := int32(1); h <= 18; h++ {
+		scores = append(scores, Score{TeamID: teamA, HoleNumber: h, Strokes: 4})
+		scores = append(scores, Score{TeamID: teamB, HoleNumber: h, Strokes: 4})
+	}
+
+	got := ComputeMatchProgress(scores, teamA, teamB)
+
+	last := got[len(got)-1]
+	if !last.Decided || last.LeaderTeamID != nil || last.Lead != 0 {
+		t.Errorf("hole 18: want decided and all square, got %+v", last)
+	}
+}

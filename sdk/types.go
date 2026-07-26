@@ -281,7 +281,8 @@ type TeamHoleScore struct {
 }
 
 // HoleStatus is the match-play state after a scored hole. It refers to teams by
-// id (colour is a team attribute); leader_team_id is null when all square. Text
+// id (colour is a team attribute); leader_team_id is null when all square. decided
+// marks the hole the match ended on; it ended early when holes_remaining > 0. Text
 // like "2 UP" / "3 & 2" is rendered by the client from this state.
 type HoleStatus struct {
 	HoleNumber     int32           `json:"hole_number"`

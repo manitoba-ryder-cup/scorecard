@@ -11,8 +11,9 @@ import "github.com/google/uuid"
 // at the hole where the match is decided.
 //
 // The result is pure, color-free state: per-hole TeamScores tagged by ID, the
-// LeaderTeamID (nil = all square), and the Lead margin. Rendering it as text is
-// the frontend's concern.
+// LeaderTeamID (nil = all square), and the Lead margin. Decided marks the hole the
+// match ended on; whether it ended early is HolesRemaining > 0. Rendering it as text
+// is the frontend's concern.
 func ComputeMatchProgress(scores []Score, teamAID, teamBID uuid.UUID) []HoleResult {
 	a := minStrokesByHole(scores, teamAID)
 	b := minStrokesByHole(scores, teamBID)
@@ -41,7 +42,9 @@ func ComputeMatchProgress(scores []Score, teamAID, teamBID uuid.UUID) []HoleResu
 		n := i + 1 // scored holes counted so far
 		holesRemaining := 18 - n
 		lead := abs(signed)
-		decided := lead > holesRemaining && n != 18
+		// Over either because the lead can no longer be caught, or because there is no
+		// hole left to play — an all-square 18th is a halved match, which is still over.
+		decided := lead > holesRemaining || n == 18
 
 		var leader *uuid.UUID
 		if signed > 0 {
@@ -69,9 +72,7 @@ func ComputeMatchProgress(scores []Score, teamAID, teamBID uuid.UUID) []HoleResu
 }
 
 // ComputeStoredResult derives a match's materialized state from the hole-by-hole
-// progress. A match is finished when it is closed out (last hole Decided) or all 18
-// holes have been scored by both teams; the leader/lead/holes-remaining come from the
-// final scored hole.
+// progress. The leader/lead/holes-remaining come from the final scored hole.
 func ComputeStoredResult(scores []Score, teamAID, teamBID uuid.UUID) StoredResult {
 	progress := ComputeMatchProgress(scores, teamAID, teamBID)
 	if len(progress) == 0 {
@@ -80,7 +81,7 @@ func ComputeStoredResult(scores []Score, teamAID, teamBID uuid.UUID) StoredResul
 
 	last := progress[len(progress)-1]
 	return StoredResult{
-		Finished:       last.Decided || len(progress) == 18,
+		Finished:       last.Decided,
 		LeaderTeamID:   last.LeaderTeamID,
 		Lead:           last.Lead,
 		HolesRemaining: last.HolesRemaining,
