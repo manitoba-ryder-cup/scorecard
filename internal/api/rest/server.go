@@ -140,6 +140,10 @@ func NewServer(config *Config) *Server {
 			Addr:              config.Address,
 			Handler:           handler,
 			ReadHeaderTimeout: 5 * time.Second,
+			// Bound how long one connection can occupy the server: without these a slow
+			// reader or an idle keep-alive holds its slot indefinitely.
+			WriteTimeout: 30 * time.Second,
+			IdleTimeout:  120 * time.Second,
 		},
 	}
 }
