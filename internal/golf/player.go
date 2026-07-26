@@ -40,7 +40,7 @@ func (s *PlayerService) GetPlayer(ctx context.Context, playerID uuid.UUID) (*Pla
 	if err != nil {
 		return nil, fmt.Errorf("failed to get player: %w", err)
 	}
-	cups, err := s.cupsWon(ctx)
+	cups, err := cupsWon(ctx, s.ResultDB)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (s *PlayerService) ListPlayers(ctx context.Context) ([]Player, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to list players: %w", err)
 	}
-	cups, err := s.cupsWon(ctx)
+	cups, err := cupsWon(ctx, s.ResultDB)
 	if err != nil {
 		return nil, err
 	}
@@ -66,9 +66,10 @@ func (s *PlayerService) ListPlayers(ctx context.Context) ([]Player, error) {
 }
 
 // cupsWon counts every player's Cup wins. Which side won a Cup is a scoring rule, so it
-// is settled here from the raw standings rather than in SQL.
-func (s *PlayerService) cupsWon(ctx context.Context) (map[uuid.UUID]int, error) {
-	data, err := s.ResultDB.ListCupData(ctx)
+// is settled from the raw standings here rather than in SQL. Shared by the player and
+// roster services, which both report Cups.
+func cupsWon(ctx context.Context, db resultDB) (map[uuid.UUID]int, error) {
+	data, err := db.ListCupData(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list cup data: %w", err)
 	}

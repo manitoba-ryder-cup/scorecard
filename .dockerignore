@@ -14,3 +14,8 @@ sqlc.yaml
 # Docs
 LICENSE
 README.md
+
+# Test suite and its generated JWT keys — not needed to build the binary, and the
+# keys would otherwise land in the builder layer (and the CI layer cache).
+test/
+coverage.*
