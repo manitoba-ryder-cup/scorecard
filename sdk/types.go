@@ -264,14 +264,21 @@ type AddParticipantRequest struct {
 	TeamID   uuid.UUID `json:"team_id"`
 }
 
-// ScoreSubmission is the request body for POST /v1/matches/{id}/scores — one hole
-// score. course_id/tee_color_id are omitted: the server derives them from the match.
-// player_id is null for one-ball team formats (alt shot, scramble).
+// ScoreSubmission is the request body for POST /v1/matches/{id}/scores: every score for
+// one hole, recorded together. The hole is written whole or not at all, so a dropped
+// connection cannot leave one side scored and the other not. course_id/tee_color_id are
+// omitted — the server derives them from the match.
 type ScoreSubmission struct {
-	HoleNumber int32      `json:"hole_number"`
-	Strokes    int32      `json:"strokes"`
-	TeamID     uuid.UUID  `json:"team_id"`
-	PlayerID   *uuid.UUID `json:"player_id"`
+	HoleNumber int32        `json:"hole_number"`
+	Scores     []ScoreEntry `json:"scores"`
+}
+
+// ScoreEntry is one competitor's score on the hole. player_id is null for one-ball team
+// formats (alt shot, scramble), where the score belongs to the team rather than a player.
+type ScoreEntry struct {
+	TeamID   uuid.UUID  `json:"team_id"`
+	PlayerID *uuid.UUID `json:"player_id"`
+	Strokes  int32      `json:"strokes"`
 }
 
 // TeamHoleScore is a side's gross score on a hole, identified by team_id. strokes is the

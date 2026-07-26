@@ -84,22 +84,23 @@ func (s *MatchService) ListParticipants(ctx context.Context, matchID uuid.UUID) 
 	return participants, nil
 }
 
-// ScoreEntry is a client-supplied hole score. CourseID/TeeColorID are intentionally
-// absent — they're derived from the match, not trusted from the caller. PlayerID is
-// nil for one-ball team formats (alt shot, scramble). Hole/strokes range is validated
-// at the API boundary; the team-in-match invariant below needs match state.
+// ScoreEntry is one competitor's client-supplied score on a hole. CourseID/TeeColorID
+// are intentionally absent — they're derived from the match, not trusted from the caller;
+// the hole is a parameter, because scores are recorded a hole at a time. PlayerID is nil
+// for one-ball team formats (alt shot, scramble). Strokes range is validated at the API
+// boundary; the team-in-match invariant below needs match state.
 type ScoreEntry struct {
-	HoleNumber int32
-	Strokes    int32
-	TeamID     uuid.UUID
-	PlayerID   *uuid.UUID
+	TeamID   uuid.UUID
+	PlayerID *uuid.UUID
+	Strokes  int32
 }
 
-// SubmitScore persists one hole score, then recomputes the match's materialized
-// result — the single write path that keeps match_results in sync. It returns the
-// recomputed result, so a caller learns the score closed the match out without having
-// to re-derive the close-out rule.
-func (s *MatchService) SubmitScore(ctx context.Context, matchID uuid.UUID, entry ScoreEntry) (StoredResult, error) {
+// SubmitHoleScores persists every score for one hole and recomputes the match's
+// materialized result — the single write path that keeps match_results in sync. The hole
+// is written as a unit, so a caller cannot leave one side scored and the other not. It
+// returns the recomputed result, so a caller learns the hole closed the match out without
+// having to re-derive the close-out rule.
+func (s *MatchService) SubmitHoleScores(ctx context.Context, matchID uuid.UUID, hole int32, entries []ScoreEntry) (StoredResult, error) {
 	var zero StoredResult
 	match, err := s.MatchDB.GetMatch(ctx, matchID)
 	if err != nil {
@@ -111,36 +112,39 @@ func (s *MatchService) SubmitScore(ctx context.Context, matchID uuid.UUID, entry
 	if err != nil {
 		return zero, err
 	}
-	if !ok || (entry.TeamID != teamA && entry.TeamID != teamB) {
-		return zero, fmt.Errorf("%w: team %s is not in match %s", ErrInvalidInput, entry.TeamID, matchID)
+	scores := make([]Score, len(entries))
+	for i, entry := range entries {
+		if !ok || (entry.TeamID != teamA && entry.TeamID != teamB) {
+			return zero, fmt.Errorf("%w: team %s is not in match %s", ErrInvalidInput, entry.TeamID, matchID)
+		}
+		// Course/tee come from the match — the score's holes constraint keys off them.
+		scores[i] = Score{
+			MatchID:    matchID,
+			TeamID:     entry.TeamID,
+			PlayerID:   entry.PlayerID,
+			CourseID:   match.CourseID,
+			TeeColorID: match.TeeColorID,
+			HoleNumber: hole,
+			Strokes:    entry.Strokes,
+		}
 	}
 
-	// Course/tee come from the match — the score's holes constraint keys off them.
-	score := Score{
-		MatchID:    matchID,
-		TeamID:     entry.TeamID,
-		PlayerID:   entry.PlayerID,
-		CourseID:   match.CourseID,
-		TeeColorID: match.TeeColorID,
-		HoleNumber: entry.HoleNumber,
-		Strokes:    entry.Strokes,
-	}
 	// A finished match takes corrections to the holes it was played over, but nothing
 	// past them: extending a decided match is only ever a stale client walking forward.
-	// Handed to the repo rather than run here so the check, the write and the recompute
+	// Handed to the repo rather than run here so the check, the writes and the recompute
 	// share one serialized transaction — otherwise concurrent submissions race it.
 	guard := func(before []Score) error {
-		if ComputeStoredResult(before, teamA, teamB).Finished && !holeIsScored(before, entry.HoleNumber) {
-			return fmt.Errorf("%w: match %s is complete; hole %d cannot be scored", ErrConflict, matchID, entry.HoleNumber)
+		if ComputeStoredResult(before, teamA, teamB).Finished && !holeIsScored(before, hole) {
+			return fmt.Errorf("%w: match %s is complete; hole %d cannot be scored", ErrConflict, matchID, hole)
 		}
 		return nil
 	}
 	recompute := func(after []Score) StoredResult {
 		return ComputeStoredResult(after, teamA, teamB)
 	}
-	result, err := s.ScoreDB.SaveScoreAndRecompute(ctx, score, match.TournamentID, guard, recompute)
+	result, err := s.ScoreDB.SaveScoresAndRecompute(ctx, matchID, scores, match.TournamentID, guard, recompute)
 	if err != nil {
-		return zero, fmt.Errorf("failed to save score: %w", err)
+		return zero, fmt.Errorf("failed to save scores: %w", err)
 	}
 	return result, nil
 }

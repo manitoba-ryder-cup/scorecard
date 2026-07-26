@@ -223,19 +223,22 @@ func TestFullRyderCupCorrectness(t *testing.T) {
 func playMatch(t *testing.T, client *sdk.Client, matchID, redTeam, blueTeam uuid.UUID, redPs, bluePs []uuid.UUID, out outcome) {
 	t.Helper()
 	ctx := context.Background()
-	post := func(hole int32, team, player uuid.UUID, strokes int32) {
-		p := player
+	post := func(hole int32, teamA, playerA uuid.UUID, strokesA int32, teamB, playerB uuid.UUID, strokesB int32) {
+		pa, pb := playerA, playerB
 		if _, err := client.SubmitScore(ctx, matchID, sdk.ScoreSubmission{
-			HoleNumber: hole, Strokes: strokes, TeamID: team, PlayerID: &p,
+			HoleNumber: hole,
+			Scores: []sdk.ScoreEntry{
+				{TeamID: teamA, PlayerID: &pa, Strokes: strokesA},
+				{TeamID: teamB, PlayerID: &pb, Strokes: strokesB},
+			},
 		}); err != nil {
-			t.Fatalf("submit score (match %s hole %d): %v", matchID, hole, err)
+			t.Fatalf("submit scores (match %s hole %d): %v", matchID, hole, err)
 		}
 	}
 
 	if out == halved {
 		for h := int32(1); h <= 18; h++ {
-			post(h, redTeam, redPs[0], 4)
-			post(h, blueTeam, bluePs[0], 4)
+			post(h, redTeam, redPs[0], 4, blueTeam, bluePs[0], 4)
 		}
 		return
 	}
@@ -246,8 +249,7 @@ func playMatch(t *testing.T, client *sdk.Client, matchID, redTeam, blueTeam uuid
 	}
 	// Holes 1-10 are enough: after 10 holes won the lead is 10 with 8 to play (10&8).
 	for h := int32(1); h <= 10; h++ {
-		post(h, winTeam, winP, 3)
-		post(h, loseTeam, loseP, 5)
+		post(h, winTeam, winP, 3, loseTeam, loseP, 5)
 	}
 }
 

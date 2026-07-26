@@ -59,6 +59,23 @@ func authedClient(t *testing.T) (*sdk.Client, *util.Fixture) {
 	return client, fix
 }
 
+// playHole records both sides' scores for one hole, the way the app does: one request.
+func playHole(t *testing.T, client *sdk.Client, fix *util.Fixture, hole, red, blue int32) sdk.MatchStatus {
+	t.Helper()
+	rp, bp := fix.RedPlayer, fix.BluePlayer
+	status, err := client.SubmitScore(context.Background(), fix.MatchID, sdk.ScoreSubmission{
+		HoleNumber: hole,
+		Scores: []sdk.ScoreEntry{
+			{TeamID: fix.TeamRed, PlayerID: &rp, Strokes: red},
+			{TeamID: fix.TeamBlue, PlayerID: &bp, Strokes: blue},
+		},
+	})
+	if err != nil {
+		t.Fatalf("play hole %d: %v", hole, err)
+	}
+	return status
+}
+
 // TestScoreEntryClosesTheMaterializationLoop drives the full write→materialize→derive
 // path against real Postgres: submitting scores through the API updates match_results,
 // which the winner/status/player-record reads then reflect.
@@ -69,18 +86,7 @@ func TestScoreEntryClosesTheMaterializationLoop(t *testing.T) {
 
 	// Red wins holes 1-10 outright (4 vs 5): 10 up with 8 to play closes the match out.
 	for h := int32(1); h <= 10; h++ {
-		red := fix.RedPlayer
-		blue := fix.BluePlayer
-		if _, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
-			HoleNumber: h, Strokes: 4, TeamID: fix.TeamRed, PlayerID: &red,
-		}); err != nil {
-			t.Fatalf("submit red hole %d: %v", h, err)
-		}
-		if _, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
-			HoleNumber: h, Strokes: 5, TeamID: fix.TeamBlue, PlayerID: &blue,
-		}); err != nil {
-			t.Fatalf("submit blue hole %d: %v", h, err)
-		}
+		playHole(t, client, fix, h, 4, 5)
 	}
 
 	// Materialized winner.
@@ -130,22 +136,10 @@ func TestScoreEntryClosesTheMaterializationLoop(t *testing.T) {
 func TestSubmitScoreReturnsTheRecomputedStatus(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)
-	ctx := context.Background()
-	red, blue := fix.RedPlayer, fix.BluePlayer
 
 	var status sdk.MatchStatus
 	for h := int32(1); h <= 10; h++ {
-		if _, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
-			HoleNumber: h, Strokes: 4, TeamID: fix.TeamRed, PlayerID: &red,
-		}); err != nil {
-			t.Fatalf("submit red hole %d: %v", h, err)
-		}
-		var err error
-		if status, err = client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
-			HoleNumber: h, Strokes: 5, TeamID: fix.TeamBlue, PlayerID: &blue,
-		}); err != nil {
-			t.Fatalf("submit blue hole %d: %v", h, err)
-		}
+		status = playHole(t, client, fix, h, 4, 5)
 		// Only the hole that closes it out reports finished.
 		if want := h == 10; status.Finished != want {
 			t.Fatalf("hole %d: want finished=%v, got %+v", h, want, status)
@@ -166,24 +160,15 @@ func TestSubmitScoreRejectsHolesAfterTheCloseOut(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)
 	ctx := context.Background()
-	red, blue := fix.RedPlayer, fix.BluePlayer
+	red := fix.RedPlayer
 
 	// Red wins holes 1-10 outright: 10 up with 8 to play closes the match out.
 	for h := int32(1); h <= 10; h++ {
-		if _, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
-			HoleNumber: h, Strokes: 4, TeamID: fix.TeamRed, PlayerID: &red,
-		}); err != nil {
-			t.Fatalf("submit red hole %d: %v", h, err)
-		}
-		if _, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
-			HoleNumber: h, Strokes: 5, TeamID: fix.TeamBlue, PlayerID: &blue,
-		}); err != nil {
-			t.Fatalf("submit blue hole %d: %v", h, err)
-		}
+		playHole(t, client, fix, h, 4, 5)
 	}
 
 	_, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
-		HoleNumber: 11, Strokes: 4, TeamID: fix.TeamRed, PlayerID: &red,
+		HoleNumber: 11, Scores: []sdk.ScoreEntry{{TeamID: fix.TeamRed, PlayerID: &red, Strokes: 4}},
 	})
 	var apiErr *sdk.APIError
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
@@ -192,7 +177,7 @@ func TestSubmitScoreRejectsHolesAfterTheCloseOut(t *testing.T) {
 
 	// A hole that was played stays correctable: a typo can be what ended the match early.
 	status, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
-		HoleNumber: 5, Strokes: 9, TeamID: fix.TeamRed, PlayerID: &red,
+		HoleNumber: 5, Scores: []sdk.ScoreEntry{{TeamID: fix.TeamRed, PlayerID: &red, Strokes: 9}},
 	})
 	if err != nil {
 		t.Fatalf("want the correction accepted, got %v", err)
@@ -202,30 +187,51 @@ func TestSubmitScoreRejectsHolesAfterTheCloseOut(t *testing.T) {
 	}
 }
 
+// TestSubmitScoreWritesTheHoleAtomically is why a hole is one request: a rejected entry
+// must take the whole hole with it, rather than leaving one side scored and the other not
+// for a client that never retries.
+func TestSubmitScoreWritesTheHoleAtomically(t *testing.T) {
+	t.Parallel()
+	client, fix := authedClient(t)
+	ctx := context.Background()
+	red, blue := fix.RedPlayer, fix.BluePlayer
+
+	_, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
+		HoleNumber: 1,
+		Scores: []sdk.ScoreEntry{
+			{TeamID: fix.TeamRed, PlayerID: &red, Strokes: 4},
+			{TeamID: uuid.New(), PlayerID: &blue, Strokes: 5}, // a team not in this match
+		},
+	})
+	var apiErr *sdk.APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
+		t.Fatalf("want 400 for a team not in the match, got %v", err)
+	}
+
+	// Red's valid score must not have landed on its own.
+	scores, err := client.GetMatchScores(ctx, fix.MatchID)
+	if err != nil {
+		t.Fatalf("get scores: %v", err)
+	}
+	if len(scores) != 0 {
+		t.Fatalf("want nothing written, got %+v", scores)
+	}
+	status, err := client.GetMatchStatus(ctx, fix.MatchID)
+	if err != nil {
+		t.Fatalf("get status: %v", err)
+	}
+	if status.Finished || status.LeaderTeamID != nil {
+		t.Errorf("want an untouched match, got %+v", status)
+	}
+}
+
 // TestSubmitScoreUpsertsHole confirms the ON CONFLICT update path: re-submitting the
 // same hole overwrites the prior strokes rather than inserting a duplicate.
 func TestSubmitScoreUpsertsHole(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)
 	ctx := context.Background()
-	red := fix.RedPlayer
-	blue := fix.BluePlayer
 
-	// A match-play hole only surfaces in the progression once both sides have scored
-	// it, so give Blue a score on hole 1; the test then upserts Red's score.
-	if _, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
-		HoleNumber: 1, Strokes: 5, TeamID: fix.TeamBlue, PlayerID: &blue,
-	}); err != nil {
-		t.Fatalf("submit blue: %v", err)
-	}
-
-	submit := func(strokes int32) {
-		if _, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
-			HoleNumber: 1, Strokes: strokes, TeamID: fix.TeamRed, PlayerID: &red,
-		}); err != nil {
-			t.Fatalf("submit strokes %d: %v", strokes, err)
-		}
-	}
 	redHole1 := func() int32 {
 		holes, err := client.GetMatchScores(ctx, fix.MatchID)
 		if err != nil {
@@ -245,11 +251,12 @@ func TestSubmitScoreUpsertsHole(t *testing.T) {
 		return 0
 	}
 
-	submit(5)
+	playHole(t, client, fix, 1, 5, 5)
 	if got := redHole1(); got != 5 {
 		t.Fatalf("after first submit want 5, got %d", got)
 	}
-	submit(3)
+	// Re-recording the hole corrects Red rather than inserting a second row.
+	playHole(t, client, fix, 1, 3, 5)
 	if got := redHole1(); got != 3 {
 		t.Fatalf("after upsert want 3, got %d", got)
 	}
@@ -261,7 +268,7 @@ func TestSubmitScoreUpsertsHole(t *testing.T) {
 func TestSubmitScoreRejectsInvalidStrokes(t *testing.T) {
 	t.Parallel()
 	// Valid UUID path + team_id so the request reaches strokes validation.
-	body := `{"hole_number":1,"strokes":0,"team_id":"11111111-1111-1111-1111-111111111111"}`
+	body := `{"hole_number":1,"scores":[{"team_id":"11111111-1111-1111-1111-111111111111","strokes":0}]}`
 	status, _ := request.Raw(t, http.MethodPost, "/v1/matches/11111111-1111-1111-1111-111111111111/scores", body, freshToken(t))
 	if status != http.StatusBadRequest {
 		t.Fatalf("want 400, got %d", status)
@@ -276,7 +283,7 @@ func TestSubmitScoreToNonexistentMatchReturns404(t *testing.T) {
 	client := freshClient(t)
 
 	_, err := client.SubmitScore(context.Background(), uuid.New(), sdk.ScoreSubmission{
-		HoleNumber: 1, Strokes: 4, TeamID: uuid.New(),
+		HoleNumber: 1, Scores: []sdk.ScoreEntry{{TeamID: uuid.New(), Strokes: 4}},
 	})
 	var apiErr *sdk.APIError
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {

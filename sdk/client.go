@@ -226,8 +226,8 @@ func (c *Client) RemoveParticipant(ctx context.Context, matchID, playerID uuid.U
 	return c.do(ctx, http.MethodDelete, route, nil, nil)
 }
 
-// SubmitScore records one hole score and returns the match's recomputed state, so a
-// caller knows whether that score closed the match out.
+// SubmitScore records a hole's scores and returns the match's recomputed state, so a
+// caller knows whether that hole closed the match out. The hole lands whole or not at all.
 func (c *Client) SubmitScore(ctx context.Context, matchID uuid.UUID, req ScoreSubmission) (MatchStatus, error) {
 	var out MatchStatus
 	return out, c.do(ctx, http.MethodPost, pathID(RouteV1MatchScores, matchID), req, &out)

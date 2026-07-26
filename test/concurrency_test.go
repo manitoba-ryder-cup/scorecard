@@ -5,16 +5,16 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
 // TestConcurrentScoreSubmissionsMaterializeEveryHole covers the live-scoring hot path:
-// two people entering their side's scores at once. Each submission persists a score then
-// recomputes match_results from all of them, so unless that pair is serialized per match
-// a submission holding an early snapshot can land last and revert the result to a partial
-// view — every score row present, but standings derived from it wrong. Red wins every
-// hole, so a stale result shows up as a match that is not finished.
+// holes landing at once, from a retry, a second device, or a backlog going up when signal
+// returns. Each submission persists its hole then recomputes match_results from every
+// score, so unless that pair is serialized per match a submission holding an early
+// snapshot can land last and revert the result to a partial view — every score row
+// present, but standings derived from it wrong. Red wins every hole, so a stale result
+// shows up as a match that is not finished.
 //
 // Holes 1-10 only: that is the whole match at 10 & 8, and a finished match refuses scores
 // for holes it never reached. Ten is also the earliest the lead can be decided, so no
@@ -29,29 +29,23 @@ func TestConcurrentScoreSubmissionsMaterializeEveryHole(t *testing.T) {
 
 	for i := range matches {
 		client, fix := authedClient(t)
-
-		type submission struct {
-			team    uuid.UUID
-			player  uuid.UUID
-			strokes int32
-		}
+		red, blue := fix.RedPlayer, fix.BluePlayer
 
 		var wg sync.WaitGroup
-		errs := make(chan error, 20)
+		errs := make(chan error, 10)
 		for hole := int32(1); hole <= 10; hole++ {
-			for _, s := range []submission{
-				{fix.TeamRed, fix.RedPlayer, 4}, // Red wins every hole
-				{fix.TeamBlue, fix.BluePlayer, 5},
-			} {
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					_, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
-						HoleNumber: hole, Strokes: s.strokes, TeamID: s.team, PlayerID: &s.player,
-					})
-					errs <- err
-				}()
-			}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				_, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
+					HoleNumber: hole,
+					Scores: []sdk.ScoreEntry{
+						{TeamID: fix.TeamRed, PlayerID: &red, Strokes: 4}, // Red wins every hole
+						{TeamID: fix.TeamBlue, PlayerID: &blue, Strokes: 5},
+					},
+				})
+				errs <- err
+			}()
 		}
 		wg.Wait()
 		close(errs)

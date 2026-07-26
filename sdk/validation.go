@@ -247,8 +247,24 @@ func (r ScoreSubmission) Validate(ctx context.Context) error {
 	if r.HoleNumber < 1 || r.HoleNumber > 18 {
 		return fmt.Errorf("hole_number must be between 1 and 18")
 	}
-	if r.Strokes < 1 {
-		return fmt.Errorf("strokes must be positive")
+	if len(r.Scores) == 0 {
+		return fmt.Errorf("scores must not be empty")
+	}
+	// Two scores for the same competitor would silently resolve to whichever the write
+	// applied last, so it is rejected rather than picked between.
+	seen := make(map[uuid.UUID]bool, len(r.Scores))
+	for _, s := range r.Scores {
+		if s.Strokes < 1 {
+			return fmt.Errorf("strokes must be positive")
+		}
+		subject := s.TeamID
+		if s.PlayerID != nil {
+			subject = *s.PlayerID
+		}
+		if seen[subject] {
+			return fmt.Errorf("duplicate score for the same team or player")
+		}
+		seen[subject] = true
 	}
 	return nil
 }

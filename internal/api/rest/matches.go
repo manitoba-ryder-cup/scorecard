@@ -13,7 +13,7 @@ import (
 type MatchService interface {
 	MatchStatus(ctx context.Context, matchID uuid.UUID) (golf.StoredResult, error)
 	CalculateMatchScores(ctx context.Context, matchID uuid.UUID) ([]golf.HoleResult, error)
-	SubmitScore(ctx context.Context, matchID uuid.UUID, entry golf.ScoreEntry) (golf.StoredResult, error)
+	SubmitHoleScores(ctx context.Context, matchID uuid.UUID, hole int32, entries []golf.ScoreEntry) (golf.StoredResult, error)
 	CreateMatch(ctx context.Context, in golf.CreateMatchInput) (*golf.Match, error)
 	ListMatches(ctx context.Context, tournamentID uuid.UUID) ([]golf.Match, error)
 	ListMatchHoles(ctx context.Context, matchID uuid.UUID) ([]golf.Hole, error)
@@ -196,8 +196,8 @@ func (h *MatchesHandler) GetMatchScores(w http.ResponseWriter, r *http.Request) 
 }
 
 // POST /v1/matches/{id}/scores
-// Records one hole score and recomputes the match's materialized result, which it
-// returns so the client sees the score's effect on the match without a second read.
+// Records a hole's scores as a unit and recomputes the match's materialized result, which
+// it returns so the client sees the hole's effect on the match without a second read.
 func (h *MatchesHandler) SubmitScore(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathUUIDOr400(w, r, "id", "match")
 	if !ok {
@@ -207,16 +207,13 @@ func (h *MatchesHandler) SubmitScore(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	entry := golf.ScoreEntry{
-		HoleNumber: req.HoleNumber,
-		Strokes:    req.Strokes,
-		TeamID:     req.TeamID,
-		PlayerID:   req.PlayerID,
-	}
+	entries := mapSlice(req.Scores, func(s sdk.ScoreEntry) golf.ScoreEntry {
+		return golf.ScoreEntry{TeamID: s.TeamID, PlayerID: s.PlayerID, Strokes: s.Strokes}
+	})
 	// Shape is validated above; the domain still enforces its invariants — team not in
 	// the match -> 400, scoring past a finished match -> 409 — while a real failure
 	// (DB, etc.) -> 500.
-	result, err := h.matchService.SubmitScore(r.Context(), id, entry)
+	result, err := h.matchService.SubmitHoleScores(r.Context(), id, req.HoleNumber, entries)
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to submit score", err)
 		return

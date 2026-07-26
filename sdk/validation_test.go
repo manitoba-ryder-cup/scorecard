@@ -122,6 +122,23 @@ func TestCreateTeeSetRequest_Validate(t *testing.T) {
 	}
 }
 
+var (
+	teamA   = uuid.New()
+	teamB   = uuid.New()
+	playerA = uuid.New()
+	playerB = uuid.New()
+)
+
+func hole(n int32, scores ...ScoreEntry) ScoreSubmission {
+	return ScoreSubmission{HoleNumber: n, Scores: scores}
+}
+func score(team uuid.UUID, strokes int32) ScoreEntry {
+	return ScoreEntry{TeamID: team, Strokes: strokes}
+}
+func playerScore(player, team uuid.UUID, strokes int32) ScoreEntry {
+	return ScoreEntry{TeamID: team, PlayerID: &player, Strokes: strokes}
+}
+
 func TestScoreSubmission_Validate(t *testing.T) {
 	ctx := context.Background()
 	cases := []struct {
@@ -129,10 +146,17 @@ func TestScoreSubmission_Validate(t *testing.T) {
 		req     ScoreSubmission
 		wantErr bool
 	}{
-		{"valid", ScoreSubmission{HoleNumber: 1, Strokes: 4, TeamID: uuid.New()}, false},
-		{"hole too low", ScoreSubmission{HoleNumber: 0, Strokes: 4, TeamID: uuid.New()}, true},
-		{"hole too high", ScoreSubmission{HoleNumber: 19, Strokes: 4, TeamID: uuid.New()}, true},
-		{"non-positive strokes", ScoreSubmission{HoleNumber: 1, Strokes: 0, TeamID: uuid.New()}, true},
+		{"valid", hole(1, score(teamA, 4), score(teamB, 5)), false},
+		{"hole too low", hole(0, score(teamA, 4)), true},
+		{"hole too high", hole(19, score(teamA, 4)), true},
+		{"non-positive strokes", hole(1, score(teamA, 0)), true},
+		{"non-positive strokes on a later entry", hole(1, score(teamA, 4), score(teamB, 0)), true},
+		// A hole with no scores is a client bug, not an instruction to clear it.
+		{"no scores", hole(1), true},
+		// Two scores for one player would resolve to whichever the write applied last.
+		{"the same player twice", hole(1, playerScore(playerA, teamA, 4), playerScore(playerA, teamA, 5)), true},
+		{"both players on a side", hole(1, playerScore(playerA, teamA, 4), playerScore(playerB, teamA, 5)), false},
+		{"the same team twice, one ball", hole(1, score(teamA, 4), score(teamA, 5)), true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

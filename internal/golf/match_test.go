@@ -63,11 +63,12 @@ func (f *fakeScoreDB) ListScoresByTournament(ctx context.Context, tournamentID u
 	return f.scores, nil
 }
 
-// SaveScoreAndRecompute mirrors the repository: the guard sees the scores as they were
+// SaveScoresAndRecompute mirrors the repository: the guard sees the scores as they were
 // before the write, and the recompute sees them after, because it is all one transaction.
-func (f *fakeScoreDB) SaveScoreAndRecompute(
+func (f *fakeScoreDB) SaveScoresAndRecompute(
 	ctx context.Context,
-	s Score,
+	matchID uuid.UUID,
+	scores []Score,
 	tournamentID uuid.UUID,
 	guard func([]Score) error,
 	recompute func([]Score) StoredResult,
@@ -75,9 +76,11 @@ func (f *fakeScoreDB) SaveScoreAndRecompute(
 	if err := guard(f.scores); err != nil {
 		return StoredResult{}, err
 	}
-	f.saved = append(f.saved, s)
-	f.scores = upsert(f.scores, s)
-	f.recomputedFor = append(f.recomputedFor, s.MatchID)
+	for _, s := range scores {
+		f.saved = append(f.saved, s)
+		f.scores = upsert(f.scores, s)
+	}
+	f.recomputedFor = append(f.recomputedFor, matchID)
 	result := recompute(f.scores)
 	f.recomputed = append(f.recomputed, result)
 	return result, nil
@@ -136,9 +139,7 @@ func TestSubmitScore_WritesScoreWithMatchCourseAndRecomputes(t *testing.T) {
 	rdb := &fakeResultDB{}
 	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: rdb}
 
-	_, err := svc.SubmitScore(context.Background(), matchID, ScoreEntry{
-		HoleNumber: 1, Strokes: 4, TeamID: teamA, PlayerID: pUUID(playerA),
-	})
+	_, err := svc.SubmitHoleScores(context.Background(), matchID, 1, []ScoreEntry{{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4}})
 	if err != nil {
 		t.Fatalf("SubmitScore: %v", err)
 	}
@@ -166,14 +167,59 @@ func TestSubmitScore_RejectsTeamNotInMatch(t *testing.T) {
 	rdb := &fakeResultDB{}
 	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: rdb}
 
-	_, err := svc.SubmitScore(context.Background(), matchID, ScoreEntry{
-		HoleNumber: 1, Strokes: 4, TeamID: uuid.New(),
-	})
+	_, err := svc.SubmitHoleScores(context.Background(), matchID, 1, []ScoreEntry{{TeamID: uuid.New(), PlayerID: nil, Strokes: 4}})
 	if !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("want ErrInvalidInput for team not in match, got %v", err)
 	}
 	if len(sdb.saved) != 0 || len(sdb.recomputedFor) != 0 {
 		t.Error("must not write or recompute on validation failure")
+	}
+}
+
+func TestSubmitHoleScores_WritesNothingWhenOneEntryIsInvalid(t *testing.T) {
+	// The point of taking a hole as a unit: a bad entry anywhere in it rejects the whole
+	// hole, so a client cannot leave one side scored and the other not.
+	m, p := twoTeamMatch()
+	sdb := &fakeScoreDB{}
+	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{}}
+
+	_, err := svc.SubmitHoleScores(context.Background(), matchID, 1, []ScoreEntry{
+		{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4},
+		{TeamID: uuid.New(), PlayerID: pUUID(playerB), Strokes: 5}, // not in this match
+	})
+
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("want ErrInvalidInput for a team not in the match, got %v", err)
+	}
+	if len(sdb.saved) != 0 {
+		t.Errorf("the valid entry must not land on its own, got %d writes", len(sdb.saved))
+	}
+}
+
+func TestSubmitHoleScores_WritesTheWholeHoleAndRecomputesOnce(t *testing.T) {
+	// One recompute for the hole, not one per score — the result the caller gets back
+	// reflects every score in the request.
+	m, p := twoTeamMatch()
+	sdb := &fakeScoreDB{}
+	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{}}
+
+	got, err := svc.SubmitHoleScores(context.Background(), matchID, 1, []ScoreEntry{
+		{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4},
+		{TeamID: teamB, PlayerID: pUUID(playerB), Strokes: 5},
+	})
+	if err != nil {
+		t.Fatalf("SubmitHoleScores: %v", err)
+	}
+
+	if len(sdb.saved) != 2 {
+		t.Fatalf("want both scores written, got %d", len(sdb.saved))
+	}
+	if len(sdb.recomputedFor) != 1 {
+		t.Errorf("want one recompute for the hole, got %d", len(sdb.recomputedFor))
+	}
+	// Both sides scored hole 1, so it counts: teamA 1 up with 17 to play.
+	if got.Lead != 1 || got.LeaderTeamID == nil || *got.LeaderTeamID != teamA || got.HolesRemaining != 17 {
+		t.Errorf("want teamA 1 up with 17 to play, got %+v", got)
 	}
 }
 
@@ -197,9 +243,7 @@ func TestSubmitScore_ReturnsTheRecomputedStatus(t *testing.T) {
 	sdb := &fakeScoreDB{scores: decidedMatch()[:18]} // holes 1-9, teamA 9 up with 9 to play
 	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{}}
 
-	got, err := svc.SubmitScore(context.Background(), matchID, ScoreEntry{
-		HoleNumber: 10, Strokes: 4, TeamID: teamA, PlayerID: pUUID(playerA),
-	})
+	got, err := svc.SubmitHoleScores(context.Background(), matchID, 10, []ScoreEntry{{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4}})
 	if err != nil {
 		t.Fatalf("SubmitScore: %v", err)
 	}
@@ -215,9 +259,7 @@ func TestSubmitScore_RejectsANewHoleOnAFinishedMatch(t *testing.T) {
 	sdb := &fakeScoreDB{scores: decidedMatch()}
 	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{}}
 
-	_, err := svc.SubmitScore(context.Background(), matchID, ScoreEntry{
-		HoleNumber: 11, Strokes: 4, TeamID: teamA, PlayerID: pUUID(playerA),
-	})
+	_, err := svc.SubmitHoleScores(context.Background(), matchID, 11, []ScoreEntry{{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4}})
 
 	if !errors.Is(err, ErrConflict) {
 		t.Fatalf("want ErrConflict for a hole played after the close-out, got %v", err)
@@ -234,9 +276,7 @@ func TestSubmitScore_AllowsCorrectingAScoredHoleOnAFinishedMatch(t *testing.T) {
 	sdb := &fakeScoreDB{scores: decidedMatch()}
 	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{}}
 
-	got, err := svc.SubmitScore(context.Background(), matchID, ScoreEntry{
-		HoleNumber: 5, Strokes: 9, TeamID: teamA, PlayerID: pUUID(playerA),
-	})
+	got, err := svc.SubmitHoleScores(context.Background(), matchID, 5, []ScoreEntry{{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 9}})
 	if err != nil {
 		t.Fatalf("want the correction accepted, got %v", err)
 	}

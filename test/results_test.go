@@ -16,19 +16,8 @@ import (
 // deciding the tournament for Red.
 func closeOutRedWin(t *testing.T, client *sdk.Client, fix *util.Fixture) {
 	t.Helper()
-	ctx := context.Background()
-	red, blue := fix.RedPlayer, fix.BluePlayer
 	for h := int32(1); h <= 10; h++ {
-		if _, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
-			HoleNumber: h, Strokes: 4, TeamID: fix.TeamRed, PlayerID: &red,
-		}); err != nil {
-			t.Fatalf("submit red hole %d: %v", h, err)
-		}
-		if _, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
-			HoleNumber: h, Strokes: 5, TeamID: fix.TeamBlue, PlayerID: &blue,
-		}); err != nil {
-			t.Fatalf("submit blue hole %d: %v", h, err)
-		}
+		playHole(t, client, fix, h, 4, 5)
 	}
 }
 
