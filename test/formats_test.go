@@ -29,3 +29,24 @@ func TestListMatchFormatsIsPublicAndSeeded(t *testing.T) {
 		}
 	}
 }
+
+// The web client looks a format up by name, so order is cosmetic — but it comes from
+// gen_random_uuid() PKs today, which shuffles differently in every database.
+func TestListMatchFormatsIsSortedByName(t *testing.T) {
+	t.Parallel()
+
+	formats, err := sdk.NewClient(util.LoadConfig().BaseURL).ListMatchFormats(context.Background())
+	if err != nil {
+		t.Fatalf("list match formats: %v", err)
+	}
+
+	for i := 1; i < len(formats); i++ {
+		if formats[i-1].Name > formats[i].Name {
+			names := make([]string, len(formats))
+			for j, f := range formats {
+				names[j] = f.Name
+			}
+			t.Fatalf("formats are not sorted by name: %v", names)
+		}
+	}
+}
