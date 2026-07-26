@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
 // RosterService manages a tournament's roster: entering players with their
@@ -17,8 +18,18 @@ type RosterService struct {
 	ResultDB           resultDB
 }
 
+// tierOrDefault mirrors the schema default, applied here rather than in each caller —
+// the API and the seed CLI both enter players.
+func tierOrDefault(tier string) string {
+	if tier == "" {
+		return sdk.DefaultTier
+	}
+	return tier
+}
+
 // EnterPlayerInput is the intent to enter a player in a tournament (or update their
-// per-tournament attributes). Shape validation happens at the API boundary.
+// per-tournament attributes). Tier defaults when omitted. Shape validation happens at
+// the API boundary.
 type EnterPlayerInput struct {
 	TournamentID uuid.UUID
 	PlayerID     uuid.UUID
@@ -30,6 +41,7 @@ type EnterPlayerInput struct {
 // EnterPlayer enters a player in a tournament with their attributes. A duplicate
 // entry surfaces as ErrConflict; an unknown player/tournament as ErrInvalidInput.
 func (s *RosterService) EnterPlayer(ctx context.Context, in EnterPlayerInput) (*TournamentPlayer, error) {
+	in.Tier = tierOrDefault(in.Tier)
 	entry, err := s.TournamentPlayerDB.CreateTournamentPlayer(ctx, in)
 	if err != nil {
 		return nil, fmt.Errorf("failed to enter tournament player: %w", err)
@@ -40,6 +52,7 @@ func (s *RosterService) EnterPlayer(ctx context.Context, in EnterPlayerInput) (*
 // UpdatePlayer updates an entered player's attributes. ErrNotFound if the player has
 // not been entered in the tournament.
 func (s *RosterService) UpdatePlayer(ctx context.Context, in EnterPlayerInput) (*TournamentPlayer, error) {
+	in.Tier = tierOrDefault(in.Tier)
 	entry, err := s.TournamentPlayerDB.UpdateTournamentPlayer(ctx, in)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update tournament player: %w", err)

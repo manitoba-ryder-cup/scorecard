@@ -26,13 +26,6 @@ func NewRosterHandler(rosterService RosterService) *RosterHandler {
 	return &RosterHandler{rosterService: rosterService}
 }
 
-func tierOrDefault(tier string) string {
-	if tier == "" {
-		return sdk.DefaultTier
-	}
-	return tier
-}
-
 // GET /v1/tournaments/{id}/players
 func (h *RosterHandler) ListPlayers(w http.ResponseWriter, r *http.Request) {
 	tournamentID, ok := pathUUIDOr400(w, r, "id", "tournament")
@@ -60,7 +53,7 @@ func (h *RosterHandler) EnterPlayer(w http.ResponseWriter, r *http.Request) {
 	entry, err := h.rosterService.EnterPlayer(r.Context(), golf.EnterPlayerInput{
 		TournamentID: tournamentID,
 		PlayerID:     req.PlayerID,
-		Tier:         tierOrDefault(req.Tier),
+		Tier:         req.Tier,
 		Biography:    req.Biography,
 		Hdcp:         req.Hdcp,
 	})
@@ -88,7 +81,7 @@ func (h *RosterHandler) UpdatePlayer(w http.ResponseWriter, r *http.Request) {
 	entry, err := h.rosterService.UpdatePlayer(r.Context(), golf.EnterPlayerInput{
 		TournamentID: tournamentID,
 		PlayerID:     playerID,
-		Tier:         tierOrDefault(req.Tier),
+		Tier:         req.Tier,
 		Biography:    req.Biography,
 		Hdcp:         req.Hdcp,
 	})

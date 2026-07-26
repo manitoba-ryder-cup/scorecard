@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
-	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
 // SeedInput is the contract for the advance setup of a tournament: the event, its roster
@@ -118,7 +117,7 @@ func SeedTournament(ctx context.Context, svc *Services, in *SeedInput) (*SeedSum
 		}
 		if _, err := svc.Roster.EnterPlayer(ctx, golf.EnterPlayerInput{
 			TournamentID: tournament.ID, PlayerID: playerID,
-			Tier: tierOrDefault(sp.Tier), Biography: sp.Biography, Hdcp: sp.Hdcp,
+			Tier: sp.Tier, Biography: sp.Biography, Hdcp: sp.Hdcp,
 		}); err != nil {
 			return nil, fmt.Errorf("entering %s: %w", sp.Email, err)
 		}
@@ -166,13 +165,6 @@ func SeedTournament(ctx context.Context, svc *Services, in *SeedInput) (*SeedSum
 		}
 	}
 	return summary, nil
-}
-
-func tierOrDefault(tier string) string {
-	if tier == "" {
-		return sdk.DefaultTier
-	}
-	return tier
 }
 
 // playerFinder resolves seed players to existing players by email (created only if new),
