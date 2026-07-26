@@ -17,8 +17,11 @@ var PublicTenantID = uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 // Config holds the integration suite's connection details. Defaults point at the
 // local docker-compose infrastructure (test/docker-compose.yml).
 type Config struct {
-	BaseURL           string // scorecard API base URL
-	DatabaseURL       string // superuser connection used to seed fixtures (bypasses RLS)
+	BaseURL     string // scorecard API base URL
+	DatabaseURL string // superuser connection used to seed fixtures (bypasses RLS)
+	// AppDatabaseURL connects as the role the server uses. The isolation suite needs it
+	// to exercise RLS: the superuser bypasses every policy.
+	AppDatabaseURL    string
 	JWTPrivateKeyPath string // private key the test issuer signs tokens with
 }
 
@@ -28,6 +31,7 @@ func LoadConfig() *Config {
 	return &Config{
 		BaseURL:           getEnv("SCORECARD_BASE_URL", "http://localhost:5001"),
 		DatabaseURL:       getEnv("TEST_DATABASE_URL", "postgres://superuser:superuser@localhost:5433/scorecard?sslmode=disable"),
+		AppDatabaseURL:    getEnv("TEST_APP_DATABASE_URL", "postgres://scorecard:scorecard_password@localhost:5433/scorecard?sslmode=disable"),
 		JWTPrivateKeyPath: getEnv("JWT_PRIVATE_KEY_PATH", privateKeyPath()),
 	}
 }

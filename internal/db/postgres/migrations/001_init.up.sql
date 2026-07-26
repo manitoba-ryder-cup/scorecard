@@ -296,20 +296,36 @@ CREATE TABLE match_results (
         FOREIGN KEY (leader_team_id) REFERENCES teams(id) ON DELETE SET NULL
 );
 
--- Enable Row Level Security on all tables
+-- Enable Row Level Security on all tables. FORCE is required, not belt-and-braces:
+-- Postgres exempts a table's owner from its policies, and the application role owns
+-- these tables because it runs the migrations — so without FORCE every policy below is
+-- silently skipped. match_formats is absent: global reference data, no tenant_id.
 ALTER TABLE tee_colors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tee_colors FORCE ROW LEVEL SECURITY;
 ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE courses FORCE ROW LEVEL SECURITY;
 ALTER TABLE tee_sets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tee_sets FORCE ROW LEVEL SECURITY;
 ALTER TABLE holes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE holes FORCE ROW LEVEL SECURITY;
 ALTER TABLE players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE players FORCE ROW LEVEL SECURITY;
 ALTER TABLE tournaments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tournaments FORCE ROW LEVEL SECURITY;
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE teams FORCE ROW LEVEL SECURITY;
 ALTER TABLE tournament_players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tournament_players FORCE ROW LEVEL SECURITY;
 ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE team_members FORCE ROW LEVEL SECURITY;
 ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE matches FORCE ROW LEVEL SECURITY;
 ALTER TABLE match_participants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE match_participants FORCE ROW LEVEL SECURITY;
 ALTER TABLE scores ENABLE ROW LEVEL SECURITY;
+ALTER TABLE scores FORCE ROW LEVEL SECURITY;
 ALTER TABLE match_results ENABLE ROW LEVEL SECURITY;
+ALTER TABLE match_results FORCE ROW LEVEL SECURITY;
 
 -- Create RLS policies for tenant isolation
 CREATE POLICY tenant_isolation_policy ON tee_colors
