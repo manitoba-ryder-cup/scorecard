@@ -26,19 +26,17 @@ func NewRosterHandler(rosterService RosterService) *RosterHandler {
 	return &RosterHandler{rosterService: rosterService}
 }
 
-// defaultTier applies the schema's default when a tier isn't supplied.
-func defaultTier(tier string) string {
+func tierOrDefault(tier string) string {
 	if tier == "" {
-		return "white"
+		return sdk.DefaultTier
 	}
 	return tier
 }
 
 // GET /v1/tournaments/{id}/players
 func (h *RosterHandler) ListPlayers(w http.ResponseWriter, r *http.Request) {
-	tournamentID, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid tournament ID", err)
+	tournamentID, ok := pathUUIDOr400(w, r, "id", "tournament")
+	if !ok {
 		return
 	}
 	players, err := h.rosterService.ListPlayers(r.Context(), tournamentID)
@@ -51,9 +49,8 @@ func (h *RosterHandler) ListPlayers(w http.ResponseWriter, r *http.Request) {
 
 // POST /v1/tournaments/{id}/players
 func (h *RosterHandler) EnterPlayer(w http.ResponseWriter, r *http.Request) {
-	tournamentID, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid tournament ID", err)
+	tournamentID, ok := pathUUIDOr400(w, r, "id", "tournament")
+	if !ok {
 		return
 	}
 	req, ok := decodeAndValidate[sdk.EnterTournamentPlayerRequest](w, r)
@@ -63,7 +60,7 @@ func (h *RosterHandler) EnterPlayer(w http.ResponseWriter, r *http.Request) {
 	entry, err := h.rosterService.EnterPlayer(r.Context(), golf.EnterPlayerInput{
 		TournamentID: tournamentID,
 		PlayerID:     req.PlayerID,
-		Tier:         defaultTier(req.Tier),
+		Tier:         tierOrDefault(req.Tier),
 		Biography:    req.Biography,
 		Hdcp:         req.Hdcp,
 	})
@@ -76,14 +73,12 @@ func (h *RosterHandler) EnterPlayer(w http.ResponseWriter, r *http.Request) {
 
 // PUT /v1/tournaments/{id}/players/{playerId}
 func (h *RosterHandler) UpdatePlayer(w http.ResponseWriter, r *http.Request) {
-	tournamentID, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid tournament ID", err)
+	tournamentID, ok := pathUUIDOr400(w, r, "id", "tournament")
+	if !ok {
 		return
 	}
-	playerID, err := pathUUID(r, "playerId")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid player ID", err)
+	playerID, ok := pathUUIDOr400(w, r, "playerId", "player")
+	if !ok {
 		return
 	}
 	req, ok := decodeAndValidate[sdk.UpdateTournamentPlayerRequest](w, r)
@@ -93,7 +88,7 @@ func (h *RosterHandler) UpdatePlayer(w http.ResponseWriter, r *http.Request) {
 	entry, err := h.rosterService.UpdatePlayer(r.Context(), golf.EnterPlayerInput{
 		TournamentID: tournamentID,
 		PlayerID:     playerID,
-		Tier:         defaultTier(req.Tier),
+		Tier:         tierOrDefault(req.Tier),
 		Biography:    req.Biography,
 		Hdcp:         req.Hdcp,
 	})
@@ -107,9 +102,8 @@ func (h *RosterHandler) UpdatePlayer(w http.ResponseWriter, r *http.Request) {
 // POST /v1/teams/{id}/members
 // Drafts an entered player onto the team (the tournament is the team's).
 func (h *RosterHandler) DraftPlayer(w http.ResponseWriter, r *http.Request) {
-	teamID, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid team ID", err)
+	teamID, ok := pathUUIDOr400(w, r, "id", "team")
+	if !ok {
 		return
 	}
 	req, ok := decodeAndValidate[sdk.DraftPlayerRequest](w, r)
@@ -127,14 +121,12 @@ func (h *RosterHandler) DraftPlayer(w http.ResponseWriter, r *http.Request) {
 // DELETE /v1/teams/{id}/members/{playerId}
 // Undrafts a player from the team; 404 if they weren't on it.
 func (h *RosterHandler) UndraftPlayer(w http.ResponseWriter, r *http.Request) {
-	teamID, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid team ID", err)
+	teamID, ok := pathUUIDOr400(w, r, "id", "team")
+	if !ok {
 		return
 	}
-	playerID, err := pathUUID(r, "playerId")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid player ID", err)
+	playerID, ok := pathUUIDOr400(w, r, "playerId", "player")
+	if !ok {
 		return
 	}
 	if err := h.rosterService.UndraftPlayer(r.Context(), teamID, playerID); err != nil {
@@ -146,9 +138,8 @@ func (h *RosterHandler) UndraftPlayer(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/teams/{id}/members
 func (h *RosterHandler) ListTeamMembers(w http.ResponseWriter, r *http.Request) {
-	teamID, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid team ID", err)
+	teamID, ok := pathUUIDOr400(w, r, "id", "team")
+	if !ok {
 		return
 	}
 	members, err := h.rosterService.ListTeamMembers(r.Context(), teamID)

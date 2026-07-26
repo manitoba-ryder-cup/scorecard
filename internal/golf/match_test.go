@@ -81,11 +81,8 @@ func (f *fakeResultDB) GetMatchResult(ctx context.Context, matchID uuid.UUID) (*
 func (f *fakeResultDB) ListTeamPoints(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]float64, error) {
 	return nil, nil
 }
-func (f *fakeResultDB) IsTournamentFinished(ctx context.Context, tournamentID uuid.UUID) (bool, error) {
-	return false, nil
-}
-func (f *fakeResultDB) GetTournamentWinner(ctx context.Context, tournamentID uuid.UUID) (*uuid.UUID, error) {
-	return nil, nil
+func (f *fakeResultDB) GetTournamentOutcome(ctx context.Context, tournamentID uuid.UUID) (TournamentOutcome, error) {
+	return TournamentOutcome{}, nil
 }
 func (f *fakeResultDB) ListTournamentPlayerRecords(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]PlayerRecord, error) {
 	return nil, nil

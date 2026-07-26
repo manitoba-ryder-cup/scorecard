@@ -11,8 +11,7 @@ import (
 )
 
 type MatchService interface {
-	GetWinner(ctx context.Context, matchID uuid.UUID) (*uuid.UUID, error)
-	IsFinished(ctx context.Context, matchID uuid.UUID) (bool, error)
+	GetOutcome(ctx context.Context, matchID uuid.UUID) (golf.MatchOutcome, error)
 	CalculateMatchScores(ctx context.Context, matchID uuid.UUID) ([]golf.HoleResult, error)
 	SubmitScore(ctx context.Context, matchID uuid.UUID, entry golf.ScoreEntry) error
 	CreateMatch(ctx context.Context, in golf.CreateMatchInput) (*golf.Match, error)
@@ -34,9 +33,8 @@ func NewMatchesHandler(matchService MatchService) *MatchesHandler {
 
 // GET /v1/tournaments/{id}/matches
 func (h *MatchesHandler) ListMatches(w http.ResponseWriter, r *http.Request) {
-	tournamentID, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid tournament ID", err)
+	tournamentID, ok := pathUUIDOr400(w, r, "id", "tournament")
+	if !ok {
 		return
 	}
 	matches, err := h.matchService.ListMatches(r.Context(), tournamentID)
@@ -49,9 +47,8 @@ func (h *MatchesHandler) ListMatches(w http.ResponseWriter, r *http.Request) {
 
 // POST /v1/tournaments/{id}/matches
 func (h *MatchesHandler) CreateMatch(w http.ResponseWriter, r *http.Request) {
-	tournamentID, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid tournament ID", err)
+	tournamentID, ok := pathUUIDOr400(w, r, "id", "tournament")
+	if !ok {
 		return
 	}
 	req, ok := decodeAndValidate[sdk.CreateMatchRequest](w, r)
@@ -98,9 +95,8 @@ func toMatchDTO(m golf.Match) sdk.Match {
 
 // GET /v1/tournaments/{id}/results
 func (h *MatchesHandler) ListResults(w http.ResponseWriter, r *http.Request) {
-	tournamentID, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid tournament ID", err)
+	tournamentID, ok := pathUUIDOr400(w, r, "id", "tournament")
+	if !ok {
 		return
 	}
 	results, err := h.matchService.ListResults(r.Context(), tournamentID)
@@ -113,9 +109,8 @@ func (h *MatchesHandler) ListResults(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/matches/{id}/holes
 func (h *MatchesHandler) GetMatchHoles(w http.ResponseWriter, r *http.Request) {
-	id, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid match ID", err)
+	id, ok := pathUUIDOr400(w, r, "id", "match")
+	if !ok {
 		return
 	}
 	holes, err := h.matchService.ListMatchHoles(r.Context(), id)
@@ -128,9 +123,8 @@ func (h *MatchesHandler) GetMatchHoles(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/matches/{id}/participants
 func (h *MatchesHandler) ListParticipants(w http.ResponseWriter, r *http.Request) {
-	id, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid match ID", err)
+	id, ok := pathUUIDOr400(w, r, "id", "match")
+	if !ok {
 		return
 	}
 	participants, err := h.matchService.ListParticipants(r.Context(), id)
@@ -143,9 +137,8 @@ func (h *MatchesHandler) ListParticipants(w http.ResponseWriter, r *http.Request
 
 // POST /v1/matches/{id}/participants
 func (h *MatchesHandler) AddParticipant(w http.ResponseWriter, r *http.Request) {
-	id, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid match ID", err)
+	id, ok := pathUUIDOr400(w, r, "id", "match")
+	if !ok {
 		return
 	}
 	req, ok := decodeAndValidate[sdk.AddParticipantRequest](w, r)
@@ -163,14 +156,12 @@ func (h *MatchesHandler) AddParticipant(w http.ResponseWriter, r *http.Request) 
 // DELETE /v1/matches/{id}/participants/{playerId}
 // Removes a player from the match; 404 if they weren't in it.
 func (h *MatchesHandler) RemoveParticipant(w http.ResponseWriter, r *http.Request) {
-	id, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid match ID", err)
+	id, ok := pathUUIDOr400(w, r, "id", "match")
+	if !ok {
 		return
 	}
-	playerID, err := pathUUID(r, "playerId")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid player ID", err)
+	playerID, ok := pathUUIDOr400(w, r, "playerId", "player")
+	if !ok {
 		return
 	}
 	if err := h.matchService.RemoveParticipant(r.Context(), id, playerID); err != nil {
@@ -192,9 +183,8 @@ func toMatchParticipantDTO(p golf.MatchParticipant) sdk.MatchParticipant {
 // GET /v1/matches/{id}/scores
 // Returns the hole-by-hole match-play state.
 func (h *MatchesHandler) GetMatchScores(w http.ResponseWriter, r *http.Request) {
-	id, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid match ID", err)
+	id, ok := pathUUIDOr400(w, r, "id", "match")
+	if !ok {
 		return
 	}
 	scores, err := h.matchService.CalculateMatchScores(r.Context(), id)
@@ -208,9 +198,8 @@ func (h *MatchesHandler) GetMatchScores(w http.ResponseWriter, r *http.Request) 
 // POST /v1/matches/{id}/scores
 // Records one hole score and recomputes the match's materialized result.
 func (h *MatchesHandler) SubmitScore(w http.ResponseWriter, r *http.Request) {
-	id, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid match ID", err)
+	id, ok := pathUUIDOr400(w, r, "id", "match")
+	if !ok {
 		return
 	}
 	req, ok := decodeAndValidate[sdk.ScoreSubmission](w, r)
@@ -234,35 +223,28 @@ func (h *MatchesHandler) SubmitScore(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/matches/{id}/winner
 func (h *MatchesHandler) GetMatchWinner(w http.ResponseWriter, r *http.Request) {
-	id, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid match ID", err)
+	id, ok := pathUUIDOr400(w, r, "id", "match")
+	if !ok {
 		return
 	}
-	finished, err := h.matchService.IsFinished(r.Context(), id)
-	if err != nil {
-		respondDomainError(r.Context(), w, "Failed to check match status", err)
-		return
-	}
-	winnerID, err := h.matchService.GetWinner(r.Context(), id)
+	outcome, err := h.matchService.GetOutcome(r.Context(), id)
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to get match winner", err)
 		return
 	}
-	respondJSON(w, http.StatusOK, sdk.WinnerResponse{Finished: finished, WinnerTeamID: winnerID})
+	respondJSON(w, http.StatusOK, sdk.WinnerResponse{Finished: outcome.Finished, WinnerTeamID: outcome.WinnerTeamID})
 }
 
 // GET /v1/matches/{id}/status
 func (h *MatchesHandler) GetMatchStatus(w http.ResponseWriter, r *http.Request) {
-	id, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid match ID", err)
+	id, ok := pathUUIDOr400(w, r, "id", "match")
+	if !ok {
 		return
 	}
-	finished, err := h.matchService.IsFinished(r.Context(), id)
+	outcome, err := h.matchService.GetOutcome(r.Context(), id)
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to check match status", err)
 		return
 	}
-	respondJSON(w, http.StatusOK, sdk.FinishedResponse{Finished: finished})
+	respondJSON(w, http.StatusOK, sdk.FinishedResponse{Finished: outcome.Finished})
 }

@@ -9,6 +9,10 @@ const (
 	TeamColorBlue = "Blue"
 )
 
+// DefaultTier is applied when a tournament entry omits one, mirroring the schema
+// default on tournament_players.tier.
+const DefaultTier = "white"
+
 // Player-tournament outcomes (PlayerTournamentHistory.result). "in_progress" covers a
 // tournament that hasn't finished all its matches yet.
 const (

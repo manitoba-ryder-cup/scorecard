@@ -224,6 +224,20 @@ type PlayerRecord struct {
 	Ties   int32
 }
 
+// MatchOutcome is a match's standing: whether it is complete, and the winning team
+// (nil while undecided, or when the match was halved).
+type MatchOutcome struct {
+	Finished     bool
+	WinnerTeamID *uuid.UUID
+}
+
+// TournamentOutcome is a tournament's standing: whether every match is final, and the
+// winning team (nil when unfinished or tied).
+type TournamentOutcome struct {
+	Finished     bool
+	WinnerTeamID *uuid.UUID
+}
+
 // StoredResult is a match's materialized state, persisted to match_results and
 // recomputed on each score write. LeaderTeamID is the current leader (nil = all
 // square); the winner is LeaderTeamID once Finished. Lead and HolesRemaining give

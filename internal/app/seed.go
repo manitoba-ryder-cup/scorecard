@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
+	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
 // SeedInput is the contract for the advance setup of a tournament: the event, its roster
@@ -117,7 +118,7 @@ func SeedTournament(ctx context.Context, svc *Services, in *SeedInput) (*SeedSum
 		}
 		if _, err := svc.Roster.EnterPlayer(ctx, golf.EnterPlayerInput{
 			TournamentID: tournament.ID, PlayerID: playerID,
-			Tier: defaultSeedTier(sp.Tier), Biography: sp.Biography, Hdcp: sp.Hdcp,
+			Tier: tierOrDefault(sp.Tier), Biography: sp.Biography, Hdcp: sp.Hdcp,
 		}); err != nil {
 			return nil, fmt.Errorf("entering %s: %w", sp.Email, err)
 		}
@@ -167,10 +168,9 @@ func SeedTournament(ctx context.Context, svc *Services, in *SeedInput) (*SeedSum
 	return summary, nil
 }
 
-// defaultSeedTier mirrors the schema default rather than storing an empty tier.
-func defaultSeedTier(tier string) string {
+func tierOrDefault(tier string) string {
 	if tier == "" {
-		return "white"
+		return sdk.DefaultTier
 	}
 	return tier
 }

@@ -42,19 +42,14 @@ type TournamentService struct {
 	TeamService  *TeamService
 }
 
-// IsFinished reports whether all of a tournament's matches are complete.
-func (s *TournamentService) IsFinished(ctx context.Context, tournamentID uuid.UUID) (bool, error) {
-	return s.ResultDB.IsTournamentFinished(ctx, tournamentID)
-}
-
-// GetWinningTeam returns the tournament's winning team ID, or nil if undecided
-// (not finished) or tied.
-func (s *TournamentService) GetWinningTeam(ctx context.Context, tournamentID uuid.UUID) (*uuid.UUID, error) {
-	winner, err := s.ResultDB.GetTournamentWinner(ctx, tournamentID)
+// GetOutcome reports whether every match is final and which team won (nil when
+// unfinished or tied).
+func (s *TournamentService) GetOutcome(ctx context.Context, tournamentID uuid.UUID) (TournamentOutcome, error) {
+	outcome, err := s.ResultDB.GetTournamentOutcome(ctx, tournamentID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get tournament winner: %w", err)
+		return TournamentOutcome{}, fmt.Errorf("failed to get tournament outcome: %w", err)
 	}
-	return winner, nil
+	return outcome, nil
 }
 
 // GetTeamsData builds each team's summary (color, captain, points) for a tournament.

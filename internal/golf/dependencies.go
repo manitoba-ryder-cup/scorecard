@@ -116,9 +116,8 @@ type tournamentDB interface {
 type resultDB interface {
 	GetMatchResult(ctx context.Context, matchID uuid.UUID) (*StoredResult, error)
 	ListTeamPoints(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]float64, error)
-	IsTournamentFinished(ctx context.Context, tournamentID uuid.UUID) (bool, error)
-	// GetTournamentWinner returns the winning team, or nil when unfinished or tied.
-	GetTournamentWinner(ctx context.Context, tournamentID uuid.UUID) (*uuid.UUID, error)
+	// GetTournamentOutcome returns finished state and winner in one read.
+	GetTournamentOutcome(ctx context.Context, tournamentID uuid.UUID) (TournamentOutcome, error)
 	// Batched over a tournament's roster, each keyed by player id.
 	ListTournamentPlayerRecords(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]PlayerRecord, error)
 	ListTournamentPlayerCups(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]int, error)

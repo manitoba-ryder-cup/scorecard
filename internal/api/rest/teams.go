@@ -24,9 +24,8 @@ func NewTeamsHandler(teamService TeamService) *TeamsHandler {
 
 // PUT /v1/teams/{id}/captain
 func (h *TeamsHandler) SetCaptain(w http.ResponseWriter, r *http.Request) {
-	teamID, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid team ID", err)
+	teamID, ok := pathUUIDOr400(w, r, "id", "team")
+	if !ok {
 		return
 	}
 	req, ok := decodeAndValidate[sdk.SetTeamCaptainRequest](w, r)
@@ -44,9 +43,8 @@ func (h *TeamsHandler) SetCaptain(w http.ResponseWriter, r *http.Request) {
 // DELETE /v1/teams/{id}/captain
 // Unsets the team's captain (used to reassign); 404 if the team doesn't exist.
 func (h *TeamsHandler) ClearCaptain(w http.ResponseWriter, r *http.Request) {
-	teamID, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid team ID", err)
+	teamID, ok := pathUUIDOr400(w, r, "id", "team")
+	if !ok {
 		return
 	}
 	if err := h.teamService.ClearCaptain(r.Context(), teamID); err != nil {

@@ -64,8 +64,7 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 		return nil, fmt.Errorf("failed to create JWT validator: %w", err)
 	}
 
-	// Parse the optional public tenant (fail fast on a malformed value rather than
-	// silently disabling public reads).
+	// Parse the optional public tenant
 	var publicTenantID *uuid.UUID
 	if config.PublicTenantID != "" {
 		id, err := uuid.Parse(config.PublicTenantID)

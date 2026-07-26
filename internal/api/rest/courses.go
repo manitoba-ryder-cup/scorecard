@@ -63,9 +63,8 @@ func (h *CoursesHandler) ListCourses(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/courses/{id}
 func (h *CoursesHandler) GetCourse(w http.ResponseWriter, r *http.Request) {
-	id, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid course ID", err)
+	id, ok := pathUUIDOr400(w, r, "id", "course")
+	if !ok {
 		return
 	}
 	course, err := h.courseService.GetCourse(r.Context(), id)
@@ -78,9 +77,8 @@ func (h *CoursesHandler) GetCourse(w http.ResponseWriter, r *http.Request) {
 
 // POST /v1/courses/{id}/tees
 func (h *CoursesHandler) AddTeeSet(w http.ResponseWriter, r *http.Request) {
-	courseID, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid course ID", err)
+	courseID, ok := pathUUIDOr400(w, r, "id", "course")
+	if !ok {
 		return
 	}
 	req, ok := decodeAndValidate[sdk.CreateTeeSetRequest](w, r)
@@ -108,9 +106,8 @@ func (h *CoursesHandler) AddTeeSet(w http.ResponseWriter, r *http.Request) {
 // GET /v1/courses/{id}/tees
 // Lists a course's configured tee sets (with colour names) for match setup.
 func (h *CoursesHandler) ListCourseTeeSets(w http.ResponseWriter, r *http.Request) {
-	courseID, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid course ID", err)
+	courseID, ok := pathUUIDOr400(w, r, "id", "course")
+	if !ok {
 		return
 	}
 	teeSets, err := h.courseService.ListCourseTeeSets(r.Context(), courseID)

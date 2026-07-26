@@ -256,25 +256,17 @@ func buildMatchResult(m MatchDetail, sides []MatchSide, scores []Score) MatchRes
 	return result
 }
 
-// IsFinished reports whether the match is complete, from the stored result.
-func (s *MatchService) IsFinished(ctx context.Context, matchID uuid.UUID) (bool, error) {
+// GetOutcome reports whether the match is complete and which team won (nil while it is
+// undecided), from the single stored result.
+func (s *MatchService) GetOutcome(ctx context.Context, matchID uuid.UUID) (MatchOutcome, error) {
 	r, err := s.ResultDB.GetMatchResult(ctx, matchID)
 	if err != nil {
-		return false, fmt.Errorf("failed to get match result: %w", err)
-	}
-	return r != nil && r.Finished, nil
-}
-
-// GetWinner returns the winning team's ID, or nil if the match is undecided.
-func (s *MatchService) GetWinner(ctx context.Context, matchID uuid.UUID) (*uuid.UUID, error) {
-	r, err := s.ResultDB.GetMatchResult(ctx, matchID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get match result: %w", err)
+		return MatchOutcome{}, fmt.Errorf("failed to get match result: %w", err)
 	}
 	if r == nil || !r.Finished {
-		return nil, nil
+		return MatchOutcome{}, nil
 	}
-	return r.LeaderTeamID, nil
+	return MatchOutcome{Finished: true, WinnerTeamID: r.LeaderTeamID}, nil
 }
 
 // matchTeams returns the two distinct team IDs among a match's participants.
@@ -283,20 +275,19 @@ func (s *MatchService) matchTeams(ctx context.Context, matchID uuid.UUID) (uuid.
 	if err != nil {
 		return uuid.Nil, uuid.Nil, false, fmt.Errorf("failed to list participants: %w", err)
 	}
-	var ids []uuid.UUID
+	var a, b uuid.UUID
 	for _, p := range ps {
-		seen := false
-		for _, id := range ids {
-			if id == p.TeamID {
-				seen = true
-			}
-		}
-		if !seen {
-			ids = append(ids, p.TeamID)
+		switch {
+		case a == uuid.Nil || p.TeamID == a:
+			a = p.TeamID
+		case b == uuid.Nil || p.TeamID == b:
+			b = p.TeamID
+		default:
+			return uuid.Nil, uuid.Nil, false, nil // a third side is not a match
 		}
 	}
-	if len(ids) != 2 {
+	if a == uuid.Nil || b == uuid.Nil {
 		return uuid.Nil, uuid.Nil, false, nil
 	}
-	return ids[0], ids[1], true, nil
+	return a, b, true, nil
 }

@@ -57,9 +57,8 @@ func (h *PlayersHandler) CreatePlayer(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/players/{id}
 func (h *PlayersHandler) GetPlayer(w http.ResponseWriter, r *http.Request) {
-	id, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid player ID", err)
+	id, ok := pathUUIDOr400(w, r, "id", "player")
+	if !ok {
 		return
 	}
 	player, err := h.playerService.GetPlayer(r.Context(), id)
@@ -73,9 +72,8 @@ func (h *PlayersHandler) GetPlayer(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/players/{id}/tournaments
 func (h *PlayersHandler) ListPlayerTournaments(w http.ResponseWriter, r *http.Request) {
-	id, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid player ID", err)
+	id, ok := pathUUIDOr400(w, r, "id", "player")
+	if !ok {
 		return
 	}
 	history, err := h.playerService.ListPlayerTournaments(r.Context(), id)

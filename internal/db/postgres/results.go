@@ -52,26 +52,19 @@ func (r *ResultsDB) ListTeamPoints(ctx context.Context, tournamentID uuid.UUID) 
 	})
 }
 
-func (r *ResultsDB) IsTournamentFinished(ctx context.Context, tournamentID uuid.UUID) (bool, error) {
-	return withTenant(ctx, r.db, func(q *sqlc.Queries, tenantID uuid.UUID) (bool, error) {
-		finished, err := q.IsTournamentFinished(ctx, sqlc.IsTournamentFinishedParams{TournamentID: tournamentID, TenantID: tenantID})
-		if err != nil {
-			return false, fmt.Errorf("checking tournament finished: %w", err)
-		}
-		return finished, nil
-	})
-}
-
-func (r *ResultsDB) GetTournamentWinner(ctx context.Context, tournamentID uuid.UUID) (*uuid.UUID, error) {
-	return withTenant(ctx, r.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*uuid.UUID, error) {
-		teamID, err := q.GetTournamentWinner(ctx, sqlc.GetTournamentWinnerParams{TournamentID: tournamentID, TenantID: tenantID})
+// GetTournamentOutcome reports whether every match is final and which team won. An
+// unknown tournament reads as unfinished rather than an error, matching what the
+// status and winner endpoints have always returned for one.
+func (r *ResultsDB) GetTournamentOutcome(ctx context.Context, tournamentID uuid.UUID) (golf.TournamentOutcome, error) {
+	return withTenant(ctx, r.db, func(q *sqlc.Queries, tenantID uuid.UUID) (golf.TournamentOutcome, error) {
+		row, err := q.GetTournamentOutcome(ctx, sqlc.GetTournamentOutcomeParams{TournamentID: tournamentID, TenantID: tenantID})
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
-				return nil, nil // unfinished or tied — no winner
+				return golf.TournamentOutcome{}, nil
 			}
-			return nil, fmt.Errorf("getting tournament winner: %w", err)
+			return golf.TournamentOutcome{}, fmt.Errorf("getting tournament outcome: %w", err)
 		}
-		return &teamID, nil
+		return golf.TournamentOutcome{Finished: row.Finished, WinnerTeamID: row.WinnerTeamID}, nil
 	})
 }
 

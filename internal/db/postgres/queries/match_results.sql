@@ -21,16 +21,6 @@ WHERE match_id = $1 AND tenant_id = $2;
 SELECT team_id, points FROM team_points
 WHERE tournament_id = $1 AND tenant_id = $2;
 
--- name: IsTournamentFinished :one
-SELECT EXISTS (
-    SELECT 1 FROM finished_tournaments WHERE tournament_id = $1 AND tenant_id = $2
-) AS finished;
-
--- name: GetTournamentWinner :one
--- The winning team's id, or no row when the tournament is unfinished or tied.
-SELECT team_id FROM tournament_winners
-WHERE tournament_id = $1 AND tenant_id = $2;
-
 -- All-time W-L-T for every player entered in a tournament, so the roster enriches
 -- without a per-player round trip. Records span every match the player has played.
 -- name: ListTournamentPlayerRecords :many
@@ -54,3 +44,14 @@ LEFT JOIN team_members tm ON tm.player_id = tp.player_id AND tm.tenant_id = tp.t
 LEFT JOIN tournament_winners w ON w.tenant_id = tm.tenant_id AND w.tournament_id = tm.tournament_id AND w.team_id = tm.team_id
 WHERE tp.tournament_id = @tournament_id AND tp.tenant_id = @tenant_id
 GROUP BY tp.player_id;
+
+-- Finished state and winner in one round trip. Driven off tournaments so the LEFT JOINs
+-- make both columns nullable: winner_team_id is NULL when unfinished or tied.
+-- name: GetTournamentOutcome :one
+SELECT
+    (f.tournament_id IS NOT NULL)::boolean AS finished,
+    w.team_id AS winner_team_id
+FROM tournaments t
+LEFT JOIN finished_tournaments f ON f.tournament_id = t.id AND f.tenant_id = t.tenant_id
+LEFT JOIN tournament_winners w ON w.tournament_id = t.id AND w.tenant_id = t.tenant_id
+WHERE t.id = @tournament_id AND t.tenant_id = @tenant_id;

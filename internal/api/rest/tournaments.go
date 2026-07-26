@@ -13,8 +13,7 @@ type TournamentService interface {
 	GetTournament(ctx context.Context, tournamentID uuid.UUID) (*golf.Tournament, error)
 	ListTournaments(ctx context.Context) ([]golf.Tournament, error)
 	CreateTournament(ctx context.Context, in golf.CreateTournamentInput) (*golf.Tournament, error)
-	IsFinished(ctx context.Context, tournamentID uuid.UUID) (bool, error)
-	GetWinningTeam(ctx context.Context, tournamentID uuid.UUID) (*uuid.UUID, error)
+	GetOutcome(ctx context.Context, tournamentID uuid.UUID) (golf.TournamentOutcome, error)
 	GetTeamsData(ctx context.Context, tournamentID uuid.UUID) ([]golf.TeamData, error)
 }
 
@@ -69,9 +68,8 @@ func (h *TournamentsHandler) CreateTournament(w http.ResponseWriter, r *http.Req
 
 // GET /v1/tournaments/{id}
 func (h *TournamentsHandler) GetTournament(w http.ResponseWriter, r *http.Request) {
-	id, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid tournament ID", err)
+	id, ok := pathUUIDOr400(w, r, "id", "tournament")
+	if !ok {
 		return
 	}
 	tournament, err := h.tournamentService.GetTournament(r.Context(), id)
@@ -85,9 +83,8 @@ func (h *TournamentsHandler) GetTournament(w http.ResponseWriter, r *http.Reques
 
 // GET /v1/tournaments/{id}/teams
 func (h *TournamentsHandler) GetTournamentTeams(w http.ResponseWriter, r *http.Request) {
-	id, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid tournament ID", err)
+	id, ok := pathUUIDOr400(w, r, "id", "tournament")
+	if !ok {
 		return
 	}
 	teams, err := h.tournamentService.GetTeamsData(r.Context(), id)
@@ -100,35 +97,28 @@ func (h *TournamentsHandler) GetTournamentTeams(w http.ResponseWriter, r *http.R
 
 // GET /v1/tournaments/{id}/winner
 func (h *TournamentsHandler) GetTournamentWinner(w http.ResponseWriter, r *http.Request) {
-	id, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid tournament ID", err)
+	id, ok := pathUUIDOr400(w, r, "id", "tournament")
+	if !ok {
 		return
 	}
-	finished, err := h.tournamentService.IsFinished(r.Context(), id)
-	if err != nil {
-		respondDomainError(r.Context(), w, "Failed to check tournament status", err)
-		return
-	}
-	winnerID, err := h.tournamentService.GetWinningTeam(r.Context(), id)
+	outcome, err := h.tournamentService.GetOutcome(r.Context(), id)
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to get tournament winner", err)
 		return
 	}
-	respondJSON(w, http.StatusOK, sdk.WinnerResponse{Finished: finished, WinnerTeamID: winnerID})
+	respondJSON(w, http.StatusOK, sdk.WinnerResponse{Finished: outcome.Finished, WinnerTeamID: outcome.WinnerTeamID})
 }
 
 // GET /v1/tournaments/{id}/status
 func (h *TournamentsHandler) GetTournamentStatus(w http.ResponseWriter, r *http.Request) {
-	id, err := pathUUID(r, "id")
-	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid tournament ID", err)
+	id, ok := pathUUIDOr400(w, r, "id", "tournament")
+	if !ok {
 		return
 	}
-	finished, err := h.tournamentService.IsFinished(r.Context(), id)
+	outcome, err := h.tournamentService.GetOutcome(r.Context(), id)
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to check tournament status", err)
 		return
 	}
-	respondJSON(w, http.StatusOK, sdk.FinishedResponse{Finished: finished})
+	respondJSON(w, http.StatusOK, sdk.FinishedResponse{Finished: outcome.Finished})
 }

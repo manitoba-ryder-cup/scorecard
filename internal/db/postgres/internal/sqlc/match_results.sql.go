@@ -37,40 +37,33 @@ func (q *Queries) GetMatchResult(ctx context.Context, arg GetMatchResultParams) 
 	return i, err
 }
 
-const getTournamentWinner = `-- name: GetTournamentWinner :one
-SELECT team_id FROM tournament_winners
-WHERE tournament_id = $1 AND tenant_id = $2
+const getTournamentOutcome = `-- name: GetTournamentOutcome :one
+SELECT
+    (f.tournament_id IS NOT NULL)::boolean AS finished,
+    w.team_id AS winner_team_id
+FROM tournaments t
+LEFT JOIN finished_tournaments f ON f.tournament_id = t.id AND f.tenant_id = t.tenant_id
+LEFT JOIN tournament_winners w ON w.tournament_id = t.id AND w.tenant_id = t.tenant_id
+WHERE t.id = $1 AND t.tenant_id = $2
 `
 
-type GetTournamentWinnerParams struct {
+type GetTournamentOutcomeParams struct {
 	TournamentID uuid.UUID `json:"tournament_id"`
 	TenantID     uuid.UUID `json:"tenant_id"`
 }
 
-// The winning team's id, or no row when the tournament is unfinished or tied.
-func (q *Queries) GetTournamentWinner(ctx context.Context, arg GetTournamentWinnerParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, getTournamentWinner, arg.TournamentID, arg.TenantID)
-	var team_id uuid.UUID
-	err := row.Scan(&team_id)
-	return team_id, err
+type GetTournamentOutcomeRow struct {
+	Finished     bool       `json:"finished"`
+	WinnerTeamID *uuid.UUID `json:"winner_team_id"`
 }
 
-const isTournamentFinished = `-- name: IsTournamentFinished :one
-SELECT EXISTS (
-    SELECT 1 FROM finished_tournaments WHERE tournament_id = $1 AND tenant_id = $2
-) AS finished
-`
-
-type IsTournamentFinishedParams struct {
-	TournamentID uuid.UUID `json:"tournament_id"`
-	TenantID     uuid.UUID `json:"tenant_id"`
-}
-
-func (q *Queries) IsTournamentFinished(ctx context.Context, arg IsTournamentFinishedParams) (bool, error) {
-	row := q.db.QueryRow(ctx, isTournamentFinished, arg.TournamentID, arg.TenantID)
-	var finished bool
-	err := row.Scan(&finished)
-	return finished, err
+// Finished state and winner in one round trip. Driven off tournaments so the LEFT JOINs
+// make both columns nullable: winner_team_id is NULL when unfinished or tied.
+func (q *Queries) GetTournamentOutcome(ctx context.Context, arg GetTournamentOutcomeParams) (GetTournamentOutcomeRow, error) {
+	row := q.db.QueryRow(ctx, getTournamentOutcome, arg.TournamentID, arg.TenantID)
+	var i GetTournamentOutcomeRow
+	err := row.Scan(&i.Finished, &i.WinnerTeamID)
+	return i, err
 }
 
 const listTeamPoints = `-- name: ListTeamPoints :many
