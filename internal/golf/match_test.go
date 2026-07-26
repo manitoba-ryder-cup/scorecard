@@ -236,3 +236,59 @@ func TestRemoveParticipant_PropagatesNotFound(t *testing.T) {
 		t.Fatalf("want ErrNotFound, got %v", err)
 	}
 }
+
+// The results view drives a live leaderboard, which needs to know who is ahead in a match
+// that is still being played — not just who won a finished one. Without it every client
+// has to re-derive the leader by counting hole_results.
+func TestListResults_ReportsTheLeaderOfAnUnfinishedMatch(t *testing.T) {
+	m := &fakeMatchDB{details: []MatchDetail{{
+		Match: Match{ID: matchID, TournamentID: tournamentID, CourseID: courseID, TeeColorID: teeColorID},
+	}}}
+	p := &fakeParticipantDB{withPlayers: []MatchParticipantPlayer{
+		{MatchID: matchID, TeamID: teamA, PlayerID: playerA},
+		{MatchID: matchID, TeamID: teamB, PlayerID: playerB},
+	}}
+	// Team A wins hole 1; the match is live, so there is a leader but no winner.
+	sdb := &fakeScoreDB{scores: []Score{
+		{MatchID: matchID, TeamID: teamA, HoleNumber: 1, Strokes: 4},
+		{MatchID: matchID, TeamID: teamB, HoleNumber: 1, Strokes: 5},
+	}}
+	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{}}
+
+	results, err := svc.ListResults(context.Background(), tournamentID)
+	if err != nil {
+		t.Fatalf("ListResults: %v", err)
+	}
+
+	r := results[0]
+	if r.LeaderTeamID == nil || *r.LeaderTeamID != teamA {
+		t.Errorf("leader = %v, want team A", r.LeaderTeamID)
+	}
+	if r.WinnerTeamID != nil {
+		t.Errorf("winner = %v, want none while unfinished", r.WinnerTeamID)
+	}
+}
+
+// A halved hole leaves nobody ahead.
+func TestListResults_NoLeaderWhenAllSquare(t *testing.T) {
+	m := &fakeMatchDB{details: []MatchDetail{{
+		Match: Match{ID: matchID, TournamentID: tournamentID, CourseID: courseID, TeeColorID: teeColorID},
+	}}}
+	p := &fakeParticipantDB{withPlayers: []MatchParticipantPlayer{
+		{MatchID: matchID, TeamID: teamA, PlayerID: playerA},
+		{MatchID: matchID, TeamID: teamB, PlayerID: playerB},
+	}}
+	sdb := &fakeScoreDB{scores: []Score{
+		{MatchID: matchID, TeamID: teamA, HoleNumber: 1, Strokes: 4},
+		{MatchID: matchID, TeamID: teamB, HoleNumber: 1, Strokes: 4},
+	}}
+	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{}}
+
+	results, err := svc.ListResults(context.Background(), tournamentID)
+	if err != nil {
+		t.Fatalf("ListResults: %v", err)
+	}
+	if results[0].LeaderTeamID != nil {
+		t.Errorf("leader = %v, want none when all square", results[0].LeaderTeamID)
+	}
+}

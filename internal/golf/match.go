@@ -250,6 +250,7 @@ func buildMatchResult(m MatchDetail, sides []MatchSide, scores []Score) MatchRes
 	result.Finished = stored.Finished
 	result.Lead = stored.Lead
 	result.HolesRemaining = stored.HolesRemaining
+	result.LeaderTeamID = stored.LeaderTeamID
 	if stored.Finished {
 		result.WinnerTeamID = stored.LeaderTeamID
 	}

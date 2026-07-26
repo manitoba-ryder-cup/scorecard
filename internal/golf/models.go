@@ -199,12 +199,16 @@ type MatchSide struct {
 // holes played. The closed-out state (Finished/WinnerTeamID/Lead/HolesRemaining) is
 // the same StoredResult the scoring engine persists.
 type MatchResult struct {
-	MatchID        uuid.UUID
-	FormatName     string
-	CourseName     string
-	TeeTime        *time.Time
-	Finished       bool
-	WinnerTeamID   *uuid.UUID
+	MatchID      uuid.UUID
+	FormatName   string
+	CourseName   string
+	TeeTime      *time.Time
+	Finished     bool
+	WinnerTeamID *uuid.UUID
+	// LeaderTeamID is who is ahead right now (nil = all square), set whether or not the
+	// match has finished. A live leaderboard needs it; without it every client has to
+	// re-derive the leader by counting HoleResults.
+	LeaderTeamID   *uuid.UUID
 	Lead           int
 	HolesRemaining int
 	Sides          []MatchSide

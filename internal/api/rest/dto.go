@@ -123,6 +123,7 @@ func toMatchResultDTO(m golf.MatchResult) sdk.MatchResult {
 		FormatName:     m.FormatName,
 		Finished:       m.Finished,
 		WinnerTeamID:   m.WinnerTeamID,
+		LeaderTeamID:   m.LeaderTeamID,
 		Lead:           m.Lead,
 		HolesRemaining: m.HolesRemaining,
 		Sides:          mapSlice(m.Sides, toMatchSideDTO),

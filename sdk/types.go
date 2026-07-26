@@ -309,13 +309,15 @@ type MatchSide struct {
 
 // MatchResult is a match's outcome for the tournament results view. hole_results holds,
 // per played hole in order, the winning team's id (null = halved); its length is the
-// number of holes played. winner_team_id is null unless finished. tee_time is RFC3339
-// (null if unscheduled).
+// number of holes played. winner_team_id is null unless finished, while leader_team_id
+// reports who is ahead at any point (null = all square) so a live leaderboard needs no
+// client-side derivation. tee_time is RFC3339 (null if unscheduled).
 type MatchResult struct {
 	MatchID        uuid.UUID    `json:"match_id"`
 	FormatName     string       `json:"format_name"`
 	Finished       bool         `json:"finished"`
 	WinnerTeamID   *uuid.UUID   `json:"winner_team_id"`
+	LeaderTeamID   *uuid.UUID   `json:"leader_team_id"`
 	Lead           int          `json:"lead"`
 	HolesRemaining int          `json:"holes_remaining"`
 	Sides          []MatchSide  `json:"sides"`
