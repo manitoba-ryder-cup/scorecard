@@ -33,7 +33,9 @@ func TestCreatePlayerAndReadBack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get player: %v", err)
 	}
-	if got.ID != created.ID || got.Email == nil || *got.Email != email {
+	// Email is write-only (see TestPlayerEmailIsNeverReturned), so identity round-trips
+	// on the name.
+	if got.ID != created.ID || got.FirstName != "Dustin" || got.LastName != "Johnson" {
 		t.Fatalf("round-trip mismatch: %+v", got)
 	}
 	if got.Record.Wins != 0 || got.Record.Losses != 0 || got.Record.Ties != 0 {
@@ -71,8 +73,8 @@ func TestCreatePlayerRosterOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create roster-only player: %v", err)
 	}
-	if created.Email != nil || created.UserID != nil {
-		t.Errorf("want nil email/user_id, got %+v", created)
+	if created.UserID != nil {
+		t.Errorf("want nil user_id, got %+v", created)
 	}
 }
 

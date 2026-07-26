@@ -114,8 +114,7 @@ const listTeamsByTournament = `-- name: ListTeamsByTournament :many
 SELECT
     t.id, t.tenant_id, t.tournament_id, t.color, t.captain_id,
     p.first_name AS captain_first_name,
-    p.last_name  AS captain_last_name,
-    p.email      AS captain_email
+    p.last_name  AS captain_last_name
 FROM teams t
 LEFT JOIN players p ON p.id = t.captain_id
 WHERE t.tournament_id = $1 AND t.tenant_id = $2
@@ -135,7 +134,6 @@ type ListTeamsByTournamentRow struct {
 	CaptainID        *uuid.UUID `json:"captain_id"`
 	CaptainFirstName *string    `json:"captain_first_name"`
 	CaptainLastName  *string    `json:"captain_last_name"`
-	CaptainEmail     *string    `json:"captain_email"`
 }
 
 // LEFT JOIN so the captain (if any) comes back in one query instead of a per-team lookup.
@@ -156,7 +154,6 @@ func (q *Queries) ListTeamsByTournament(ctx context.Context, arg ListTeamsByTour
 			&i.CaptainID,
 			&i.CaptainFirstName,
 			&i.CaptainLastName,
-			&i.CaptainEmail,
 		); err != nil {
 			return nil, err
 		}

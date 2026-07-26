@@ -116,7 +116,6 @@ func toTeamWithCaptain(row sqlc.ListTeamsByTournamentRow) golf.TeamWithCaptain {
 			ID:        *row.CaptainID,
 			FirstName: derefString(row.CaptainFirstName),
 			LastName:  derefString(row.CaptainLastName),
-			Email:     row.CaptainEmail,
 		}
 	}
 	return twc

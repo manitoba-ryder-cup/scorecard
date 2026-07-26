@@ -15,8 +15,10 @@ import (
 // cups won, both derived on read (0 for a new player). Per-tournament attributes (tier,
 // biography, handicap) live on TournamentPlayer.
 type Player struct {
-	ID        uuid.UUID
-	UserID    *uuid.UUID // heimdall account link; nil for roster-only players
+	ID     uuid.UUID
+	UserID *uuid.UUID // heimdall account link; nil for roster-only players
+	// Email is never serialized; it is the seed CLI's key for matching a returning
+	// player, so it stays on the domain model but off the wire.
 	Email     *string
 	FirstName string
 	LastName  string
@@ -157,7 +159,6 @@ type TournamentPlayer struct {
 	Hdcp         float32
 	FirstName    string
 	LastName     string
-	Email        *string
 	PhotoPath    string
 	TeamID       *uuid.UUID
 	Record       PlayerRecord
@@ -269,5 +270,4 @@ type PlayerSummary struct {
 	ID        uuid.UUID
 	FirstName string
 	LastName  string
-	Email     *string
 }

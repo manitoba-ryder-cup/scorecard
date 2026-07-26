@@ -10,7 +10,7 @@ WITH ins AS (
     VALUES ($1, $2, $3, $4, $5, $6)
     RETURNING *
 )
-SELECT ins.*, p.first_name, p.last_name, p.email, p.photo_path, tm.team_id
+SELECT ins.*, p.first_name, p.last_name, p.photo_path, tm.team_id
 FROM ins
 JOIN players p ON ins.player_id = p.id
 LEFT JOIN team_members tm ON tm.tournament_id = ins.tournament_id AND tm.player_id = ins.player_id;
@@ -25,14 +25,14 @@ WITH upd AS (
       AND tournament_players.tenant_id = $3
     RETURNING *
 )
-SELECT upd.*, p.first_name, p.last_name, p.email, p.photo_path, tm.team_id
+SELECT upd.*, p.first_name, p.last_name, p.photo_path, tm.team_id
 FROM upd
 JOIN players p ON upd.player_id = p.id
 LEFT JOIN team_members tm ON tm.tournament_id = upd.tournament_id AND tm.player_id = upd.player_id;
 
 -- ListTournamentPlayers returns every entered player, enriched.
 -- name: ListTournamentPlayers :many
-SELECT tp.*, p.first_name, p.last_name, p.email, p.photo_path, tm.team_id
+SELECT tp.*, p.first_name, p.last_name, p.photo_path, tm.team_id
 FROM tournament_players tp
 JOIN players p ON tp.player_id = p.id
 LEFT JOIN team_members tm ON tm.tournament_id = tp.tournament_id AND tm.player_id = tp.player_id
@@ -42,7 +42,7 @@ ORDER BY p.last_name, p.first_name;
 -- ListTournamentPlayersByTeam returns the same rows filtered to one team's drafted
 -- players.
 -- name: ListTournamentPlayersByTeam :many
-SELECT tp.*, p.first_name, p.last_name, p.email, p.photo_path, tm.team_id
+SELECT tp.*, p.first_name, p.last_name, p.photo_path, tm.team_id
 FROM tournament_players tp
 JOIN players p ON tp.player_id = p.id
 JOIN team_members tm ON tm.tournament_id = tp.tournament_id AND tm.player_id = tp.player_id

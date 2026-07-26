@@ -31,7 +31,7 @@ func (t *TournamentPlayersDB) CreateTournamentPlayer(ctx context.Context, in gol
 			return nil, fmt.Errorf("entering tournament player: %w", mapWriteErr(err))
 		}
 		tp := toTournamentPlayer(row.TournamentID, row.PlayerID, row.Tier, row.Biography, row.Hdcp,
-			row.FirstName, row.LastName, row.Email, row.PhotoPath, row.TeamID)
+			row.FirstName, row.LastName, row.PhotoPath, row.TeamID)
 		return &tp, nil
 	})
 }
@@ -51,7 +51,7 @@ func (t *TournamentPlayersDB) UpdateTournamentPlayer(ctx context.Context, in gol
 			return nil, fmt.Errorf("updating tournament player: %w", mapReadErr(err))
 		}
 		tp := toTournamentPlayer(row.TournamentID, row.PlayerID, row.Tier, row.Biography, row.Hdcp,
-			row.FirstName, row.LastName, row.Email, row.PhotoPath, row.TeamID)
+			row.FirstName, row.LastName, row.PhotoPath, row.TeamID)
 		return &tp, nil
 	})
 }
@@ -69,7 +69,7 @@ func (t *TournamentPlayersDB) ListTournamentPlayers(ctx context.Context, tournam
 		for i, row := range rows {
 			// team_id is nullable here (LEFT JOIN): nil when undrafted.
 			result[i] = toTournamentPlayer(row.TournamentID, row.PlayerID, row.Tier, row.Biography, row.Hdcp,
-				row.FirstName, row.LastName, row.Email, row.PhotoPath, row.TeamID)
+				row.FirstName, row.LastName, row.PhotoPath, row.TeamID)
 		}
 		return result, nil
 	})
@@ -88,14 +88,14 @@ func (t *TournamentPlayersDB) ListTournamentPlayersByTeam(ctx context.Context, t
 		for i, row := range rows {
 			tid := row.TeamID // non-null here (INNER JOIN)
 			result[i] = toTournamentPlayer(row.TournamentID, row.PlayerID, row.Tier, row.Biography, row.Hdcp,
-				row.FirstName, row.LastName, row.Email, row.PhotoPath, &tid)
+				row.FirstName, row.LastName, row.PhotoPath, &tid)
 		}
 		return result, nil
 	})
 }
 
 // toTournamentPlayer assembles the unified roster entry shared by every read/write.
-func toTournamentPlayer(tournamentID, playerID uuid.UUID, tier, biography string, hdcp float32, first, last string, email *string, photo string, teamID *uuid.UUID) golf.TournamentPlayer {
+func toTournamentPlayer(tournamentID, playerID uuid.UUID, tier, biography string, hdcp float32, first, last, photo string, teamID *uuid.UUID) golf.TournamentPlayer {
 	return golf.TournamentPlayer{
 		TournamentID: tournamentID,
 		PlayerID:     playerID,
@@ -104,7 +104,6 @@ func toTournamentPlayer(tournamentID, playerID uuid.UUID, tier, biography string
 		Hdcp:         hdcp,
 		FirstName:    first,
 		LastName:     last,
-		Email:        email,
 		PhotoPath:    photo,
 		TeamID:       teamID,
 	}

@@ -19,7 +19,7 @@ WITH ins AS (
     VALUES ($1, $2, $3, $4, $5, $6)
     RETURNING tournament_id, player_id, tenant_id, tier, biography, hdcp, created_at, updated_at
 )
-SELECT ins.tournament_id, ins.player_id, ins.tenant_id, ins.tier, ins.biography, ins.hdcp, ins.created_at, ins.updated_at, p.first_name, p.last_name, p.email, p.photo_path, tm.team_id
+SELECT ins.tournament_id, ins.player_id, ins.tenant_id, ins.tier, ins.biography, ins.hdcp, ins.created_at, ins.updated_at, p.first_name, p.last_name, p.photo_path, tm.team_id
 FROM ins
 JOIN players p ON ins.player_id = p.id
 LEFT JOIN team_members tm ON tm.tournament_id = ins.tournament_id AND tm.player_id = ins.player_id
@@ -45,7 +45,6 @@ type CreateTournamentPlayerRow struct {
 	UpdatedAt    time.Time  `json:"updated_at"`
 	FirstName    string     `json:"first_name"`
 	LastName     string     `json:"last_name"`
-	Email        *string    `json:"email"`
 	PhotoPath    string     `json:"photo_path"`
 	TeamID       *uuid.UUID `json:"team_id"`
 }
@@ -76,7 +75,6 @@ func (q *Queries) CreateTournamentPlayer(ctx context.Context, arg CreateTourname
 		&i.UpdatedAt,
 		&i.FirstName,
 		&i.LastName,
-		&i.Email,
 		&i.PhotoPath,
 		&i.TeamID,
 	)
@@ -170,7 +168,7 @@ func (q *Queries) ListPlayerTournaments(ctx context.Context, arg ListPlayerTourn
 }
 
 const listTournamentPlayers = `-- name: ListTournamentPlayers :many
-SELECT tp.tournament_id, tp.player_id, tp.tenant_id, tp.tier, tp.biography, tp.hdcp, tp.created_at, tp.updated_at, p.first_name, p.last_name, p.email, p.photo_path, tm.team_id
+SELECT tp.tournament_id, tp.player_id, tp.tenant_id, tp.tier, tp.biography, tp.hdcp, tp.created_at, tp.updated_at, p.first_name, p.last_name, p.photo_path, tm.team_id
 FROM tournament_players tp
 JOIN players p ON tp.player_id = p.id
 LEFT JOIN team_members tm ON tm.tournament_id = tp.tournament_id AND tm.player_id = tp.player_id
@@ -194,7 +192,6 @@ type ListTournamentPlayersRow struct {
 	UpdatedAt    time.Time  `json:"updated_at"`
 	FirstName    string     `json:"first_name"`
 	LastName     string     `json:"last_name"`
-	Email        *string    `json:"email"`
 	PhotoPath    string     `json:"photo_path"`
 	TeamID       *uuid.UUID `json:"team_id"`
 }
@@ -220,7 +217,6 @@ func (q *Queries) ListTournamentPlayers(ctx context.Context, arg ListTournamentP
 			&i.UpdatedAt,
 			&i.FirstName,
 			&i.LastName,
-			&i.Email,
 			&i.PhotoPath,
 			&i.TeamID,
 		); err != nil {
@@ -235,7 +231,7 @@ func (q *Queries) ListTournamentPlayers(ctx context.Context, arg ListTournamentP
 }
 
 const listTournamentPlayersByTeam = `-- name: ListTournamentPlayersByTeam :many
-SELECT tp.tournament_id, tp.player_id, tp.tenant_id, tp.tier, tp.biography, tp.hdcp, tp.created_at, tp.updated_at, p.first_name, p.last_name, p.email, p.photo_path, tm.team_id
+SELECT tp.tournament_id, tp.player_id, tp.tenant_id, tp.tier, tp.biography, tp.hdcp, tp.created_at, tp.updated_at, p.first_name, p.last_name, p.photo_path, tm.team_id
 FROM tournament_players tp
 JOIN players p ON tp.player_id = p.id
 JOIN team_members tm ON tm.tournament_id = tp.tournament_id AND tm.player_id = tp.player_id
@@ -259,7 +255,6 @@ type ListTournamentPlayersByTeamRow struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 	FirstName    string    `json:"first_name"`
 	LastName     string    `json:"last_name"`
-	Email        *string   `json:"email"`
 	PhotoPath    string    `json:"photo_path"`
 	TeamID       uuid.UUID `json:"team_id"`
 }
@@ -286,7 +281,6 @@ func (q *Queries) ListTournamentPlayersByTeam(ctx context.Context, arg ListTourn
 			&i.UpdatedAt,
 			&i.FirstName,
 			&i.LastName,
-			&i.Email,
 			&i.PhotoPath,
 			&i.TeamID,
 		); err != nil {
@@ -309,7 +303,7 @@ WITH upd AS (
       AND tournament_players.tenant_id = $3
     RETURNING tournament_id, player_id, tenant_id, tier, biography, hdcp, created_at, updated_at
 )
-SELECT upd.tournament_id, upd.player_id, upd.tenant_id, upd.tier, upd.biography, upd.hdcp, upd.created_at, upd.updated_at, p.first_name, p.last_name, p.email, p.photo_path, tm.team_id
+SELECT upd.tournament_id, upd.player_id, upd.tenant_id, upd.tier, upd.biography, upd.hdcp, upd.created_at, upd.updated_at, p.first_name, p.last_name, p.photo_path, tm.team_id
 FROM upd
 JOIN players p ON upd.player_id = p.id
 LEFT JOIN team_members tm ON tm.tournament_id = upd.tournament_id AND tm.player_id = upd.player_id
@@ -335,7 +329,6 @@ type UpdateTournamentPlayerRow struct {
 	UpdatedAt    time.Time  `json:"updated_at"`
 	FirstName    string     `json:"first_name"`
 	LastName     string     `json:"last_name"`
-	Email        *string    `json:"email"`
 	PhotoPath    string     `json:"photo_path"`
 	TeamID       *uuid.UUID `json:"team_id"`
 }
@@ -362,7 +355,6 @@ func (q *Queries) UpdateTournamentPlayer(ctx context.Context, arg UpdateTourname
 		&i.UpdatedAt,
 		&i.FirstName,
 		&i.LastName,
-		&i.Email,
 		&i.PhotoPath,
 		&i.TeamID,
 	)

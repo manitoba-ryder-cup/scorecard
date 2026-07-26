@@ -17,8 +17,7 @@ WHERE id = $1 AND tenant_id = $2;
 SELECT
     t.*,
     p.first_name AS captain_first_name,
-    p.last_name  AS captain_last_name,
-    p.email      AS captain_email
+    p.last_name  AS captain_last_name
 FROM teams t
 LEFT JOIN players p ON p.id = t.captain_id
 WHERE t.tournament_id = $1 AND t.tenant_id = $2

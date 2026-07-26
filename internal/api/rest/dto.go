@@ -27,7 +27,6 @@ func toPlayerDTO(p golf.Player) sdk.Player {
 	return sdk.Player{
 		ID:        p.ID,
 		UserID:    p.UserID,
-		Email:     p.Email,
 		FirstName: p.FirstName,
 		LastName:  p.LastName,
 		PhotoPath: p.PhotoPath,
@@ -79,7 +78,6 @@ func toTournamentTeamDTO(td golf.TeamData) sdk.TournamentTeam {
 			ID:        td.Captain.ID,
 			FirstName: td.Captain.FirstName,
 			LastName:  td.Captain.LastName,
-			Email:     td.Captain.Email,
 		}
 	}
 	return sdk.TournamentTeam{

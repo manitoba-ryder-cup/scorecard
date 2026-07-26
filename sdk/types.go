@@ -20,12 +20,12 @@ type APIError struct {
 
 func (e *APIError) Error() string { return e.Message }
 
-// Player is a golfer's public profile. tenant_id is intentionally omitted — it is
-// an internal multi-tenancy detail clients never need.
+// Player is a golfer's public profile. tenant_id and email are intentionally omitted:
+// reads are public, so an address would be published to anonymous spectators. Email is
+// write-only, kept server-side as the seed CLI's key for recognising a returning player.
 type Player struct {
 	ID        uuid.UUID  `json:"id"`
 	UserID    *uuid.UUID `json:"user_id"` // heimdall account link; null for roster-only players
-	Email     *string    `json:"email"`
 	FirstName string     `json:"first_name"`
 	LastName  string     `json:"last_name"`
 	PhotoPath string     `json:"photo_path"`
@@ -39,10 +39,9 @@ type PlayerRecord struct {
 	Ties   int32 `json:"ties"`
 }
 
-// PlayerProfile is the player detail response: the base player plus the derived
-// record. The list endpoint returns bare Players (no per-player record query); the
-// detail endpoint pays for the extra derivation. Player is embedded, so its fields
-// stay at the top level of the JSON alongside "record".
+// PlayerProfile is a player with their derived record and cups won, returned by both
+// the detail and list endpoints. Player is embedded, so its fields stay at the top level
+// of the JSON alongside "record".
 type PlayerProfile struct {
 	Player
 	Record  PlayerRecord `json:"record"`
@@ -130,7 +129,6 @@ type PlayerSummary struct {
 	ID        uuid.UUID `json:"id"`
 	FirstName string    `json:"first_name"`
 	LastName  string    `json:"last_name"`
-	Email     *string   `json:"email"`
 }
 
 // Tournament is a tournament event. Dates are ISO-8601 (YYYY-MM-DD).
@@ -162,7 +160,6 @@ type TournamentPlayer struct {
 	Hdcp         float32      `json:"hdcp"`
 	FirstName    string       `json:"first_name"`
 	LastName     string       `json:"last_name"`
-	Email        *string      `json:"email"`
 	PhotoPath    string       `json:"photo_path"`
 	TeamID       *uuid.UUID   `json:"team_id"`
 	Record       PlayerRecord `json:"record"`
