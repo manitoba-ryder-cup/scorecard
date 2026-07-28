@@ -138,6 +138,11 @@ type Tournament struct {
 	StartDate string    `json:"start_date"`
 	EndDate   string    `json:"end_date"`
 	Location  string    `json:"location"`
+	// TimeZone is where the cup is played, as an IANA name (e.g. "America/Winnipeg").
+	// start_date/end_date are calendar dates and tee times are UTC instants; both are
+	// read against this, so a client renders the event's own wall clock rather than the
+	// viewer's.
+	TimeZone string `json:"time_zone"`
 }
 
 // CreateTournamentRequest is the body for POST /v1/tournaments. Dates are YYYY-MM-DD.
@@ -146,7 +151,13 @@ type CreateTournamentRequest struct {
 	StartDate string `json:"start_date"`
 	EndDate   string `json:"end_date"`
 	Location  string `json:"location"`
+	// TimeZone is an IANA name; empty defaults to DefaultTimeZone.
+	TimeZone string `json:"time_zone"`
 }
+
+// DefaultTimeZone is where the cup has always been played, used when a tournament is
+// created without naming one.
+const DefaultTimeZone = "America/Winnipeg"
 
 // TournamentPlayer is a player entered in a tournament: the per-tournament attributes
 // (tier, biography, handicap) set independently of the draft, the player's identity,

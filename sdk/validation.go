@@ -1,6 +1,9 @@
 package sdk
 
 import (
+	// Embedded so an IANA name validates the same wherever the SDK runs.
+	_ "time/tzdata"
+
 	"context"
 	"fmt"
 	"regexp"
@@ -237,6 +240,13 @@ func (r CreateTournamentRequest) Validate(ctx context.Context) error {
 	}
 	if end.Before(start) {
 		return fmt.Errorf("end_date cannot precede start_date")
+	}
+	// An unknown zone would silently fall back to UTC when read, shifting every tee time
+	// and moving the day the cup can be scored on.
+	if r.TimeZone != "" {
+		if _, err := time.LoadLocation(r.TimeZone); err != nil {
+			return fmt.Errorf("time_zone must be an IANA name such as America/Winnipeg")
+		}
 	}
 	return nil
 }

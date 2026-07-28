@@ -42,6 +42,10 @@ type Tournament struct {
 	StartDate time.Time
 	EndDate   time.Time
 	Location  string
+	// TimeZone is where the cup is played, as an IANA name. StartDate/EndDate are
+	// calendar dates and TeeTimes are absolute instants; both need this to mean anything
+	// as a wall clock. An IANA name rather than an offset so DST is the zone's problem.
+	TimeZone string
 }
 
 // Match represents an individual golf match

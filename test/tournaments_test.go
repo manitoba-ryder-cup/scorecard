@@ -43,6 +43,10 @@ func TestCreateTournamentSeedsBothTeams(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create tournament: %v", err)
 	}
+	// Not named on the request, so it falls back to where the cup has always been played.
+	if tour.TimeZone != sdk.DefaultTimeZone {
+		t.Errorf("time_zone = %q, want the default %q", tour.TimeZone, sdk.DefaultTimeZone)
+	}
 	if tour.ID == uuid.Nil || tour.Name != "Manitoba Ryder Cup" || tour.StartDate != "2026-08-01" || tour.EndDate != "2026-08-03" {
 		t.Fatalf("unexpected tournament: %+v", tour)
 	}
@@ -109,5 +113,47 @@ func TestCreateTournamentInvalidDatesRejectedByServer(t *testing.T) {
 	status, _ := request.Raw(t, http.MethodPost, sdk.RouteV1Tournaments, body, freshToken(t))
 	if status != http.StatusBadRequest {
 		t.Fatalf("want 400, got %d", status)
+	}
+}
+
+// TestCreateTournamentCarriesItsTimeZone covers an event held away from home: the zone is
+// stored and returned, so its dates and tee times read as the wall clock played to.
+func TestCreateTournamentCarriesItsTimeZone(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	ctx := context.Background()
+
+	tour, err := client.CreateTournament(ctx, sdk.CreateTournamentRequest{
+		Name: "Away Cup", StartDate: "2026-08-01", EndDate: "2026-08-03",
+		Location: "Phoenix", TimeZone: "America/Phoenix",
+	})
+	if err != nil {
+		t.Fatalf("create tournament: %v", err)
+	}
+	if tour.TimeZone != "America/Phoenix" {
+		t.Errorf("time_zone = %q, want America/Phoenix", tour.TimeZone)
+	}
+
+	got, err := client.GetTournament(ctx, tour.ID)
+	if err != nil {
+		t.Fatalf("get tournament: %v", err)
+	}
+	if got.TimeZone != "America/Phoenix" {
+		t.Errorf("time_zone after read = %q, want America/Phoenix", got.TimeZone)
+	}
+}
+
+// TestCreateTournamentRejectsAnUnknownTimeZone: an unreadable zone would silently shift
+// every tee time and move the day the cup can be scored on.
+func TestCreateTournamentRejectsAnUnknownTimeZone(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+
+	_, err := client.CreateTournament(context.Background(), sdk.CreateTournamentRequest{
+		Name: "Nowhere Cup", StartDate: "2026-08-01", EndDate: "2026-08-03",
+		Location: "Nowhere", TimeZone: "Mars/Olympus",
+	})
+	if err == nil {
+		t.Fatal("want an unknown IANA zone rejected")
 	}
 }

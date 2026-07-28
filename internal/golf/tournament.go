@@ -17,6 +17,7 @@ type CreateTournamentInput struct {
 	StartDate time.Time
 	EndDate   time.Time
 	Location  string
+	TimeZone  string
 }
 
 // tournamentTeamColors are the two sides every tournament is created with. A Ryder

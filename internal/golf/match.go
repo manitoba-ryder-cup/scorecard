@@ -123,7 +123,7 @@ func (s *MatchService) SubmitHoleScores(ctx context.Context, matchID uuid.UUID, 
 	if err != nil {
 		return zero, fmt.Errorf("failed to get tournament: %w", err)
 	}
-	if !scoringOpen(s.now(), tournament.StartDate, tournament.EndDate) {
+	if !scoringOpen(s.now(), tournament) {
 		return zero, fmt.Errorf("%w: tournament %s runs %s to %s; scores cannot be recorded outside it",
 			ErrConflict, tournament.Name, dayIn(tournament.StartDate).Format(time.DateOnly), dayIn(tournament.EndDate).Format(time.DateOnly))
 	}

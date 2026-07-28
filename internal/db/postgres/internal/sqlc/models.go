@@ -137,6 +137,7 @@ type Tournament struct {
 	Location  string    `json:"location"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+	TimeZone  string    `json:"time_zone"`
 }
 
 type TournamentPlayer struct {

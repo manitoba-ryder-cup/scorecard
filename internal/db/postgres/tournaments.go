@@ -27,6 +27,7 @@ func (t *TournamentsDB) CreateTournamentWithTeams(ctx context.Context, in golf.C
 			StartDate: in.StartDate,
 			EndDate:   in.EndDate,
 			Location:  in.Location,
+			TimeZone:  in.TimeZone,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("creating tournament: %w", mapWriteErr(err))
@@ -74,5 +75,6 @@ func toDomainTournament(t sqlc.Tournament) golf.Tournament {
 		StartDate: t.StartDate,
 		EndDate:   t.EndDate,
 		Location:  t.Location,
+		TimeZone:  t.TimeZone,
 	}
 }

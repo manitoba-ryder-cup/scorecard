@@ -68,6 +68,7 @@ func toTournamentDTO(t golf.Tournament) sdk.Tournament {
 		StartDate: dateString(t.StartDate),
 		EndDate:   dateString(t.EndDate),
 		Location:  t.Location,
+		TimeZone:  t.TimeZone,
 	}
 }
 

@@ -11,6 +11,10 @@ var (
 	cupEnd   = time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC)
 )
 
+func cup(zone string) *Tournament {
+	return &Tournament{Name: "Manitoba Ryder Cup", StartDate: cupStart, EndDate: cupEnd, TimeZone: zone}
+}
+
 func TestScoringOpen(t *testing.T) {
 	cases := []struct {
 		name string
@@ -32,9 +36,34 @@ func TestScoringOpen(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := scoringOpen(tc.now, cupStart, cupEnd); got != tc.want {
+			if got := scoringOpen(tc.now, cup("America/Winnipeg")); got != tc.want {
 				t.Errorf("scoringOpen(%s) = %v, want %v", tc.now.Format(time.RFC3339), got, tc.want)
 			}
 		})
+	}
+}
+
+func TestScoringOpen_ReadsTheTournamentsOwnZone(t *testing.T) {
+	// Same instant, same dates: 22:00 on the 19th in Winnipeg is already the 20th in
+	// Auckland, so a cup played there is over while the Manitoba one is still going.
+	instant := time.Date(2026, 9, 20, 3, 0, 0, 0, time.UTC)
+
+	if !scoringOpen(instant, cup("America/Winnipeg")) {
+		t.Error("Winnipeg: want open, it is still 22:00 on the final day there")
+	}
+	if scoringOpen(instant, cup("Pacific/Auckland")) {
+		t.Error("Auckland: want shut, the cup's last day ended hours ago there")
+	}
+}
+
+func TestScoringOpen_FallsBackToTheCupsHomeZone(t *testing.T) {
+	// A tournament stored before zones were recorded, or with an unreadable one, must not
+	// quietly become UTC — that closes the window early on the final day.
+	lastGroupOut := time.Date(2026, 9, 20, 1, 20, 0, 0, time.UTC)
+
+	for _, zone := range []string{"", "Not/AZone"} {
+		if !scoringOpen(lastGroupOut, cup(zone)) {
+			t.Errorf("zone %q: want the last group still able to score", zone)
+		}
 	}
 }

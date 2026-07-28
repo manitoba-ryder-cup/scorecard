@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
+	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
 // SeedInput is the contract for the advance setup of a tournament: the event, its roster
@@ -33,6 +34,7 @@ type SeedTournamentMeta struct {
 	StartDate string `json:"start_date"` // YYYY-MM-DD
 	EndDate   string `json:"end_date"`
 	Location  string `json:"location"`
+	TimeZone  string `json:"time_zone"` // IANA name; empty means the cup's home zone
 }
 
 type SeedPlayer struct {
@@ -84,8 +86,13 @@ func SeedTournament(ctx context.Context, svc *Services, in *SeedInput) (*SeedSum
 		return nil, fmt.Errorf("invalid tournament end_date: %w", err)
 	}
 
+	timeZone := in.Tournament.TimeZone
+	if timeZone == "" {
+		timeZone = sdk.DefaultTimeZone
+	}
 	tournament, err := svc.Tournament.CreateTournament(ctx, golf.CreateTournamentInput{
-		Name: in.Tournament.Name, StartDate: start, EndDate: end, Location: in.Tournament.Location,
+		Name: in.Tournament.Name, StartDate: start, EndDate: end,
+		Location: in.Tournament.Location, TimeZone: timeZone,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("creating tournament: %w", err)
