@@ -17,6 +17,16 @@ type MatchService struct {
 	ScoreDB       scoreDB
 	ResultDB      resultDB
 	HoleDB        holeDB
+	TournamentDB  tournamentDB
+	// Now is the clock the scoring window is read against; nil means time.Now.
+	Now func() time.Time
+}
+
+func (s *MatchService) now() time.Time {
+	if s.Now == nil {
+		return time.Now()
+	}
+	return s.Now()
 }
 
 // CreateMatchInput is the intent to create a match within a tournament. The FK to
@@ -106,6 +116,18 @@ func (s *MatchService) SubmitHoleScores(ctx context.Context, matchID uuid.UUID, 
 	if err != nil {
 		return zero, fmt.Errorf("failed to get match: %w", err)
 	}
+	// Nothing is scored before the cup is played: a tournament months out is only ever
+	// being poked at. Scoped to the tournament's days rather than the tee time, which
+	// moves for weather and isn't consistently stored as an absolute instant.
+	tournament, err := s.TournamentDB.GetTournament(ctx, match.TournamentID)
+	if err != nil {
+		return zero, fmt.Errorf("failed to get tournament: %w", err)
+	}
+	if !scoringOpen(s.now(), tournament.StartDate, tournament.EndDate) {
+		return zero, fmt.Errorf("%w: tournament %s runs %s to %s; scores cannot be recorded outside it",
+			ErrConflict, tournament.Name, dayIn(tournament.StartDate).Format(time.DateOnly), dayIn(tournament.EndDate).Format(time.DateOnly))
+	}
+
 	// Reject scores for a team that isn't actually playing this match. This needs the
 	// match's participants, so it's a domain invariant, not boundary shape validation.
 	teamA, teamB, ok, err := s.matchTeams(ctx, matchID)

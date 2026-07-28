@@ -41,7 +41,7 @@ func TestFullRyderCupCorrectness(t *testing.T) {
 	ctx := context.Background()
 
 	tour, err := client.CreateTournament(ctx, sdk.CreateTournamentRequest{
-		Name: "Manitoba Ryder Cup", StartDate: "2026-08-01", EndDate: "2026-08-04", Location: "Winnipeg",
+		Name: "Manitoba Ryder Cup", StartDate: cupStart, EndDate: cupEnd, Location: "Winnipeg",
 	})
 	if err != nil {
 		t.Fatalf("create tournament: %v", err)
@@ -305,7 +305,7 @@ func cupWithCourse(t *testing.T, client *sdk.Client, name string) (tourID, redTe
 	t.Helper()
 	ctx := context.Background()
 	tour, err := client.CreateTournament(ctx, sdk.CreateTournamentRequest{
-		Name: name, StartDate: "2026-08-01", EndDate: "2026-08-02", Location: "Winnipeg",
+		Name: name, StartDate: cupStart, EndDate: cupEnd, Location: "Winnipeg",
 	})
 	if err != nil {
 		t.Fatalf("create tournament: %v", err)

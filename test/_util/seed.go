@@ -87,7 +87,7 @@ func SeedSinglesMatch(ctx context.Context, conn *pgx.Conn) (*Fixture, error) {
 
 	if err := conn.QueryRow(ctx,
 		`INSERT INTO tournaments (tenant_id, name, start_date, end_date, location)
-		 VALUES ($1, 'Test Cup', '2026-07-01', '2026-07-03', 'Winnipeg') RETURNING id`, t,
+		 VALUES ($1, 'Test Cup', current_date - 1, current_date + 1, 'Winnipeg') RETURNING id`, t,
 	).Scan(&f.TournamentID); err != nil {
 		return nil, fmt.Errorf("seed tournament: %w", err)
 	}

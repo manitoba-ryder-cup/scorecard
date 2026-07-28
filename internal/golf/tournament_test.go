@@ -10,12 +10,13 @@ import (
 )
 
 type fakeTournamentDB struct {
+	tournament *Tournament // returned by GetTournament; nil unless a test needs one
 	created    *CreateTournamentInput
 	teamColors []string
 }
 
 func (f *fakeTournamentDB) GetTournament(ctx context.Context, id uuid.UUID) (*Tournament, error) {
-	return nil, nil
+	return f.tournament, nil
 }
 func (f *fakeTournamentDB) ListTournaments(ctx context.Context) ([]Tournament, error) {
 	return nil, nil

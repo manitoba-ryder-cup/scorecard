@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -13,6 +14,15 @@ import (
 // PublicTenantID is the tenant the test server treats as its anonymous public tenant.
 // It must match SCORECARD_PUBLIC_TENANT_ID in test/docker-compose.yml.
 var PublicTenantID = uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+
+// LiveCupDates spans today, so a seeded tournament is one currently being played.
+// Scores can only be recorded on a tournament's days, and the window is read in the
+// event's timezone — a day either side keeps the fixture valid whatever the runner's
+// clock is set to.
+func LiveCupDates() (start string, end string) {
+	now := time.Now()
+	return now.AddDate(0, 0, -1).Format(time.DateOnly), now.AddDate(0, 0, 1).Format(time.DateOnly)
+}
 
 // Config holds the integration suite's connection details. Defaults point at the
 // local docker-compose infrastructure (test/docker-compose.yml).

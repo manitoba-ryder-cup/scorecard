@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -122,6 +123,20 @@ func (f *fakeResultDB) ListCupData(ctx context.Context) (CupData, error) {
 	return CupData{}, nil
 }
 
+// duringTheCup is 10am local on the cup's first day — scores are only recordable on one
+// of the tournament's days, so every write test needs the clock inside that window.
+var duringTheCup = time.Date(2026, 9, 18, 15, 0, 0, 0, time.UTC)
+
+func matchService(m *fakeMatchDB, p *fakeParticipantDB, sdb *fakeScoreDB) *MatchService {
+	return &MatchService{
+		MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{},
+		TournamentDB: &fakeTournamentDB{tournament: &Tournament{
+			ID: tournamentID, Name: "Manitoba Ryder Cup", StartDate: cupStart, EndDate: cupEnd,
+		}},
+		Now: func() time.Time { return duringTheCup },
+	}
+}
+
 func twoTeamMatch() (*fakeMatchDB, *fakeParticipantDB) {
 	m := &fakeMatchDB{match: &Match{ID: matchID, TournamentID: tournamentID, CourseID: courseID, TeeColorID: teeColorID}}
 	p := &fakeParticipantDB{participants: []MatchParticipant{
@@ -136,8 +151,7 @@ func twoTeamMatch() (*fakeMatchDB, *fakeParticipantDB) {
 func TestSubmitScore_WritesScoreWithMatchCourseAndRecomputes(t *testing.T) {
 	m, p := twoTeamMatch()
 	sdb := &fakeScoreDB{}
-	rdb := &fakeResultDB{}
-	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: rdb}
+	svc := matchService(m, p, sdb)
 
 	_, err := svc.SubmitHoleScores(context.Background(), matchID, 1, []ScoreEntry{{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4}})
 	if err != nil {
@@ -164,8 +178,7 @@ func TestSubmitScore_WritesScoreWithMatchCourseAndRecomputes(t *testing.T) {
 func TestSubmitScore_RejectsTeamNotInMatch(t *testing.T) {
 	m, p := twoTeamMatch()
 	sdb := &fakeScoreDB{}
-	rdb := &fakeResultDB{}
-	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: rdb}
+	svc := matchService(m, p, sdb)
 
 	_, err := svc.SubmitHoleScores(context.Background(), matchID, 1, []ScoreEntry{{TeamID: uuid.New(), PlayerID: nil, Strokes: 4}})
 	if !errors.Is(err, ErrInvalidInput) {
@@ -181,7 +194,7 @@ func TestSubmitHoleScores_WritesNothingWhenOneEntryIsInvalid(t *testing.T) {
 	// hole, so a client cannot leave one side scored and the other not.
 	m, p := twoTeamMatch()
 	sdb := &fakeScoreDB{}
-	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{}}
+	svc := matchService(m, p, sdb)
 
 	_, err := svc.SubmitHoleScores(context.Background(), matchID, 1, []ScoreEntry{
 		{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4},
@@ -201,7 +214,7 @@ func TestSubmitHoleScores_WritesTheWholeHoleAndRecomputesOnce(t *testing.T) {
 	// reflects every score in the request.
 	m, p := twoTeamMatch()
 	sdb := &fakeScoreDB{}
-	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{}}
+	svc := matchService(m, p, sdb)
 
 	got, err := svc.SubmitHoleScores(context.Background(), matchID, 1, []ScoreEntry{
 		{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4},
@@ -223,6 +236,41 @@ func TestSubmitHoleScores_WritesTheWholeHoleAndRecomputesOnce(t *testing.T) {
 	}
 }
 
+func TestSubmitHoleScores_RejectsAWriteBeforeTheTournament(t *testing.T) {
+	// Nobody should be able to score a cup that is months away; the write is refused
+	// rather than left to be noticed later in the standings.
+	m, p := twoTeamMatch()
+	sdb := &fakeScoreDB{}
+	svc := matchService(m, p, sdb)
+	svc.Now = func() time.Time { return time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC) }
+
+	_, err := svc.SubmitHoleScores(context.Background(), matchID, 1, []ScoreEntry{
+		{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4},
+	})
+
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("want ErrConflict before the tournament, got %v", err)
+	}
+	if len(sdb.saved) != 0 {
+		t.Error("must not write outside the tournament's days")
+	}
+}
+
+func TestSubmitHoleScores_AllowsTheLastGroupPastMidnightUTC(t *testing.T) {
+	// The final group tees off mid-afternoon and finishes after midnight UTC. Reading the
+	// tournament's dates as UTC would refuse their closing holes.
+	m, p := twoTeamMatch()
+	sdb := &fakeScoreDB{}
+	svc := matchService(m, p, sdb)
+	svc.Now = func() time.Time { return time.Date(2026, 9, 20, 1, 20, 0, 0, time.UTC) }
+
+	if _, err := svc.SubmitHoleScores(context.Background(), matchID, 17, []ScoreEntry{
+		{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4},
+	}); err != nil {
+		t.Fatalf("want the last group's scores accepted, got %v", err)
+	}
+}
+
 // decidedMatch is a match teamA has already won 10 & 8: holes 1-10 scored, teamA taking
 // every one, so the lead can no longer be caught.
 func decidedMatch() []Score {
@@ -241,7 +289,7 @@ func TestSubmitScore_ReturnsTheRecomputedStatus(t *testing.T) {
 	// close-out rule to know the score it just entered ended the match.
 	m, p := twoTeamMatch()
 	sdb := &fakeScoreDB{scores: decidedMatch()[:18]} // holes 1-9, teamA 9 up with 9 to play
-	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{}}
+	svc := matchService(m, p, sdb)
 
 	got, err := svc.SubmitHoleScores(context.Background(), matchID, 10, []ScoreEntry{{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4}})
 	if err != nil {
@@ -257,7 +305,7 @@ func TestSubmitScore_ReturnsTheRecomputedStatus(t *testing.T) {
 func TestSubmitScore_RejectsANewHoleOnAFinishedMatch(t *testing.T) {
 	m, p := twoTeamMatch()
 	sdb := &fakeScoreDB{scores: decidedMatch()}
-	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{}}
+	svc := matchService(m, p, sdb)
 
 	_, err := svc.SubmitHoleScores(context.Background(), matchID, 11, []ScoreEntry{{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4}})
 
@@ -274,7 +322,7 @@ func TestSubmitScore_AllowsCorrectingAScoredHoleOnAFinishedMatch(t *testing.T) {
 	// correctable — otherwise the bad score is the reason it can't be fixed.
 	m, p := twoTeamMatch()
 	sdb := &fakeScoreDB{scores: decidedMatch()}
-	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{}}
+	svc := matchService(m, p, sdb)
 
 	got, err := svc.SubmitHoleScores(context.Background(), matchID, 5, []ScoreEntry{{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 9}})
 	if err != nil {
@@ -306,7 +354,7 @@ func TestListResults_AssemblesSidesProgressAndOutcome(t *testing.T) {
 		{MatchID: matchID, TeamID: teamA, HoleNumber: 2, Strokes: 4},
 		{MatchID: matchID, TeamID: teamB, HoleNumber: 2, Strokes: 5},
 	}}
-	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{}}
+	svc := matchService(m, p, sdb)
 
 	results, err := svc.ListResults(context.Background(), tournamentID)
 	if err != nil {
@@ -393,7 +441,7 @@ func TestListResults_ReportsTheLeaderOfAnUnfinishedMatch(t *testing.T) {
 		{MatchID: matchID, TeamID: teamA, HoleNumber: 1, Strokes: 4},
 		{MatchID: matchID, TeamID: teamB, HoleNumber: 1, Strokes: 5},
 	}}
-	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{}}
+	svc := matchService(m, p, sdb)
 
 	results, err := svc.ListResults(context.Background(), tournamentID)
 	if err != nil {
@@ -422,7 +470,7 @@ func TestListResults_NoLeaderWhenAllSquare(t *testing.T) {
 		{MatchID: matchID, TeamID: teamA, HoleNumber: 1, Strokes: 4},
 		{MatchID: matchID, TeamID: teamB, HoleNumber: 1, Strokes: 4},
 	}}
-	svc := &MatchService{MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{}}
+	svc := matchService(m, p, sdb)
 
 	results, err := svc.ListResults(context.Background(), tournamentID)
 	if err != nil {

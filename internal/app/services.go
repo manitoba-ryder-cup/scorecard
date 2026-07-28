@@ -46,6 +46,7 @@ func NewServices(db *postgres.DB) *Services {
 			ScoreDB:       scoresDB,
 			ResultDB:      resultsDB,
 			HoleDB:        teeSetsDB,
+			TournamentDB:  tournamentsDB,
 		},
 		Tournament: &golf.TournamentService{
 			TournamentDB: tournamentsDB,

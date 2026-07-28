@@ -301,3 +301,7 @@ func TestUnauthenticatedWriteRejected(t *testing.T) {
 		t.Fatalf("want 401, got %d", status)
 	}
 }
+
+// cupStart/cupEnd bracket today: a tournament only accepts scores on its own days, so
+// any fixture that records one has to be a cup in progress.
+var cupStart, cupEnd = util.LiveCupDates()

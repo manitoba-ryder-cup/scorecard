@@ -19,7 +19,7 @@ func TestFullTournamentFlowToScoring(t *testing.T) {
 	ctx := context.Background()
 
 	tour, err := client.CreateTournament(ctx, sdk.CreateTournamentRequest{
-		Name: "End To End Cup", StartDate: "2026-08-01", EndDate: "2026-08-03", Location: "Winnipeg",
+		Name: "End To End Cup", StartDate: cupStart, EndDate: cupEnd, Location: "Winnipeg",
 	})
 	if err != nil {
 		t.Fatalf("create tournament: %v", err)
@@ -93,7 +93,7 @@ func draftedMatch(t *testing.T, client *sdk.Client) (matchID, redTeam, redPlayer
 	t.Helper()
 	ctx := context.Background()
 	tour, err := client.CreateTournament(ctx, sdk.CreateTournamentRequest{
-		Name: "Participant Cup", StartDate: "2026-08-01", EndDate: "2026-08-03", Location: "Winnipeg",
+		Name: "Participant Cup", StartDate: cupStart, EndDate: cupEnd, Location: "Winnipeg",
 	})
 	if err != nil {
 		t.Fatalf("create tournament: %v", err)
