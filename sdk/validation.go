@@ -125,10 +125,13 @@ func (r CreateMatchRequest) Validate(ctx context.Context) error {
 	if r.MatchFormatID == uuid.Nil {
 		return fmt.Errorf("match_format_id is required")
 	}
-	if r.TeeTime != nil {
-		if _, err := time.Parse(time.RFC3339, *r.TeeTime); err != nil {
-			return fmt.Errorf("tee_time must be RFC3339 (e.g. 2026-08-01T08:00:00Z)")
-		}
+	// Required: the tee time is what a match's scoring window is measured from, so a
+	// match without one could never be scored. Enter a placeholder and update it later.
+	if strings.TrimSpace(r.TeeTime) == "" {
+		return fmt.Errorf("tee_time is required")
+	}
+	if _, err := time.Parse(time.RFC3339, r.TeeTime); err != nil {
+		return fmt.Errorf("tee_time must be RFC3339 (e.g. 2026-08-01T08:00:00Z)")
 	}
 	return nil
 }

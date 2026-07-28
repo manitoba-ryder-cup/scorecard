@@ -47,7 +47,7 @@ func TestFullTournamentFlowToScoring(t *testing.T) {
 	// Course + match.
 	courseID, teeColorID, formatID := playableCourse(t, client)
 	match, err := client.CreateMatch(ctx, tour.ID, sdk.CreateMatchRequest{
-		CourseID: courseID, TeeColorID: teeColorID, MatchFormatID: formatID,
+		CourseID: courseID, TeeColorID: teeColorID, MatchFormatID: formatID, TeeTime: fixtureTeeTime(),
 	})
 	if err != nil {
 		t.Fatalf("create match: %v", err)
@@ -110,7 +110,7 @@ func draftedMatch(t *testing.T, client *sdk.Client) (matchID, redTeam, redPlayer
 		t.Fatalf("draft: %v", err)
 	}
 	courseID, teeColorID, formatID := playableCourse(t, client)
-	match, err := client.CreateMatch(ctx, tour.ID, sdk.CreateMatchRequest{CourseID: courseID, TeeColorID: teeColorID, MatchFormatID: formatID})
+	match, err := client.CreateMatch(ctx, tour.ID, sdk.CreateMatchRequest{CourseID: courseID, TeeColorID: teeColorID, MatchFormatID: formatID, TeeTime: fixtureTeeTime()})
 	if err != nil {
 		t.Fatalf("create match: %v", err)
 	}

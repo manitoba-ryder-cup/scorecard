@@ -159,7 +159,7 @@ func SeedTournament(ctx context.Context, svc *Services, in *SeedInput) (*SeedSum
 			}
 			if _, err := svc.Match.CreateMatch(ctx, golf.CreateMatchInput{
 				TournamentID: tournament.ID, CourseID: course.ID, TeeColorID: teeColorID,
-				MatchFormatID: formatID, TeeTime: &teeTime,
+				MatchFormatID: formatID, TeeTime: teeTime,
 			}); err != nil {
 				return nil, fmt.Errorf("creating %s match: %w", mg.Format, err)
 			}

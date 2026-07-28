@@ -3,6 +3,7 @@ package isolation
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
@@ -52,7 +53,7 @@ func TestTenantIsolation_Tournaments(t *testing.T) {
 
 	t.Run("tenant B cannot create a match in tenant A tournament", func(t *testing.T) {
 		_, err := tenantB.CreateMatch(ctx, tourA.ID, sdk.CreateMatchRequest{
-			CourseID: uuid.New(), TeeColorID: uuid.New(), MatchFormatID: uuid.New(),
+			CourseID: uuid.New(), TeeColorID: uuid.New(), MatchFormatID: uuid.New(), TeeTime: time.Now().UTC().Format(time.RFC3339),
 		})
 		requireRejected(t, err, "create match")
 	})

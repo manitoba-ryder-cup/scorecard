@@ -128,11 +128,6 @@ func toHoleDTO(h golf.Hole) sdk.Hole {
 }
 
 func toMatchResultDTO(m golf.MatchResult) sdk.MatchResult {
-	var teeTime *string
-	if m.TeeTime != nil {
-		s := m.TeeTime.Format(time.RFC3339)
-		teeTime = &s
-	}
 	// Empty (not null) so the client always gets an array to iterate.
 	holeResults := m.HoleResults
 	if holeResults == nil {
@@ -144,7 +139,7 @@ func toMatchResultDTO(m golf.MatchResult) sdk.MatchResult {
 		FormatName:  m.FormatName,
 		Sides:       mapSlice(m.Sides, toMatchSideDTO),
 		HoleResults: holeResults,
-		TeeTime:     teeTime,
+		TeeTime:     m.TeeTime.Format(time.RFC3339),
 		CourseName:  m.CourseName,
 	}
 }

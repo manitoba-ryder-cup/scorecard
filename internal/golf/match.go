@@ -17,8 +17,6 @@ type MatchService struct {
 	ScoreDB       scoreDB
 	ResultDB      resultDB
 	HoleDB        holeDB
-	CourseDB      courseDB
-	TournamentDB  tournamentDB
 	// Now is the clock the scoring window is read against; nil means time.Now.
 	Now func() time.Time
 }
@@ -32,14 +30,15 @@ func (s *MatchService) now() time.Time {
 
 // CreateMatchInput is the intent to create a match within a tournament. The FK to
 // tee_sets(course_id, tee_color_id) means the tee must be configured for the course.
-// TeeTime is optional (an unscheduled match). Request-shape validation is at the API
-// boundary; unknown references surface as ErrInvalidInput from the repository.
+// TeeTime is required: it is what the scoring window is measured from. Request-shape
+// validation is at the API boundary; unknown references surface as ErrInvalidInput
+// from the repository.
 type CreateMatchInput struct {
 	TournamentID  uuid.UUID
 	CourseID      uuid.UUID
 	TeeColorID    uuid.UUID
 	MatchFormatID uuid.UUID
-	TeeTime       *time.Time
+	TeeTime       time.Time
 	Handicapped   bool
 }
 
@@ -106,6 +105,30 @@ type ScoreEntry struct {
 	Strokes  int32
 }
 
+// A match's scores can be recorded from shortly before it tees off until well after it
+// could still be under way. Both bounds are relative to the tee time, which is an
+// instant, so the window needs no timezone.
+const (
+	// Enough to cover a group moved up, without opening the day before. A delay needs no
+	// allowance: the window is already open by then.
+	scoringOpensBefore = 2 * time.Hour
+	// A round is 3.5–5 hours, so this leaves hours to spare for corrections after the
+	// last putt drops, and still shuts the same day.
+	scoringClosesAfter = 12 * time.Hour
+)
+
+// scoringOpen reports whether a match's scores can be recorded at the given moment. The
+// client keeps its own copy of this rule to gate its UI; the copies only have to agree
+// roughly, because this is the one that decides. If they ever drift, the client should be
+// the wider of the two — being permissive costs a clean 409, being strict silently offers
+// no way to record a legitimate score.
+//
+// Deliberately not tied to the tournament's dates: those are a calendar day wide, which
+// let Sunday's matches be scored on Saturday and only mean anything in some timezone.
+func scoringOpen(now, teeTime time.Time) bool {
+	return !now.Before(teeTime.Add(-scoringOpensBefore)) && !now.After(teeTime.Add(scoringClosesAfter))
+}
+
 // SubmitHoleScores persists every score for one hole and recomputes the match's
 // materialized result — the single write path that keeps match_results in sync. The hole
 // is written as a unit, so a caller cannot leave one side scored and the other not. It
@@ -117,21 +140,14 @@ func (s *MatchService) SubmitHoleScores(ctx context.Context, matchID uuid.UUID, 
 	if err != nil {
 		return zero, fmt.Errorf("failed to get match: %w", err)
 	}
-	// Nothing is scored before the cup is played: a tournament months out is only ever
-	// being poked at. Scoped to the tournament's days rather than the tee time, which
-	// moves for weather — and read at the course, since that is where the day it is
-	// depends on.
-	tournament, err := s.TournamentDB.GetTournament(ctx, match.TournamentID)
-	if err != nil {
-		return zero, fmt.Errorf("failed to get tournament: %w", err)
-	}
-	course, err := s.CourseDB.GetCourse(ctx, match.CourseID)
-	if err != nil {
-		return zero, fmt.Errorf("failed to get course: %w", err)
-	}
-	if !scoringOpen(s.now(), tournament, course.TimeZone) {
-		return zero, fmt.Errorf("%w: tournament %s runs %s to %s; scores cannot be recorded outside it",
-			ErrConflict, tournament.Name, dayIn(tournament.StartDate).Format(time.DateOnly), dayIn(tournament.EndDate).Format(time.DateOnly))
+	// A match months out is only ever being poked at, and one from a past cup is history.
+	// Both are the same question — is this match being played around now — which its tee
+	// time answers on its own.
+	if !scoringOpen(s.now(), match.TeeTime) {
+		return zero, fmt.Errorf("%w: match %s tees off at %s; scores can only be recorded from %s to %s",
+			ErrConflict, matchID, match.TeeTime.Format(time.RFC3339),
+			match.TeeTime.Add(-scoringOpensBefore).Format(time.RFC3339),
+			match.TeeTime.Add(scoringClosesAfter).Format(time.RFC3339))
 	}
 
 	// Reject scores for a team that isn't actually playing this match. This needs the

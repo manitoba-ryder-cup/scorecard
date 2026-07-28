@@ -140,8 +140,9 @@ func SeedSinglesMatch(ctx context.Context, conn *pgx.Conn) (*Fixture, error) {
 	}
 
 	if err := conn.QueryRow(ctx,
-		`INSERT INTO matches (tournament_id, course_id, tee_color_id, match_format_id, tenant_id)
-		 VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+		// now(): scores are only accepted around the tee time, and callers score this match.
+		`INSERT INTO matches (tournament_id, course_id, tee_color_id, match_format_id, tenant_id, tee_time)
+		 VALUES ($1, $2, $3, $4, $5, now()) RETURNING id`,
 		tournamentID, f.CourseID, f.TeeColorID, formatID, t,
 	).Scan(&f.MatchID); err != nil {
 		return nil, fmt.Errorf("seed match: %w", err)

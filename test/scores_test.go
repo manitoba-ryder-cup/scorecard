@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
@@ -187,6 +188,69 @@ func TestSubmitScoreRejectsHolesAfterTheCloseOut(t *testing.T) {
 	}
 }
 
+// TestSubmitScoreRejectsAMatchOutsideItsScoringWindow covers the guard that replaced the
+// tournament-dates one: the window is measured from each match's own tee time, so a match
+// still weeks out is refused even though its tournament is the one being played.
+func TestSubmitScoreRejectsAMatchOutsideItsScoringWindow(t *testing.T) {
+	t.Parallel()
+	client, fix := authedClient(t)
+	ctx := context.Background()
+	red := fix.RedPlayer
+
+	formats, err := client.ListMatchFormats(ctx)
+	if err != nil {
+		t.Fatalf("list formats: %v", err)
+	}
+	for _, tc := range []struct {
+		name    string
+		teeTime time.Time
+		want    bool
+	}{
+		{"weeks out", time.Now().Add(60 * 24 * time.Hour), false},
+		{"three hours out", time.Now().Add(3 * time.Hour), false},
+		{"about to tee off", time.Now().Add(time.Hour), true},
+		{"still out on the course", time.Now().Add(-4 * time.Hour), true},
+		{"last year", time.Now().Add(-365 * 24 * time.Hour), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			match, err := client.CreateMatch(ctx, fix.TournamentID, sdk.CreateMatchRequest{
+				CourseID:      fix.CourseID,
+				TeeColorID:    fix.TeeColorID,
+				MatchFormatID: formats[0].ID,
+				TeeTime:       tc.teeTime.UTC().Format(time.RFC3339),
+			})
+			if err != nil {
+				t.Fatalf("create match: %v", err)
+			}
+			// Both sides: the window is checked before the teams are, so a one-sided match
+			// would fail the accepted cases for the wrong reason.
+			for _, side := range []struct{ player, team uuid.UUID }{
+				{red, fix.TeamRed}, {fix.BluePlayer, fix.TeamBlue},
+			} {
+				if _, err := client.AddParticipant(ctx, match.ID, sdk.AddParticipantRequest{
+					PlayerID: side.player, TeamID: side.team,
+				}); err != nil {
+					t.Fatalf("add participant: %v", err)
+				}
+			}
+
+			_, err = client.SubmitScore(ctx, match.ID, sdk.ScoreSubmission{
+				HoleNumber: 1, Scores: []sdk.ScoreEntry{{TeamID: fix.TeamRed, PlayerID: &red, Strokes: 4}},
+			})
+			if tc.want {
+				if err != nil {
+					t.Fatalf("want the score accepted, got %v", err)
+				}
+				return
+			}
+			var apiErr *sdk.APIError
+			if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
+				t.Fatalf("want 409 outside the window, got %v", err)
+			}
+		})
+	}
+}
+
 // TestSubmitScoreWritesTheHoleAtomically is why a hole is one request: a rejected entry
 // must take the whole hole with it, rather than leaving one side scored and the other not
 // for a client that never retries.
@@ -302,6 +366,6 @@ func TestUnauthenticatedWriteRejected(t *testing.T) {
 	}
 }
 
-// cupStart/cupEnd bracket today: a tournament only accepts scores on its own days, so
-// any fixture that records one has to be a cup in progress.
+// cupStart/cupEnd bracket today, so a seeded tournament reads as one being played. The
+// scoring window is measured from each match's tee time, not from these.
 var cupStart, cupEnd = util.LiveCupDates()

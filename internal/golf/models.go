@@ -51,7 +51,7 @@ type Match struct {
 	CourseID      uuid.UUID
 	TeeColorID    uuid.UUID
 	MatchFormatID uuid.UUID
-	TeeTime       *time.Time
+	TeeTime       time.Time
 	Handicapped   bool
 }
 
@@ -207,7 +207,7 @@ type MatchResult struct {
 	MatchID      uuid.UUID
 	FormatName   string
 	CourseName   string
-	TeeTime      *time.Time
+	TeeTime      time.Time
 	Sides        []MatchSide
 	HoleResults  []*uuid.UUID
 }

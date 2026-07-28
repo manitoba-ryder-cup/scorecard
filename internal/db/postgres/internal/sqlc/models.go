@@ -28,16 +28,16 @@ type Hole struct {
 }
 
 type Match struct {
-	ID            uuid.UUID  `json:"id"`
-	TournamentID  uuid.UUID  `json:"tournament_id"`
-	CourseID      uuid.UUID  `json:"course_id"`
-	TeeColorID    uuid.UUID  `json:"tee_color_id"`
-	MatchFormatID uuid.UUID  `json:"match_format_id"`
-	TenantID      uuid.UUID  `json:"tenant_id"`
-	TeeTime       *time.Time `json:"tee_time"`
-	Handicapped   bool       `json:"handicapped"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
+	ID            uuid.UUID `json:"id"`
+	TournamentID  uuid.UUID `json:"tournament_id"`
+	CourseID      uuid.UUID `json:"course_id"`
+	TeeColorID    uuid.UUID `json:"tee_color_id"`
+	MatchFormatID uuid.UUID `json:"match_format_id"`
+	TenantID      uuid.UUID `json:"tenant_id"`
+	TeeTime       time.Time `json:"tee_time"`
+	Handicapped   bool      `json:"handicapped"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 type MatchFormat struct {

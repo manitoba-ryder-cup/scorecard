@@ -27,13 +27,13 @@ INSERT INTO matches (
 `
 
 type CreateMatchParams struct {
-	TournamentID  uuid.UUID  `json:"tournament_id"`
-	CourseID      uuid.UUID  `json:"course_id"`
-	TeeColorID    uuid.UUID  `json:"tee_color_id"`
-	MatchFormatID uuid.UUID  `json:"match_format_id"`
-	TenantID      uuid.UUID  `json:"tenant_id"`
-	TeeTime       *time.Time `json:"tee_time"`
-	Handicapped   bool       `json:"handicapped"`
+	TournamentID  uuid.UUID `json:"tournament_id"`
+	CourseID      uuid.UUID `json:"course_id"`
+	TeeColorID    uuid.UUID `json:"tee_color_id"`
+	MatchFormatID uuid.UUID `json:"match_format_id"`
+	TenantID      uuid.UUID `json:"tenant_id"`
+	TeeTime       time.Time `json:"tee_time"`
+	Handicapped   bool      `json:"handicapped"`
 }
 
 func (q *Queries) CreateMatch(ctx context.Context, arg CreateMatchParams) (Match, error) {
@@ -147,18 +147,18 @@ type ListMatchesWithDetailsByTournamentParams struct {
 }
 
 type ListMatchesWithDetailsByTournamentRow struct {
-	ID            uuid.UUID  `json:"id"`
-	TournamentID  uuid.UUID  `json:"tournament_id"`
-	CourseID      uuid.UUID  `json:"course_id"`
-	TeeColorID    uuid.UUID  `json:"tee_color_id"`
-	MatchFormatID uuid.UUID  `json:"match_format_id"`
-	TenantID      uuid.UUID  `json:"tenant_id"`
-	TeeTime       *time.Time `json:"tee_time"`
-	Handicapped   bool       `json:"handicapped"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
-	FormatName    string     `json:"format_name"`
-	CourseName    string     `json:"course_name"`
+	ID            uuid.UUID `json:"id"`
+	TournamentID  uuid.UUID `json:"tournament_id"`
+	CourseID      uuid.UUID `json:"course_id"`
+	TeeColorID    uuid.UUID `json:"tee_color_id"`
+	MatchFormatID uuid.UUID `json:"match_format_id"`
+	TenantID      uuid.UUID `json:"tenant_id"`
+	TeeTime       time.Time `json:"tee_time"`
+	Handicapped   bool      `json:"handicapped"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+	FormatName    string    `json:"format_name"`
+	CourseName    string    `json:"course_name"`
 }
 
 // Joined with format + course names so the results view resolves both in one query.

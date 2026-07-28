@@ -104,7 +104,7 @@ func TestFullRyderCupCorrectness(t *testing.T) {
 		}
 		for m, out := range rd.outcomes {
 			match, err := client.CreateMatch(ctx, tour.ID, sdk.CreateMatchRequest{
-				CourseID: courseID, TeeColorID: teeColorID, MatchFormatID: formatID,
+				CourseID: courseID, TeeColorID: teeColorID, MatchFormatID: formatID, TeeTime: fixtureTeeTime(),
 			})
 			if err != nil {
 				t.Fatalf("create %s match %d: %v", rd.format, m, err)
@@ -323,7 +323,7 @@ func addSinglesMatch(t *testing.T, client *sdk.Client, tourID, redTeam, blueTeam
 	ctx := context.Background()
 	redP = enterAndDraft(t, client, tourID, redTeam, "Red", tag)
 	blueP = enterAndDraft(t, client, tourID, blueTeam, "Blue", tag)
-	match, err := client.CreateMatch(ctx, tourID, sdk.CreateMatchRequest{CourseID: courseID, TeeColorID: teeColorID, MatchFormatID: singles})
+	match, err := client.CreateMatch(ctx, tourID, sdk.CreateMatchRequest{CourseID: courseID, TeeColorID: teeColorID, MatchFormatID: singles, TeeTime: fixtureTeeTime()})
 	if err != nil {
 		t.Fatalf("create match: %v", err)
 	}

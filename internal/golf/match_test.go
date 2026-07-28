@@ -123,33 +123,22 @@ func (f *fakeResultDB) ListCupData(ctx context.Context) (CupData, error) {
 	return CupData{}, nil
 }
 
-// duringTheCup is 10am local on the cup's first day — scores are only recordable on one
-// of the tournament's days, so every write test needs the clock inside that window.
-var duringTheCup = time.Date(2026, 9, 18, 15, 0, 0, 0, time.UTC)
-
-type fakeCourseDB struct{ course *Course }
-
-func (f *fakeCourseDB) CreateCourse(ctx context.Context, in CreateCourseInput) (*Course, error) {
-	return nil, nil
-}
-func (f *fakeCourseDB) GetCourse(ctx context.Context, id uuid.UUID) (*Course, error) {
-	return f.course, nil
-}
-func (f *fakeCourseDB) ListCourses(ctx context.Context) ([]Course, error) { return nil, nil }
+// teeOff is when the match under test goes out; duringTheRound is an hour later, inside
+// the window every write test needs the clock to be in.
+var (
+	teeOff         = time.Date(2026, 9, 18, 13, 0, 0, 0, time.UTC)
+	duringTheRound = teeOff.Add(time.Hour)
+)
 
 func matchService(m *fakeMatchDB, p *fakeParticipantDB, sdb *fakeScoreDB) *MatchService {
 	return &MatchService{
 		MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{},
-		TournamentDB: &fakeTournamentDB{tournament: &Tournament{
-			ID: tournamentID, Name: "Manitoba Ryder Cup", StartDate: cupStart, EndDate: cupEnd,
-		}},
-		CourseDB: &fakeCourseDB{course: &Course{ID: courseID, Name: "Buffalo Point", TimeZone: "America/Winnipeg"}},
-		Now:      func() time.Time { return duringTheCup },
+		Now: func() time.Time { return duringTheRound },
 	}
 }
 
 func twoTeamMatch() (*fakeMatchDB, *fakeParticipantDB) {
-	m := &fakeMatchDB{match: &Match{ID: matchID, TournamentID: tournamentID, CourseID: courseID, TeeColorID: teeColorID}}
+	m := &fakeMatchDB{match: &Match{ID: matchID, TournamentID: tournamentID, CourseID: courseID, TeeColorID: teeColorID, TeeTime: teeOff}}
 	p := &fakeParticipantDB{participants: []MatchParticipant{
 		{MatchID: matchID, TeamID: teamA, PlayerID: playerA},
 		{MatchID: matchID, TeamID: teamB, PlayerID: playerB},
@@ -247,38 +236,65 @@ func TestSubmitHoleScores_WritesTheWholeHoleAndRecomputesOnce(t *testing.T) {
 	}
 }
 
-func TestSubmitHoleScores_RejectsAWriteBeforeTheTournament(t *testing.T) {
-	// Nobody should be able to score a cup that is months away; the write is refused
-	// rather than left to be noticed later in the standings.
+func TestSubmitHoleScores_RejectsAWriteOutsideTheScoringWindow(t *testing.T) {
+	// The window is measured from the tee time, so it is per-match and needs no timezone:
+	// a match months out and one from a past cup are refused by the same comparison.
+	for _, tc := range []struct {
+		name string
+		now  time.Time
+		want bool
+	}{
+		{"months before the cup", teeOff.Add(-200 * 24 * time.Hour), false},
+		{"the evening before", teeOff.Add(-15 * time.Hour), false},
+		{"three hours out, before the window opens", teeOff.Add(-3 * time.Hour), false},
+		{"exactly when it opens", teeOff.Add(-scoringOpensBefore), true},
+		{"on the tee", teeOff, true},
+		{"a slow round, six hours in", teeOff.Add(6 * time.Hour), true},
+		{"corrections that evening", teeOff.Add(11 * time.Hour), true},
+		{"exactly when it shuts", teeOff.Add(scoringClosesAfter), true},
+		{"the next morning", teeOff.Add(20 * time.Hour), false},
+		{"a year later", teeOff.Add(365 * 24 * time.Hour), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m, p := twoTeamMatch()
+			sdb := &fakeScoreDB{}
+			svc := matchService(m, p, sdb)
+			svc.Now = func() time.Time { return tc.now }
+
+			_, err := svc.SubmitHoleScores(context.Background(), matchID, 1, []ScoreEntry{
+				{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4},
+			})
+
+			if tc.want {
+				if err != nil {
+					t.Fatalf("want the score accepted, got %v", err)
+				}
+				return
+			}
+			if !errors.Is(err, ErrConflict) {
+				t.Fatalf("want ErrConflict, got %v", err)
+			}
+			if len(sdb.saved) != 0 {
+				t.Error("must not write outside the scoring window")
+			}
+		})
+	}
+}
+
+func TestSubmitHoleScores_ScoresEachMatchOnItsOwnTeeTime(t *testing.T) {
+	// A morning group's window is shut long before the afternoon group's opens, so the
+	// tournament-wide window this replaced no longer lets one be scored from the other.
 	m, p := twoTeamMatch()
+	m.match.TeeTime = teeOff.Add(20 * time.Hour) // out tomorrow morning
 	sdb := &fakeScoreDB{}
 	svc := matchService(m, p, sdb)
-	svc.Now = func() time.Time { return time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC) }
 
 	_, err := svc.SubmitHoleScores(context.Background(), matchID, 1, []ScoreEntry{
 		{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4},
 	})
 
 	if !errors.Is(err, ErrConflict) {
-		t.Fatalf("want ErrConflict before the tournament, got %v", err)
-	}
-	if len(sdb.saved) != 0 {
-		t.Error("must not write outside the tournament's days")
-	}
-}
-
-func TestSubmitHoleScores_AllowsTheLastGroupPastMidnightUTC(t *testing.T) {
-	// The final group tees off mid-afternoon and finishes after midnight UTC. Reading the
-	// tournament's dates as UTC would refuse their closing holes.
-	m, p := twoTeamMatch()
-	sdb := &fakeScoreDB{}
-	svc := matchService(m, p, sdb)
-	svc.Now = func() time.Time { return time.Date(2026, 9, 20, 1, 20, 0, 0, time.UTC) }
-
-	if _, err := svc.SubmitHoleScores(context.Background(), matchID, 17, []ScoreEntry{
-		{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4},
-	}); err != nil {
-		t.Fatalf("want the last group's scores accepted, got %v", err)
+		t.Fatalf("want ErrConflict for a match not yet out, got %v", err)
 	}
 }
 

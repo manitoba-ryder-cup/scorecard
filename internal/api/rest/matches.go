@@ -55,12 +55,8 @@ func (h *MatchesHandler) CreateMatch(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	var teeTime *time.Time
-	if req.TeeTime != nil {
-		// Validate already confirmed it parses.
-		tt, _ := time.Parse(time.RFC3339, *req.TeeTime)
-		teeTime = &tt
-	}
+	// Validate already confirmed it parses.
+	teeTime, _ := time.Parse(time.RFC3339, req.TeeTime)
 	match, err := h.matchService.CreateMatch(r.Context(), golf.CreateMatchInput{
 		TournamentID:  tournamentID,
 		CourseID:      req.CourseID,
@@ -77,18 +73,13 @@ func (h *MatchesHandler) CreateMatch(w http.ResponseWriter, r *http.Request) {
 }
 
 func toMatchDTO(m golf.Match) sdk.Match {
-	var teeTime *string
-	if m.TeeTime != nil {
-		s := m.TeeTime.Format(time.RFC3339)
-		teeTime = &s
-	}
 	return sdk.Match{
 		ID:            m.ID,
 		TournamentID:  m.TournamentID,
 		CourseID:      m.CourseID,
 		TeeColorID:    m.TeeColorID,
 		MatchFormatID: m.MatchFormatID,
-		TeeTime:       teeTime,
+		TeeTime:       m.TeeTime.Format(time.RFC3339),
 		Handicapped:   m.Handicapped,
 	}
 }

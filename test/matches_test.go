@@ -13,6 +13,10 @@ import (
 
 // playableCourse sets up a course with a White tee (slope/rating + 18 holes) and
 // returns (courseID, teeColorID, singlesFormatID) — enough to create a match.
+// fixtureTeeTime puts a match under way right now: scores are only accepted from 2h
+// before the tee time to 12h after, and most fixtures below go on to record some.
+func fixtureTeeTime() string { return time.Now().UTC().Format(time.RFC3339) }
+
 func playableCourse(t *testing.T, client *sdk.Client) (courseID, teeColorID, formatID uuid.UUID) {
 	t.Helper()
 	ctx := context.Background()
@@ -60,7 +64,7 @@ func TestCreateAndListMatch(t *testing.T) {
 
 	teeTime := "2026-08-01T08:00:00Z"
 	match, err := client.CreateMatch(ctx, tour.ID, sdk.CreateMatchRequest{
-		CourseID: courseID, TeeColorID: teeColorID, MatchFormatID: formatID, TeeTime: &teeTime,
+		CourseID: courseID, TeeColorID: teeColorID, MatchFormatID: formatID, TeeTime: teeTime,
 	})
 	if err != nil {
 		t.Fatalf("create match: %v", err)
@@ -68,13 +72,10 @@ func TestCreateAndListMatch(t *testing.T) {
 	if match.ID == uuid.Nil || match.TournamentID != tour.ID || match.CourseID != courseID || match.Handicapped {
 		t.Fatalf("unexpected match: %+v", match)
 	}
-	if match.TeeTime == nil {
-		t.Fatal("want a scheduled tee time")
-	}
-	gotT, _ := time.Parse(time.RFC3339, *match.TeeTime)
+	gotT, _ := time.Parse(time.RFC3339, match.TeeTime)
 	wantT, _ := time.Parse(time.RFC3339, teeTime)
 	if !gotT.Equal(wantT) {
-		t.Fatalf("tee_time round-trip: want %s, got %s", teeTime, *match.TeeTime)
+		t.Fatalf("tee_time round-trip: want %s, got %s", teeTime, match.TeeTime)
 	}
 
 	matches, err := client.ListMatches(ctx, tour.ID)
@@ -100,7 +101,7 @@ func TestCreateMatchUnknownFormatRejected(t *testing.T) {
 
 	// match_format_id doesn't exist -> FK violation -> 400.
 	_, err = client.CreateMatch(ctx, tour.ID, sdk.CreateMatchRequest{
-		CourseID: courseID, TeeColorID: teeColorID, MatchFormatID: uuid.New(),
+		CourseID: courseID, TeeColorID: teeColorID, MatchFormatID: uuid.New(), TeeTime: fixtureTeeTime(),
 	})
 	var apiErr *sdk.APIError
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
@@ -131,7 +132,7 @@ func TestCreateMatchWithoutTeeSetRejected(t *testing.T) {
 
 	// No tee_set for (course, tee color) -> FK violation -> 400.
 	_, err = client.CreateMatch(ctx, tour.ID, sdk.CreateMatchRequest{
-		CourseID: course.ID, TeeColorID: tc.ID, MatchFormatID: formats[0].ID,
+		CourseID: course.ID, TeeColorID: tc.ID, MatchFormatID: formats[0].ID, TeeTime: fixtureTeeTime(),
 	})
 	var apiErr *sdk.APIError
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {

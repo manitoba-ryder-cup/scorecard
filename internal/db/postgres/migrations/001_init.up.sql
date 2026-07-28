@@ -180,7 +180,10 @@ CREATE TABLE matches (
     tee_color_id UUID NOT NULL,
     match_format_id UUID NOT NULL,
     tenant_id UUID NOT NULL,
-    tee_time TIMESTAMPTZ,
+    -- Required: a match's tee time is the instant its scoring window opens and closes, so
+    -- an unscheduled match has no way to say whether it can be scored. Enter a placeholder
+    -- and update it when the real time is known.
+    tee_time TIMESTAMPTZ NOT NULL,
     handicapped BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),

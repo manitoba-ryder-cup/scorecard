@@ -15,10 +15,9 @@ import (
 // It must match SCORECARD_PUBLIC_TENANT_ID in test/docker-compose.yml.
 var PublicTenantID = uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 
-// LiveCupDates spans today, so a seeded tournament is one currently being played.
-// Scores can only be recorded on a tournament's days, and the window is read in the
-// event's timezone — a day either side keeps the fixture valid whatever the runner's
-// clock is set to.
+// LiveCupDates spans today, so a seeded tournament reads as one currently being played.
+// Scoring is gated on each match's tee time rather than these, so they are presentation
+// only — a day either side keeps the fixture sensible whatever the runner's clock says.
 func LiveCupDates() (start string, end string) {
 	now := time.Now()
 	return now.AddDate(0, 0, -1).Format(time.DateOnly), now.AddDate(0, 0, 1).Format(time.DateOnly)

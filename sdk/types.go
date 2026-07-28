@@ -235,27 +235,28 @@ type TournamentTeam struct {
 	Points  float64        `json:"points"`
 }
 
-// Match is a scheduled match within a tournament. tee_time is RFC3339 (null if
-// unscheduled); handicapped toggles net scoring for this match.
+// Match is a scheduled match within a tournament. tee_time is RFC3339 and required — it
+// is the instant the match's scoring window opens and closes around; handicapped toggles
+// net scoring for this match.
 type Match struct {
 	ID            uuid.UUID `json:"id"`
 	TournamentID  uuid.UUID `json:"tournament_id"`
 	CourseID      uuid.UUID `json:"course_id"`
 	TeeColorID    uuid.UUID `json:"tee_color_id"`
 	MatchFormatID uuid.UUID `json:"match_format_id"`
-	TeeTime       *string   `json:"tee_time"`
+	TeeTime       string    `json:"tee_time"`
 	Handicapped   bool      `json:"handicapped"`
 }
 
 // CreateMatchRequest is the body for POST /v1/tournaments/{id}/matches. The tournament
 // comes from the path; course_id/tee_color_id must reference a configured tee set, and
-// match_format_id one of the seeded formats. tee_time (RFC3339) and handicapped are
-// optional.
+// match_format_id one of the seeded formats. tee_time (RFC3339) is required — it is what
+// the match's scoring window is measured from; handicapped is optional.
 type CreateMatchRequest struct {
 	CourseID      uuid.UUID `json:"course_id"`
 	TeeColorID    uuid.UUID `json:"tee_color_id"`
 	MatchFormatID uuid.UUID `json:"match_format_id"`
-	TeeTime       *string   `json:"tee_time"`
+	TeeTime       string    `json:"tee_time"`
 	Handicapped   bool      `json:"handicapped"`
 }
 
@@ -337,14 +338,14 @@ type MatchSide struct {
 // per played hole in order, the winning team's id (null = halved); its length is the
 // number of holes played. winner_team_id is null unless finished, while leader_team_id
 // reports who is ahead at any point (null = all square) so a live leaderboard needs no
-// client-side derivation. tee_time is RFC3339 (null if unscheduled).
+// client-side derivation. tee_time is RFC3339.
 type MatchResult struct {
 	MatchStatus              // finished/winner/leader/lead/holes_remaining, flattened into this object
 	MatchID     uuid.UUID    `json:"match_id"`
 	FormatName  string       `json:"format_name"`
 	Sides       []MatchSide  `json:"sides"`
 	HoleResults []*uuid.UUID `json:"hole_results"`
-	TeeTime     *string      `json:"tee_time"`
+	TeeTime     string       `json:"tee_time"`
 	CourseName  string       `json:"course_name"`
 }
 
