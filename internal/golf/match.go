@@ -17,6 +17,7 @@ type MatchService struct {
 	ScoreDB       scoreDB
 	ResultDB      resultDB
 	HoleDB        holeDB
+	CourseDB      courseDB
 	TournamentDB  tournamentDB
 	// Now is the clock the scoring window is read against; nil means time.Now.
 	Now func() time.Time
@@ -118,12 +119,17 @@ func (s *MatchService) SubmitHoleScores(ctx context.Context, matchID uuid.UUID, 
 	}
 	// Nothing is scored before the cup is played: a tournament months out is only ever
 	// being poked at. Scoped to the tournament's days rather than the tee time, which
-	// moves for weather and isn't consistently stored as an absolute instant.
+	// moves for weather — and read at the course, since that is where the day it is
+	// depends on.
 	tournament, err := s.TournamentDB.GetTournament(ctx, match.TournamentID)
 	if err != nil {
 		return zero, fmt.Errorf("failed to get tournament: %w", err)
 	}
-	if !scoringOpen(s.now(), tournament) {
+	course, err := s.CourseDB.GetCourse(ctx, match.CourseID)
+	if err != nil {
+		return zero, fmt.Errorf("failed to get course: %w", err)
+	}
+	if !scoringOpen(s.now(), tournament, course.TimeZone) {
 		return zero, fmt.Errorf("%w: tournament %s runs %s to %s; scores cannot be recorded outside it",
 			ErrConflict, tournament.Name, dayIn(tournament.StartDate).Format(time.DateOnly), dayIn(tournament.EndDate).Format(time.DateOnly))
 	}

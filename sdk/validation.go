@@ -63,7 +63,17 @@ func (r CreateCourseRequest) Validate(ctx context.Context) error {
 	if err := validateRequired(r.Name, "name"); err != nil {
 		return err
 	}
-	return validateMaxLen(r.Name, "name", maxTitleLen)
+	if err := validateMaxLen(r.Name, "name", maxTitleLen); err != nil {
+		return err
+	}
+	// An unreadable zone would resolve to UTC when a tee time is entered against it,
+	// silently shifting every one of that course's rounds.
+	if r.TimeZone != "" {
+		if _, err := time.LoadLocation(r.TimeZone); err != nil {
+			return fmt.Errorf("time_zone must be an IANA name such as America/Winnipeg")
+		}
+	}
+	return nil
 }
 
 // Length caps mirror the schema's VARCHAR widths, so an over-long value is a client
@@ -240,13 +250,6 @@ func (r CreateTournamentRequest) Validate(ctx context.Context) error {
 	}
 	if end.Before(start) {
 		return fmt.Errorf("end_date cannot precede start_date")
-	}
-	// An unknown zone would silently fall back to UTC when read, shifting every tee time
-	// and moving the day the cup can be scored on.
-	if r.TimeZone != "" {
-		if _, err := time.LoadLocation(r.TimeZone); err != nil {
-			return fmt.Errorf("time_zone must be an IANA name such as America/Winnipeg")
-		}
 	}
 	return nil
 }

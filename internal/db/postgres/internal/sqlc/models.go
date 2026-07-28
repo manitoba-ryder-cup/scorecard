@@ -14,6 +14,7 @@ type Course struct {
 	ID       uuid.UUID `json:"id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 	Name     string    `json:"name"`
+	TimeZone string    `json:"time_zone"`
 }
 
 type Hole struct {
@@ -137,7 +138,6 @@ type Tournament struct {
 	Location  string    `json:"location"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-	TimeZone  string    `json:"time_zone"`
 }
 
 type TournamentPlayer struct {

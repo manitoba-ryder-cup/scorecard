@@ -14,26 +14,33 @@ import (
 const createCourse = `-- name: CreateCourse :one
 INSERT INTO courses (
     tenant_id,
-    name
+    name,
+    time_zone
 ) VALUES (
-    $1, $2
-) RETURNING id, tenant_id, name
+    $1, $2, $3
+) RETURNING id, tenant_id, name, time_zone
 `
 
 type CreateCourseParams struct {
 	TenantID uuid.UUID `json:"tenant_id"`
 	Name     string    `json:"name"`
+	TimeZone string    `json:"time_zone"`
 }
 
 func (q *Queries) CreateCourse(ctx context.Context, arg CreateCourseParams) (Course, error) {
-	row := q.db.QueryRow(ctx, createCourse, arg.TenantID, arg.Name)
+	row := q.db.QueryRow(ctx, createCourse, arg.TenantID, arg.Name, arg.TimeZone)
 	var i Course
-	err := row.Scan(&i.ID, &i.TenantID, &i.Name)
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.Name,
+		&i.TimeZone,
+	)
 	return i, err
 }
 
 const getCourse = `-- name: GetCourse :one
-SELECT id, tenant_id, name FROM courses
+SELECT id, tenant_id, name, time_zone FROM courses
 WHERE id = $1 AND tenant_id = $2
 `
 
@@ -45,12 +52,17 @@ type GetCourseParams struct {
 func (q *Queries) GetCourse(ctx context.Context, arg GetCourseParams) (Course, error) {
 	row := q.db.QueryRow(ctx, getCourse, arg.ID, arg.TenantID)
 	var i Course
-	err := row.Scan(&i.ID, &i.TenantID, &i.Name)
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.Name,
+		&i.TimeZone,
+	)
 	return i, err
 }
 
 const listCourses = `-- name: ListCourses :many
-SELECT id, tenant_id, name FROM courses
+SELECT id, tenant_id, name, time_zone FROM courses
 WHERE tenant_id = $1
 ORDER BY name
 `
@@ -64,7 +76,12 @@ func (q *Queries) ListCourses(ctx context.Context, tenantID uuid.UUID) ([]Course
 	items := []Course{}
 	for rows.Next() {
 		var i Course
-		if err := rows.Scan(&i.ID, &i.TenantID, &i.Name); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.Name,
+			&i.TimeZone,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

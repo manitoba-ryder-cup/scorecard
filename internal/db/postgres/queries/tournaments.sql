@@ -4,10 +4,9 @@ INSERT INTO tournaments (
     name,
     start_date,
     end_date,
-    location,
-    time_zone
+    location
 ) VALUES (
-    $1, $2, $3, $4, $5, $6
+    $1, $2, $3, $4, $5
 ) RETURNING *;
 
 -- name: GetTournament :one

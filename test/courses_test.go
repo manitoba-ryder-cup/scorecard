@@ -97,3 +97,42 @@ func TestGetNonexistentCourseReturns404(t *testing.T) {
 		t.Fatalf("want 404 APIError, got %v", err)
 	}
 }
+
+// TestCreateCourseCarriesItsTimeZone covers a venue away from home: the zone is what a
+// tee time typed off that course's tee sheet is read against.
+func TestCreateCourseCarriesItsTimeZone(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	ctx := context.Background()
+
+	away, err := client.CreateCourse(ctx, sdk.CreateCourseRequest{Name: "Away GC " + uuid.NewString()[:8], TimeZone: "America/Phoenix"})
+	if err != nil {
+		t.Fatalf("create course: %v", err)
+	}
+	if away.TimeZone != "America/Phoenix" {
+		t.Errorf("time_zone = %q, want America/Phoenix", away.TimeZone)
+	}
+
+	// Unnamed falls back to where the cup has always been played.
+	home, err := client.CreateCourse(ctx, sdk.CreateCourseRequest{Name: "Home GC " + uuid.NewString()[:8]})
+	if err != nil {
+		t.Fatalf("create course: %v", err)
+	}
+	if home.TimeZone != sdk.DefaultTimeZone {
+		t.Errorf("time_zone = %q, want the default %q", home.TimeZone, sdk.DefaultTimeZone)
+	}
+}
+
+// TestCreateCourseRejectsAnUnknownTimeZone: an unreadable zone would resolve to UTC when
+// a tee time is entered against it, silently shifting every round at that course.
+func TestCreateCourseRejectsAnUnknownTimeZone(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+
+	_, err := client.CreateCourse(context.Background(), sdk.CreateCourseRequest{
+		Name: "Nowhere GC " + uuid.NewString()[:8], TimeZone: "Mars/Olympus",
+	})
+	if err == nil {
+		t.Fatal("want an unknown IANA zone rejected")
+	}
+}

@@ -42,10 +42,6 @@ type Tournament struct {
 	StartDate time.Time
 	EndDate   time.Time
 	Location  string
-	// TimeZone is where the cup is played, as an IANA name. StartDate/EndDate are
-	// calendar dates and TeeTimes are absolute instants; both need this to mean anything
-	// as a wall clock. An IANA name rather than an offset so DST is the zone's problem.
-	TimeZone string
 }
 
 // Match represents an individual golf match
@@ -96,10 +92,14 @@ type Score struct {
 	Strokes    int32
 }
 
-// Course represents a golf course
+// Course represents a golf course.
 type Course struct {
 	ID   uuid.UUID
 	Name string
+	// TimeZone is where the course is, as an IANA name. A tee time is entered as the
+	// wall clock the tee sheet says and converted to an instant against this, so an away
+	// round is typed as its own local 8am. Display is the viewer's concern.
+	TimeZone string
 }
 
 // Hole represents a hole on a golf course with specific tee

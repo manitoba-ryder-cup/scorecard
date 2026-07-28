@@ -19,7 +19,7 @@ func NewCoursesDB(db *DB) *CoursesDB {
 
 func (c *CoursesDB) CreateCourse(ctx context.Context, in golf.CreateCourseInput) (*golf.Course, error) {
 	return withTenant(ctx, c.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Course, error) {
-		course, err := q.CreateCourse(ctx, sqlc.CreateCourseParams{TenantID: tenantID, Name: in.Name})
+		course, err := q.CreateCourse(ctx, sqlc.CreateCourseParams{TenantID: tenantID, Name: in.Name, TimeZone: in.TimeZone})
 		if err != nil {
 			return nil, fmt.Errorf("creating course: %w", mapWriteErr(err))
 		}
@@ -50,5 +50,5 @@ func (c *CoursesDB) ListCourses(ctx context.Context) ([]golf.Course, error) {
 }
 
 func toDomainCourse(c sqlc.Course) golf.Course {
-	return golf.Course{ID: c.ID, Name: c.Name}
+	return golf.Course{ID: c.ID, Name: c.Name, TimeZone: c.TimeZone}
 }

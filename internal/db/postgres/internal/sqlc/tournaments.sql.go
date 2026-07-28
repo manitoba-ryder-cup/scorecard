@@ -18,11 +18,10 @@ INSERT INTO tournaments (
     name,
     start_date,
     end_date,
-    location,
-    time_zone
+    location
 ) VALUES (
-    $1, $2, $3, $4, $5, $6
-) RETURNING id, tenant_id, name, start_date, end_date, location, created_at, updated_at, time_zone
+    $1, $2, $3, $4, $5
+) RETURNING id, tenant_id, name, start_date, end_date, location, created_at, updated_at
 `
 
 type CreateTournamentParams struct {
@@ -31,7 +30,6 @@ type CreateTournamentParams struct {
 	StartDate time.Time `json:"start_date"`
 	EndDate   time.Time `json:"end_date"`
 	Location  string    `json:"location"`
-	TimeZone  string    `json:"time_zone"`
 }
 
 func (q *Queries) CreateTournament(ctx context.Context, arg CreateTournamentParams) (Tournament, error) {
@@ -41,7 +39,6 @@ func (q *Queries) CreateTournament(ctx context.Context, arg CreateTournamentPara
 		arg.StartDate,
 		arg.EndDate,
 		arg.Location,
-		arg.TimeZone,
 	)
 	var i Tournament
 	err := row.Scan(
@@ -53,13 +50,12 @@ func (q *Queries) CreateTournament(ctx context.Context, arg CreateTournamentPara
 		&i.Location,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.TimeZone,
 	)
 	return i, err
 }
 
 const getTournament = `-- name: GetTournament :one
-SELECT id, tenant_id, name, start_date, end_date, location, created_at, updated_at, time_zone FROM tournaments
+SELECT id, tenant_id, name, start_date, end_date, location, created_at, updated_at FROM tournaments
 WHERE id = $1 AND tenant_id = $2
 `
 
@@ -80,13 +76,12 @@ func (q *Queries) GetTournament(ctx context.Context, arg GetTournamentParams) (T
 		&i.Location,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.TimeZone,
 	)
 	return i, err
 }
 
 const listTournaments = `-- name: ListTournaments :many
-SELECT id, tenant_id, name, start_date, end_date, location, created_at, updated_at, time_zone FROM tournaments
+SELECT id, tenant_id, name, start_date, end_date, location, created_at, updated_at FROM tournaments
 WHERE tenant_id = $1
 ORDER BY start_date DESC
 `
@@ -109,7 +104,6 @@ func (q *Queries) ListTournaments(ctx context.Context, tenantID uuid.UUID) ([]To
 			&i.Location,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.TimeZone,
 		); err != nil {
 			return nil, err
 		}

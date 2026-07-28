@@ -9,20 +9,19 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
-// scoringOpen reports whether a tournament's scores can be recorded at the given moment:
-// on any of its days, read where the golf is played. A tournament's dates are calendar
-// dates, and a calendar date only means something somewhere — read as UTC, a Manitoba
-// cup's final day ends at 19:00 local and cuts off a last group that tees off in the
-// afternoon and finishes past midnight UTC.
+// scoringOpen reports whether a match's scores can be recorded at the given moment: on
+// one of its tournament's days, read at the course being played. A tournament's dates are
+// calendar dates, and a calendar date only means something somewhere — read as UTC, a
+// Manitoba cup's final day ends at 19:00 local and cuts off a last group that tees off in
+// the afternoon and finishes past midnight UTC.
 //
-// Deliberately not tied to a tee time: those move for weather, and aren't consistently
-// stored as absolute instants across imported events.
-func scoringOpen(now time.Time, t *Tournament) bool {
-	today := dayIn(now.In(eventLocation(t.TimeZone)))
+// Deliberately not tied to a tee time: those move for weather.
+func scoringOpen(now time.Time, t *Tournament, courseZone string) bool {
+	today := dayIn(now.In(eventLocation(courseZone)))
 	return !today.Before(dayIn(t.StartDate)) && !today.After(dayIn(t.EndDate))
 }
 
-// eventLocation resolves a tournament's IANA zone, falling back to where the cup has
+// eventLocation resolves a course's IANA zone, falling back to where the cup has
 // always been played rather than to UTC — UTC would quietly close the window early on
 // the final day, which is the failure this whole thing exists to avoid.
 func eventLocation(name string) *time.Location {

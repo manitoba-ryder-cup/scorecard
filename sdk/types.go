@@ -60,14 +60,20 @@ type CreateTeeColorRequest struct {
 }
 
 // Course is a golf course (venue). Its tee sets and holes are added separately.
+// time_zone is an IANA name: a tee time is entered as the wall clock the tee sheet says
+// and converted against it, so an away round is typed as its own local time. Display is
+// the viewer's concern, so nothing reads this back to render.
 type Course struct {
-	ID   uuid.UUID `json:"id"`
-	Name string    `json:"name"`
+	ID       uuid.UUID `json:"id"`
+	Name     string    `json:"name"`
+	TimeZone string    `json:"time_zone"`
 }
 
-// CreateCourseRequest is the body for POST /v1/courses.
+// CreateCourseRequest is the body for POST /v1/courses. time_zone is an IANA name;
+// empty defaults to DefaultTimeZone.
 type CreateCourseRequest struct {
-	Name string `json:"name"`
+	Name     string `json:"name"`
+	TimeZone string `json:"time_zone"`
 }
 
 // MatchFormat is a code-defined scoring format (e.g. Singles, Fourball). Global,
@@ -138,11 +144,6 @@ type Tournament struct {
 	StartDate string    `json:"start_date"`
 	EndDate   string    `json:"end_date"`
 	Location  string    `json:"location"`
-	// TimeZone is where the cup is played, as an IANA name (e.g. "America/Winnipeg").
-	// start_date/end_date are calendar dates and tee times are UTC instants; both are
-	// read against this, so a client renders the event's own wall clock rather than the
-	// viewer's.
-	TimeZone string `json:"time_zone"`
 }
 
 // CreateTournamentRequest is the body for POST /v1/tournaments. Dates are YYYY-MM-DD.
@@ -151,12 +152,10 @@ type CreateTournamentRequest struct {
 	StartDate string `json:"start_date"`
 	EndDate   string `json:"end_date"`
 	Location  string `json:"location"`
-	// TimeZone is an IANA name; empty defaults to DefaultTimeZone.
-	TimeZone string `json:"time_zone"`
 }
 
-// DefaultTimeZone is where the cup has always been played, used when a tournament is
-// created without naming one.
+// DefaultTimeZone is where the cup has always been played, used when a course is created
+// without naming a zone.
 const DefaultTimeZone = "America/Winnipeg"
 
 // TournamentPlayer is a player entered in a tournament: the per-tournament attributes

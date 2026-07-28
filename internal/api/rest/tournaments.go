@@ -53,13 +53,8 @@ func (h *TournamentsHandler) CreateTournament(w http.ResponseWriter, r *http.Req
 		respondError(r.Context(), w, http.StatusBadRequest, "Invalid end_date (want YYYY-MM-DD)", err)
 		return
 	}
-	timeZone := req.TimeZone
-	if timeZone == "" {
-		timeZone = sdk.DefaultTimeZone
-	}
 	tournament, err := h.tournamentService.CreateTournament(r.Context(), golf.CreateTournamentInput{
 		Name:      req.Name,
-		TimeZone:  timeZone,
 		StartDate: start,
 		EndDate:   end,
 		Location:  req.Location,

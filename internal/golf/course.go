@@ -23,7 +23,8 @@ type CreateTeeColorInput struct {
 
 // CreateCourseInput is the intent to add a course (venue).
 type CreateCourseInput struct {
-	Name string
+	Name     string
+	TimeZone string
 }
 
 // HoleInput is one hole's setup within a tee-set creation.

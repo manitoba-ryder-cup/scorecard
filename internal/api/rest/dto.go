@@ -68,7 +68,6 @@ func toTournamentDTO(t golf.Tournament) sdk.Tournament {
 		StartDate: dateString(t.StartDate),
 		EndDate:   dateString(t.EndDate),
 		Location:  t.Location,
-		TimeZone:  t.TimeZone,
 	}
 }
 
@@ -178,7 +177,7 @@ func toTeeSetDTO(ts golf.TeeSetWithHoles) sdk.TeeSet {
 }
 
 func toCourseDTO(c golf.Course) sdk.Course {
-	return sdk.Course{ID: c.ID, Name: c.Name}
+	return sdk.Course{ID: c.ID, Name: c.Name, TimeZone: c.TimeZone}
 }
 
 func toCourseTeeSetDTO(ts golf.CourseTeeSet) sdk.TeeSetSummary {

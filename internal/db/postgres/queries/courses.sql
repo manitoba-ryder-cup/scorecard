@@ -1,9 +1,10 @@
 -- name: CreateCourse :one
 INSERT INTO courses (
     tenant_id,
-    name
+    name,
+    time_zone
 ) VALUES (
-    $1, $2
+    $1, $2, $3
 ) RETURNING *;
 
 -- name: GetCourse :one

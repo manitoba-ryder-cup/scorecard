@@ -18,6 +18,11 @@ CREATE TABLE courses (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     name VARCHAR(255) NOT NULL,
+    -- Where the course is, as an IANA name. A tee time is entered as the wall clock the
+    -- tee sheet says and converted to an instant against this, so an away round is typed
+    -- as its own local 8am rather than converted by hand. Display is the viewer's
+    -- concern; this is only ever about reading what was entered.
+    time_zone VARCHAR(64) NOT NULL DEFAULT 'America/Winnipeg',
     CONSTRAINT pk__courses PRIMARY KEY (id),
     CONSTRAINT uq__courses__tenant_id__name UNIQUE (tenant_id, name)
 );

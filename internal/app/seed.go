@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
-	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
 // SeedInput is the contract for the advance setup of a tournament: the event, its roster
@@ -34,7 +33,6 @@ type SeedTournamentMeta struct {
 	StartDate string `json:"start_date"` // YYYY-MM-DD
 	EndDate   string `json:"end_date"`
 	Location  string `json:"location"`
-	TimeZone  string `json:"time_zone"` // IANA name; empty means the cup's home zone
 }
 
 type SeedPlayer struct {
@@ -47,8 +45,10 @@ type SeedPlayer struct {
 }
 
 type SeedMatchGroup struct {
-	Format   string   `json:"format"`
-	TeeTimes []string `json:"tee_times"` // RFC3339
+	Format string `json:"format"`
+	// A tee sheet's own wall clock ("2026-09-18T08:00"), read in the tournament's zone.
+	// An explicit offset is honoured as given.
+	TeeTimes []string `json:"tee_times"`
 }
 
 // SeedSummary reports what a seed run created.
@@ -64,7 +64,7 @@ type SeedSummary struct {
 // participants are assigned live at the event, not here. The course, tee color, and
 // formats are referenced by name and must already exist.
 func SeedTournament(ctx context.Context, svc *Services, in *SeedInput) (*SeedSummary, error) {
-	courseID, err := lookupCourse(ctx, svc, in.Course)
+	course, err := lookupCourse(ctx, svc, in.Course)
 	if err != nil {
 		return nil, err
 	}
@@ -86,13 +86,8 @@ func SeedTournament(ctx context.Context, svc *Services, in *SeedInput) (*SeedSum
 		return nil, fmt.Errorf("invalid tournament end_date: %w", err)
 	}
 
-	timeZone := in.Tournament.TimeZone
-	if timeZone == "" {
-		timeZone = sdk.DefaultTimeZone
-	}
 	tournament, err := svc.Tournament.CreateTournament(ctx, golf.CreateTournamentInput{
-		Name: in.Tournament.Name, StartDate: start, EndDate: end,
-		Location: in.Tournament.Location, TimeZone: timeZone,
+		Name: in.Tournament.Name, StartDate: start, EndDate: end, Location: in.Tournament.Location,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("creating tournament: %w", err)
@@ -158,12 +153,12 @@ func SeedTournament(ctx context.Context, svc *Services, in *SeedInput) (*SeedSum
 			return nil, fmt.Errorf("unknown match format %q", mg.Format)
 		}
 		for _, tt := range mg.TeeTimes {
-			teeTime, err := time.Parse(time.RFC3339, tt)
+			teeTime, err := parseTeeTime(tt, course.TimeZone)
 			if err != nil {
-				return nil, fmt.Errorf("invalid tee_time %q: %w", tt, err)
+				return nil, err
 			}
 			if _, err := svc.Match.CreateMatch(ctx, golf.CreateMatchInput{
-				TournamentID: tournament.ID, CourseID: courseID, TeeColorID: teeColorID,
+				TournamentID: tournament.ID, CourseID: course.ID, TeeColorID: teeColorID,
 				MatchFormatID: formatID, TeeTime: &teeTime,
 			}); err != nil {
 				return nil, fmt.Errorf("creating %s match: %w", mg.Format, err)
@@ -213,17 +208,19 @@ func (f *playerFinder) findOrCreate(ctx context.Context, svc *Services, sp SeedP
 	return p.ID, nil
 }
 
-func lookupCourse(ctx context.Context, svc *Services, name string) (uuid.UUID, error) {
+// lookupCourse returns the whole course, not just its id: its timezone is what a bare
+// tee time in the seed file is read against.
+func lookupCourse(ctx context.Context, svc *Services, name string) (golf.Course, error) {
 	courses, err := svc.Course.ListCourses(ctx)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("listing courses: %w", err)
+		return golf.Course{}, fmt.Errorf("listing courses: %w", err)
 	}
 	for _, c := range courses {
 		if c.Name == name {
-			return c.ID, nil
+			return c, nil
 		}
 	}
-	return uuid.Nil, fmt.Errorf("course %q not found (create it first)", name)
+	return golf.Course{}, fmt.Errorf("course %q not found (create it first)", name)
 }
 
 func lookupTeeColor(ctx context.Context, svc *Services, color string) (uuid.UUID, error) {
@@ -249,4 +246,24 @@ func lookupFormats(ctx context.Context, svc *Services) (map[string]uuid.UUID, er
 		m[f.Name] = f.ID
 	}
 	return m, nil
+}
+
+// parseTeeTime reads a tee time from a seed file. A bare wall clock is what a tee sheet
+// actually says, so it is read at the course being played — writing those as UTC is how
+// thirteen years of history ended up teeing off at 3am. An explicit offset is trusted as
+// given, so a file that already carries one is unaffected.
+func parseTeeTime(s, timeZone string) (time.Time, error) {
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t, nil
+	}
+	loc, err := time.LoadLocation(timeZone)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("course time_zone %q is not an IANA name: %w", timeZone, err)
+	}
+	for _, layout := range []string{"2006-01-02T15:04:05", "2006-01-02T15:04"} {
+		if t, err := time.ParseInLocation(layout, s, loc); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("invalid tee_time %q: want a wall clock (2006-01-02T15:04) or an RFC3339 instant", s)
 }

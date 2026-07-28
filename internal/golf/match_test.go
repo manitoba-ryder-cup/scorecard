@@ -127,13 +127,24 @@ func (f *fakeResultDB) ListCupData(ctx context.Context) (CupData, error) {
 // of the tournament's days, so every write test needs the clock inside that window.
 var duringTheCup = time.Date(2026, 9, 18, 15, 0, 0, 0, time.UTC)
 
+type fakeCourseDB struct{ course *Course }
+
+func (f *fakeCourseDB) CreateCourse(ctx context.Context, in CreateCourseInput) (*Course, error) {
+	return nil, nil
+}
+func (f *fakeCourseDB) GetCourse(ctx context.Context, id uuid.UUID) (*Course, error) {
+	return f.course, nil
+}
+func (f *fakeCourseDB) ListCourses(ctx context.Context) ([]Course, error) { return nil, nil }
+
 func matchService(m *fakeMatchDB, p *fakeParticipantDB, sdb *fakeScoreDB) *MatchService {
 	return &MatchService{
 		MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{},
 		TournamentDB: &fakeTournamentDB{tournament: &Tournament{
 			ID: tournamentID, Name: "Manitoba Ryder Cup", StartDate: cupStart, EndDate: cupEnd,
 		}},
-		Now: func() time.Time { return duringTheCup },
+		CourseDB: &fakeCourseDB{course: &Course{ID: courseID, Name: "Buffalo Point", TimeZone: "America/Winnipeg"}},
+		Now:      func() time.Time { return duringTheCup },
 	}
 }
 

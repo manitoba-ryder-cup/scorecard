@@ -124,7 +124,11 @@ func (h *CoursesHandler) CreateCourse(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	course, err := h.courseService.CreateCourse(r.Context(), golf.CreateCourseInput{Name: req.Name})
+	timeZone := req.TimeZone
+	if timeZone == "" {
+		timeZone = sdk.DefaultTimeZone
+	}
+	course, err := h.courseService.CreateCourse(r.Context(), golf.CreateCourseInput{Name: req.Name, TimeZone: timeZone})
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to create course", err)
 		return
