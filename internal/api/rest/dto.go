@@ -58,6 +58,8 @@ func toPlayerTournamentHistoryDTO(h golf.PlayerTournamentHistory) sdk.PlayerTour
 		CaptainLastName:  h.CaptainLastName,
 		Result:           h.Result,
 		Record:           toPlayerRecordDTO(h.Record),
+		Tier:             h.Tier,
+		Biography:        h.Biography,
 	}
 }
 

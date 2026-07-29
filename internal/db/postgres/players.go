@@ -95,6 +95,8 @@ func toPlayerTournamentHistory(row sqlc.ListPlayerTournamentsRow) golf.PlayerTou
 		CaptainFirstName: derefString(row.CaptainFirstName),
 		CaptainLastName:  derefString(row.CaptainLastName),
 		TeamID:           row.TeamID,
+		Tier:             row.Tier,
+		Biography:        row.Biography,
 		Record: golf.PlayerRecord{
 			Wins:   int32(row.Wins),
 			Losses: int32(row.Losses),

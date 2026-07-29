@@ -62,6 +62,8 @@ SELECT
     cap.first_name AS captain_first_name,
     cap.last_name  AS captain_last_name,
     tm.team_id,
+    tp.tier,
+    tp.biography,
     COUNT(*) FILTER (WHERE o.won) AS wins,
     COUNT(*) FILTER (WHERE o.lost) AS losses,
     COUNT(*) FILTER (WHERE o.tied) AS ties
@@ -72,5 +74,5 @@ LEFT JOIN teams te ON te.id = tm.team_id AND te.tenant_id = tm.tenant_id
 LEFT JOIN players cap ON cap.id = te.captain_id AND cap.tenant_id = te.tenant_id
 LEFT JOIN player_match_outcomes o ON o.player_id = tp.player_id AND o.tournament_id = tp.tournament_id AND o.tenant_id = tp.tenant_id
 WHERE tp.player_id = @player_id AND tp.tenant_id = @tenant_id
-GROUP BY t.id, t.name, t.location, t.start_date, t.end_date, tm.team_id, cap.first_name, cap.last_name
+GROUP BY t.id, t.name, t.location, t.start_date, t.end_date, tm.team_id, cap.first_name, cap.last_name, tp.tier, tp.biography
 ORDER BY t.start_date DESC;

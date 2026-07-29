@@ -189,6 +189,8 @@ type PlayerTournamentHistory struct {
 	CaptainLastName  string       `json:"captain_last_name"`
 	Result           string       `json:"result"`
 	Record           PlayerRecord `json:"record"`
+	Tier             string       `json:"tier"`
+	Biography        string       `json:"biography"`
 }
 
 // EnterTournamentPlayerRequest is the body for POST /v1/tournaments/{id}/players. The

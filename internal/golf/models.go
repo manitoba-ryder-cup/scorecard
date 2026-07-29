@@ -183,6 +183,8 @@ type PlayerTournamentHistory struct {
 	TeamID           *uuid.UUID // nil when entered but never drafted
 	Result           string
 	Record           PlayerRecord
+	Tier             string
+	Biography        string
 }
 
 // MatchSidePlayer is a player on one side of a match.
