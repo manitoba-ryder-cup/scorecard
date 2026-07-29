@@ -193,6 +193,35 @@ type PlayerTournamentHistory struct {
 	Biography        string       `json:"biography"`
 }
 
+// FormatRecord is a player's W-L-T in one match format.
+type FormatRecord struct {
+	FormatName string       `json:"format_name"`
+	Record     PlayerRecord `json:"record"`
+}
+
+// PairRecord is a player's W-L-T alongside or against one other player. matches doubles as
+// the repeat-pairing signal: captains reuse partnerships, and the count says whether it
+// has been working.
+type PairRecord struct {
+	PlayerID  uuid.UUID    `json:"player_id"`
+	FirstName string       `json:"first_name"`
+	LastName  string       `json:"last_name"`
+	Matches   int          `json:"matches"`
+	Record    PlayerRecord `json:"record"`
+}
+
+// PlayerStats is the body of GET /v1/players/{id}/stats: a career split the ways a captain
+// and a player each want to read it. points is the cup's own currency (a win is 1, a half
+// is ½) reported next to the cups it was earned over, so the rate is the caller's to
+// compute and round.
+type PlayerStats struct {
+	ByFormat   []FormatRecord `json:"by_format"`
+	Teammates  []PairRecord   `json:"teammates"`
+	Opponents  []PairRecord   `json:"opponents"`
+	Points     float64        `json:"points"`
+	CupsPlayed int            `json:"cups_played"`
+}
+
 // EnterTournamentPlayerRequest is the body for POST /v1/tournaments/{id}/players. The
 // tournament comes from the path; player_id references an existing player. Attributes
 // default sensibly if omitted (tier "white", empty bio, hdcp 0).

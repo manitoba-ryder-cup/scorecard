@@ -13,6 +13,9 @@ type playerDB interface {
 	CreatePlayer(ctx context.Context, in CreatePlayerInput) (*Player, error)
 	// Result is left unset — the service derives it from the standings.
 	ListPlayerTournaments(ctx context.Context, playerID uuid.UUID) ([]PlayerTournamentHistory, error)
+	PlayerRecordByFormat(ctx context.Context, playerID uuid.UUID) ([]FormatRecord, error)
+	PlayerRecordByTeammate(ctx context.Context, playerID uuid.UUID) ([]PairRecord, error)
+	PlayerRecordByOpponent(ctx context.Context, playerID uuid.UUID) ([]PairRecord, error)
 }
 
 // matchDB interface defines database operations for matches

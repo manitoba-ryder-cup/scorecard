@@ -63,6 +63,28 @@ func toPlayerTournamentHistoryDTO(h golf.PlayerTournamentHistory) sdk.PlayerTour
 	}
 }
 
+func toPairRecordDTO(r golf.PairRecord) sdk.PairRecord {
+	return sdk.PairRecord{
+		PlayerID:  r.PlayerID,
+		FirstName: r.FirstName,
+		LastName:  r.LastName,
+		Matches:   r.Matches,
+		Record:    toPlayerRecordDTO(r.Record),
+	}
+}
+
+func toPlayerStatsDTO(s golf.PlayerStats) sdk.PlayerStats {
+	return sdk.PlayerStats{
+		ByFormat: mapSlice(s.ByFormat, func(f golf.FormatRecord) sdk.FormatRecord {
+			return sdk.FormatRecord{FormatName: f.FormatName, Record: toPlayerRecordDTO(f.Record)}
+		}),
+		Teammates:  mapSlice(s.Teammates, toPairRecordDTO),
+		Opponents:  mapSlice(s.Opponents, toPairRecordDTO),
+		Points:     s.Points,
+		CupsPlayed: s.CupsPlayed,
+	}
+}
+
 func toTournamentDTO(t golf.Tournament) sdk.Tournament {
 	return sdk.Tournament{
 		ID:        t.ID,

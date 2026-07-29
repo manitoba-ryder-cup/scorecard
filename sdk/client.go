@@ -61,6 +61,11 @@ func (c *Client) GetPlayerTournaments(ctx context.Context, id uuid.UUID) ([]Play
 	return out, c.do(ctx, http.MethodGet, pathID(RouteV1PlayerTournaments, id), nil, &out)
 }
 
+func (c *Client) GetPlayerStats(ctx context.Context, id uuid.UUID) (PlayerStats, error) {
+	var out PlayerStats
+	return out, c.do(ctx, http.MethodGet, pathID(RouteV1PlayerStats, id), nil, &out)
+}
+
 // --- Reference data ---
 
 func (c *Client) ListMatchFormats(ctx context.Context) ([]MatchFormat, error) {

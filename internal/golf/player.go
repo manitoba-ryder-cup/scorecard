@@ -92,3 +92,48 @@ func (s *PlayerService) ListPlayerTournaments(ctx context.Context, playerID uuid
 	}
 	return history, nil
 }
+
+// PointsFor is the cup's own currency: a win is a point, a half is half a point, and a
+// loss is nothing. Defined once here because every stat that talks about points has to
+// agree with the standings the leaderboard shows.
+func PointsFor(r PlayerRecord) float64 {
+	return float64(r.Wins) + float64(r.Ties)/2
+}
+
+// PlayerStats gathers a career the ways a captain and a player each want to read it. The
+// three breakdowns are independent aggregates over the same matches, so they're fetched
+// together rather than leaving a client to make one request per section.
+//
+// Points is reported with the number of cups it was earned over rather than as a rate:
+// both numbers are worth seeing, and how to round the division is a display decision.
+func (s *PlayerService) PlayerStats(ctx context.Context, playerID uuid.UUID) (*PlayerStats, error) {
+	byFormat, err := s.PlayerDB.PlayerRecordByFormat(ctx, playerID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list format records: %w", err)
+	}
+	teammates, err := s.PlayerDB.PlayerRecordByTeammate(ctx, playerID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list teammate records: %w", err)
+	}
+	opponents, err := s.PlayerDB.PlayerRecordByOpponent(ctx, playerID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list opponent records: %w", err)
+	}
+	// Summed from the format split rather than counted again, so a career total can never
+	// disagree with the rows shown beneath it.
+	var points float64
+	for _, f := range byFormat {
+		points += PointsFor(f.Record)
+	}
+	history, err := s.PlayerDB.ListPlayerTournaments(ctx, playerID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count cups played: %w", err)
+	}
+	return &PlayerStats{
+		ByFormat:   byFormat,
+		Teammates:  teammates,
+		Opponents:  opponents,
+		Points:     points,
+		CupsPlayed: len(history),
+	}, nil
+}

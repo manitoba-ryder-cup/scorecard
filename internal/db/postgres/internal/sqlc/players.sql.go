@@ -58,6 +58,192 @@ func (q *Queries) CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Pla
 	return i, err
 }
 
+const playerRecordByFormat = `-- name: PlayerRecordByFormat :many
+SELECT
+    mf.name AS format_name,
+    COUNT(*) FILTER (WHERE o.won) AS wins,
+    COUNT(*) FILTER (WHERE o.lost) AS losses,
+    COUNT(*) FILTER (WHERE o.tied) AS ties
+FROM player_match_outcomes o
+JOIN matches m ON m.id = o.match_id AND m.tenant_id = o.tenant_id
+JOIN match_formats mf ON mf.id = m.match_format_id
+WHERE o.player_id = $1 AND o.tenant_id = $2
+GROUP BY mf.name
+ORDER BY COUNT(*) DESC, mf.name
+`
+
+type PlayerRecordByFormatParams struct {
+	PlayerID uuid.UUID `json:"player_id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+}
+
+type PlayerRecordByFormatRow struct {
+	FormatName string `json:"format_name"`
+	Wins       int64  `json:"wins"`
+	Losses     int64  `json:"losses"`
+	Ties       int64  `json:"ties"`
+}
+
+// A player's W-L-T split by the format the match was played in. Reads from
+// player_match_outcomes so the definition of a result lives in one place.
+func (q *Queries) PlayerRecordByFormat(ctx context.Context, arg PlayerRecordByFormatParams) ([]PlayerRecordByFormatRow, error) {
+	rows, err := q.db.Query(ctx, playerRecordByFormat, arg.PlayerID, arg.TenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PlayerRecordByFormatRow{}
+	for rows.Next() {
+		var i PlayerRecordByFormatRow
+		if err := rows.Scan(
+			&i.FormatName,
+			&i.Wins,
+			&i.Losses,
+			&i.Ties,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const playerRecordByOpponent = `-- name: PlayerRecordByOpponent :many
+SELECT
+    other.id AS player_id,
+    other.first_name,
+    other.last_name,
+    COUNT(*) AS matches,
+    COUNT(*) FILTER (WHERE o.won) AS wins,
+    COUNT(*) FILTER (WHERE o.lost) AS losses,
+    COUNT(*) FILTER (WHERE o.tied) AS ties
+FROM player_match_outcomes o
+JOIN match_participants me
+    ON me.match_id = o.match_id AND me.player_id = o.player_id AND me.tenant_id = o.tenant_id
+JOIN match_participants opp
+    ON opp.match_id = me.match_id AND opp.tenant_id = me.tenant_id AND opp.team_id <> me.team_id
+JOIN players other ON other.id = opp.player_id AND other.tenant_id = opp.tenant_id
+WHERE o.player_id = $1 AND o.tenant_id = $2
+GROUP BY other.id, other.first_name, other.last_name
+ORDER BY COUNT(*) DESC, other.last_name, other.first_name
+`
+
+type PlayerRecordByOpponentParams struct {
+	PlayerID uuid.UUID `json:"player_id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+}
+
+type PlayerRecordByOpponentRow struct {
+	PlayerID  uuid.UUID `json:"player_id"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+	Matches   int64     `json:"matches"`
+	Wins      int64     `json:"wins"`
+	Losses    int64     `json:"losses"`
+	Ties      int64     `json:"ties"`
+}
+
+// Who this player has faced, and how they fared. Same shape as the teammate query but
+// across the match rather than alongside: for a pairs format every opponent is counted,
+// so one match contributes two rows.
+func (q *Queries) PlayerRecordByOpponent(ctx context.Context, arg PlayerRecordByOpponentParams) ([]PlayerRecordByOpponentRow, error) {
+	rows, err := q.db.Query(ctx, playerRecordByOpponent, arg.PlayerID, arg.TenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PlayerRecordByOpponentRow{}
+	for rows.Next() {
+		var i PlayerRecordByOpponentRow
+		if err := rows.Scan(
+			&i.PlayerID,
+			&i.FirstName,
+			&i.LastName,
+			&i.Matches,
+			&i.Wins,
+			&i.Losses,
+			&i.Ties,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const playerRecordByTeammate = `-- name: PlayerRecordByTeammate :many
+SELECT
+    other.id AS player_id,
+    other.first_name,
+    other.last_name,
+    COUNT(*) AS matches,
+    COUNT(*) FILTER (WHERE o.won) AS wins,
+    COUNT(*) FILTER (WHERE o.lost) AS losses,
+    COUNT(*) FILTER (WHERE o.tied) AS ties
+FROM player_match_outcomes o
+JOIN match_participants me
+    ON me.match_id = o.match_id AND me.player_id = o.player_id AND me.tenant_id = o.tenant_id
+JOIN match_participants mate
+    ON mate.match_id = me.match_id AND mate.tenant_id = me.tenant_id
+   AND mate.team_id = me.team_id AND mate.player_id <> me.player_id
+JOIN players other ON other.id = mate.player_id AND other.tenant_id = mate.tenant_id
+WHERE o.player_id = $1 AND o.tenant_id = $2
+GROUP BY other.id, other.first_name, other.last_name
+ORDER BY COUNT(*) DESC, other.last_name, other.first_name
+`
+
+type PlayerRecordByTeammateParams struct {
+	PlayerID uuid.UUID `json:"player_id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+}
+
+type PlayerRecordByTeammateRow struct {
+	PlayerID  uuid.UUID `json:"player_id"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+	Matches   int64     `json:"matches"`
+	Wins      int64     `json:"wins"`
+	Losses    int64     `json:"losses"`
+	Ties      int64     `json:"ties"`
+}
+
+// Who this player has been paired with, and how the pair did. The match count is the
+// repeat-pairing signal on its own: a captain reuses partnerships, and this says whether
+// that has been working. Singles have no teammate and drop out of the join.
+func (q *Queries) PlayerRecordByTeammate(ctx context.Context, arg PlayerRecordByTeammateParams) ([]PlayerRecordByTeammateRow, error) {
+	rows, err := q.db.Query(ctx, playerRecordByTeammate, arg.PlayerID, arg.TenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PlayerRecordByTeammateRow{}
+	for rows.Next() {
+		var i PlayerRecordByTeammateRow
+		if err := rows.Scan(
+			&i.PlayerID,
+			&i.FirstName,
+			&i.LastName,
+			&i.Matches,
+			&i.Wins,
+			&i.Losses,
+			&i.Ties,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const playerRecords = `-- name: PlayerRecords :many
 SELECT
     p.id, p.tenant_id, p.user_id, p.email, p.first_name, p.last_name, p.photo_path, p.created_at, p.updated_at,

@@ -81,6 +81,7 @@ func NewServer(config *Config) *Server {
 	scoped("POST", sdk.RouteV1Players, sdk.ScopePlayersWrite, playersHandler.CreatePlayer)
 	public("GET", sdk.RouteV1Player, playersHandler.GetPlayer)
 	public("GET", sdk.RouteV1PlayerTournaments, playersHandler.ListPlayerTournaments)
+	public("GET", sdk.RouteV1PlayerStats, playersHandler.GetPlayerStats)
 
 	// Course reference-data routes
 	public("GET", sdk.RouteV1TeeColors, coursesHandler.ListTeeColors)

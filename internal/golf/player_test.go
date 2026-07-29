@@ -8,13 +8,26 @@ import (
 )
 
 type fakePlayerDB struct {
-	created *CreatePlayerInput
+	created   *CreatePlayerInput
+	history   []PlayerTournamentHistory
+	byFormat  []FormatRecord
+	teammates []PairRecord
+	opponents []PairRecord
 }
 
 func (f *fakePlayerDB) GetPlayer(ctx context.Context, id uuid.UUID) (*Player, error) { return nil, nil }
 func (f *fakePlayerDB) ListPlayers(ctx context.Context) ([]Player, error)            { return nil, nil }
 func (f *fakePlayerDB) ListPlayerTournaments(ctx context.Context, playerID uuid.UUID) ([]PlayerTournamentHistory, error) {
-	return nil, nil
+	return f.history, nil
+}
+func (f *fakePlayerDB) PlayerRecordByFormat(ctx context.Context, playerID uuid.UUID) ([]FormatRecord, error) {
+	return f.byFormat, nil
+}
+func (f *fakePlayerDB) PlayerRecordByTeammate(ctx context.Context, playerID uuid.UUID) ([]PairRecord, error) {
+	return f.teammates, nil
+}
+func (f *fakePlayerDB) PlayerRecordByOpponent(ctx context.Context, playerID uuid.UUID) ([]PairRecord, error) {
+	return f.opponents, nil
 }
 func (f *fakePlayerDB) CreatePlayer(ctx context.Context, in CreatePlayerInput) (*Player, error) {
 	f.created = &in
@@ -37,5 +50,47 @@ func TestCreatePlayer_Valid(t *testing.T) {
 	}
 	if db.created == nil || db.created.Email == nil || *db.created.Email != "dj@example.com" {
 		t.Errorf("input not passed through: %+v", db.created)
+	}
+}
+
+func TestPlayerStats_PointsAreHalvesAndWins(t *testing.T) {
+	// A half is worth half a point, which is the whole reason points and W-L-T are
+	// different numbers: 5-3-2 is six points, not five.
+	db := &fakePlayerDB{
+		byFormat: []FormatRecord{
+			{FormatName: "Singles", Record: PlayerRecord{Wins: 3, Losses: 2, Ties: 1}},
+			{FormatName: "Fourball", Record: PlayerRecord{Wins: 2, Losses: 1, Ties: 1}},
+		},
+		history: make([]PlayerTournamentHistory, 4),
+	}
+	svc := &PlayerService{PlayerDB: db}
+
+	got, err := svc.PlayerStats(context.Background(), playerA)
+	if err != nil {
+		t.Fatalf("PlayerStats: %v", err)
+	}
+	if got.Points != 6 {
+		t.Errorf("points: want 6 (5 wins + 2 halves), got %v", got.Points)
+	}
+	if got.CupsPlayed != 4 {
+		t.Errorf("cups played: want 4, got %d", got.CupsPlayed)
+	}
+}
+
+func TestPlayerStats_PointsMatchTheRowsBeneathThem(t *testing.T) {
+	// Summed from the same split the page renders, so a total can never disagree with the
+	// rows under it.
+	db := &fakePlayerDB{byFormat: []FormatRecord{
+		{FormatName: "Singles", Record: PlayerRecord{Wins: 1, Losses: 0, Ties: 1}},
+	}}
+	svc := &PlayerService{PlayerDB: db}
+
+	got, _ := svc.PlayerStats(context.Background(), playerA)
+	var fromRows float64
+	for _, f := range got.ByFormat {
+		fromRows += PointsFor(f.Record)
+	}
+	if got.Points != fromRows {
+		t.Errorf("total %v disagrees with the rows (%v)", got.Points, fromRows)
 	}
 }

@@ -13,6 +13,7 @@ type PlayerService interface {
 	GetPlayer(ctx context.Context, playerID uuid.UUID) (*golf.Player, error)
 	ListPlayers(ctx context.Context) ([]golf.Player, error)
 	ListPlayerTournaments(ctx context.Context, playerID uuid.UUID) ([]golf.PlayerTournamentHistory, error)
+	PlayerStats(ctx context.Context, playerID uuid.UUID) (*golf.PlayerStats, error)
 	CreatePlayer(ctx context.Context, in golf.CreatePlayerInput) (*golf.Player, error)
 }
 
@@ -68,6 +69,20 @@ func (h *PlayersHandler) GetPlayer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondJSON(w, http.StatusOK, toPlayerProfileDTO(*player))
+}
+
+// GET /v1/players/{id}/stats
+func (h *PlayersHandler) GetPlayerStats(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUIDOr400(w, r, "id", "player")
+	if !ok {
+		return
+	}
+	stats, err := h.playerService.PlayerStats(r.Context(), id)
+	if err != nil {
+		respondDomainError(r.Context(), w, "Failed to load player stats", err)
+		return
+	}
+	respondJSON(w, http.StatusOK, toPlayerStatsDTO(*stats))
 }
 
 // GET /v1/players/{id}/tournaments

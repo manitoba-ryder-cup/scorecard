@@ -169,6 +169,35 @@ type TournamentPlayer struct {
 	CupsWon      int
 }
 
+// FormatRecord is a player's W-L-T in one match format.
+type FormatRecord struct {
+	FormatName string
+	Record     PlayerRecord
+}
+
+// PairRecord is a player's W-L-T alongside or against one other player. Matches is the
+// repeat-pairing signal on its own — a captain reuses partnerships, and the count says
+// whether that has been working.
+type PairRecord struct {
+	PlayerID  uuid.UUID
+	FirstName string
+	LastName  string
+	Matches   int
+	Record    PlayerRecord
+}
+
+// PlayerStats is a career broken down the ways a captain and a player each want it: what
+// they play well, who they play well with, and who they play well against. Points is the
+// cup's own currency — a win is 1, a half is ½ — and is a rate per cup rather than a total
+// so that a veteran and a newcomer compare.
+type PlayerStats struct {
+	ByFormat   []FormatRecord
+	Teammates  []PairRecord
+	Opponents  []PairRecord
+	Points     float64
+	CupsPlayed int
+}
+
 // PlayerTournamentHistory is one event in a player's history: their team that year
 // (by its captain), the outcome, and their W-L-T in that tournament. TeamID feeds the
 // Result derivation and is not put on the wire; Result is filled by the service.

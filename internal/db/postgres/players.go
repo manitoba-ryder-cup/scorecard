@@ -117,3 +117,48 @@ func toDomainPlayer(p sqlc.Player) golf.Player {
 		PhotoPath: p.PhotoPath,
 	}
 }
+
+func (p *PlayersDB) PlayerRecordByFormat(ctx context.Context, playerID uuid.UUID) ([]golf.FormatRecord, error) {
+	return withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) ([]golf.FormatRecord, error) {
+		rows, err := q.PlayerRecordByFormat(ctx, sqlc.PlayerRecordByFormatParams{PlayerID: playerID, TenantID: tenantID})
+		if err != nil {
+			return nil, fmt.Errorf("listing format records for player %s: %w", playerID, err)
+		}
+		return mapSlice(rows, func(r sqlc.PlayerRecordByFormatRow) golf.FormatRecord {
+			return golf.FormatRecord{
+				FormatName: r.FormatName,
+				Record:     golf.PlayerRecord{Wins: int32(r.Wins), Losses: int32(r.Losses), Ties: int32(r.Ties)},
+			}
+		}), nil
+	})
+}
+
+func (p *PlayersDB) PlayerRecordByTeammate(ctx context.Context, playerID uuid.UUID) ([]golf.PairRecord, error) {
+	return withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) ([]golf.PairRecord, error) {
+		rows, err := q.PlayerRecordByTeammate(ctx, sqlc.PlayerRecordByTeammateParams{PlayerID: playerID, TenantID: tenantID})
+		if err != nil {
+			return nil, fmt.Errorf("listing teammate records for player %s: %w", playerID, err)
+		}
+		return mapSlice(rows, func(r sqlc.PlayerRecordByTeammateRow) golf.PairRecord {
+			return golf.PairRecord{
+				PlayerID: r.PlayerID, FirstName: r.FirstName, LastName: r.LastName, Matches: int(r.Matches),
+				Record: golf.PlayerRecord{Wins: int32(r.Wins), Losses: int32(r.Losses), Ties: int32(r.Ties)},
+			}
+		}), nil
+	})
+}
+
+func (p *PlayersDB) PlayerRecordByOpponent(ctx context.Context, playerID uuid.UUID) ([]golf.PairRecord, error) {
+	return withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) ([]golf.PairRecord, error) {
+		rows, err := q.PlayerRecordByOpponent(ctx, sqlc.PlayerRecordByOpponentParams{PlayerID: playerID, TenantID: tenantID})
+		if err != nil {
+			return nil, fmt.Errorf("listing opponent records for player %s: %w", playerID, err)
+		}
+		return mapSlice(rows, func(r sqlc.PlayerRecordByOpponentRow) golf.PairRecord {
+			return golf.PairRecord{
+				PlayerID: r.PlayerID, FirstName: r.FirstName, LastName: r.LastName, Matches: int(r.Matches),
+				Record: golf.PlayerRecord{Wins: int32(r.Wins), Losses: int32(r.Losses), Ties: int32(r.Ties)},
+			}
+		}), nil
+	})
+}
