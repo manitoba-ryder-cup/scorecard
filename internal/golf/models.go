@@ -196,6 +196,23 @@ type PlayerStats struct {
 	Opponents  []PairRecord
 	Points     float64
 	CupsPlayed int
+	// How they fare when a match goes the distance against when it is closed out early.
+	// A halved match can only land in LastHole, since a half requires playing the 18th.
+	LastHole     PlayerRecord
+	DecidedEarly PlayerRecord
+	// The heaviest result each way. Nil for a player who has never won, or never lost.
+	BestWin      *NotableMatch
+	HeaviestLoss *NotableMatch
+}
+
+// NotableMatch is one match worth naming — the margin, who was across it, and the cup it
+// happened in. Lead and HolesRemaining are left as they are rather than rendered into
+// "9 & 7" here, so the margin reads the same as every other match in the app.
+type NotableMatch struct {
+	Year           string
+	Lead           int32
+	HolesRemaining int32
+	Opponents      string
 }
 
 // PlayerTournamentHistory is one event in a player's history: their team that year

@@ -58,6 +58,135 @@ func (q *Queries) CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Pla
 	return i, err
 }
 
+const playerMarginExtremes = `-- name: PlayerMarginExtremes :many
+(
+    SELECT
+        'win' AS kind,
+        t.start_date,
+        mr.lead,
+        mr.holes_remaining,
+        string_agg(DISTINCT opp.last_name, ' / ')::text AS opponents
+    FROM player_match_outcomes o
+    JOIN match_results mr ON mr.match_id = o.match_id AND mr.tenant_id = o.tenant_id
+    JOIN matches m ON m.id = o.match_id AND m.tenant_id = o.tenant_id
+    JOIN tournaments t ON t.id = m.tournament_id AND t.tenant_id = m.tenant_id
+    JOIN match_participants me ON me.match_id = o.match_id AND me.player_id = o.player_id AND me.tenant_id = o.tenant_id
+    JOIN match_participants op ON op.match_id = me.match_id AND op.team_id <> me.team_id AND op.tenant_id = me.tenant_id
+    JOIN players opp ON opp.id = op.player_id AND opp.tenant_id = op.tenant_id
+    WHERE o.player_id = $1 AND o.tenant_id = $2 AND o.won
+    GROUP BY mr.match_id, t.start_date, mr.lead, mr.holes_remaining
+    ORDER BY mr.lead DESC, mr.holes_remaining DESC
+    LIMIT 1
+)
+UNION ALL
+(
+    SELECT
+        'loss' AS kind,
+        t.start_date,
+        mr.lead,
+        mr.holes_remaining,
+        string_agg(DISTINCT opp.last_name, ' / ')::text AS opponents
+    FROM player_match_outcomes o
+    JOIN match_results mr ON mr.match_id = o.match_id AND mr.tenant_id = o.tenant_id
+    JOIN matches m ON m.id = o.match_id AND m.tenant_id = o.tenant_id
+    JOIN tournaments t ON t.id = m.tournament_id AND t.tenant_id = m.tenant_id
+    JOIN match_participants me ON me.match_id = o.match_id AND me.player_id = o.player_id AND me.tenant_id = o.tenant_id
+    JOIN match_participants op ON op.match_id = me.match_id AND op.team_id <> me.team_id AND op.tenant_id = me.tenant_id
+    JOIN players opp ON opp.id = op.player_id AND opp.tenant_id = op.tenant_id
+    WHERE o.player_id = $1 AND o.tenant_id = $2 AND o.lost
+    GROUP BY mr.match_id, t.start_date, mr.lead, mr.holes_remaining
+    ORDER BY mr.lead DESC, mr.holes_remaining DESC
+    LIMIT 1
+)
+`
+
+type PlayerMarginExtremesParams struct {
+	PlayerID uuid.UUID `json:"player_id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+}
+
+type PlayerMarginExtremesRow struct {
+	Kind           string    `json:"kind"`
+	StartDate      time.Time `json:"start_date"`
+	Lead           int32     `json:"lead"`
+	HolesRemaining int32     `json:"holes_remaining"`
+	Opponents      string    `json:"opponents"`
+}
+
+// The heaviest win and the heaviest defeat, with who was across the match and when.
+// Ordered by lead then holes remaining, which is how a match-play margin reads: 9 & 8 is
+// a bigger beating than 9 & 7. Returns at most two rows, and none for a player who has
+// never won or never lost.
+func (q *Queries) PlayerMarginExtremes(ctx context.Context, arg PlayerMarginExtremesParams) ([]PlayerMarginExtremesRow, error) {
+	rows, err := q.db.Query(ctx, playerMarginExtremes, arg.PlayerID, arg.TenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PlayerMarginExtremesRow{}
+	for rows.Next() {
+		var i PlayerMarginExtremesRow
+		if err := rows.Scan(
+			&i.Kind,
+			&i.StartDate,
+			&i.Lead,
+			&i.HolesRemaining,
+			&i.Opponents,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const playerRecordByCloseness = `-- name: PlayerRecordByCloseness :one
+SELECT
+    COUNT(*) FILTER (WHERE mr.holes_remaining = 0 AND o.won)  AS last_hole_wins,
+    COUNT(*) FILTER (WHERE mr.holes_remaining = 0 AND o.lost) AS last_hole_losses,
+    COUNT(*) FILTER (WHERE mr.holes_remaining = 0 AND o.tied) AS last_hole_ties,
+    COUNT(*) FILTER (WHERE mr.holes_remaining > 0 AND o.won)  AS early_wins,
+    COUNT(*) FILTER (WHERE mr.holes_remaining > 0 AND o.lost) AS early_losses,
+    COUNT(*) FILTER (WHERE mr.holes_remaining > 0 AND o.tied) AS early_ties
+FROM player_match_outcomes o
+JOIN match_results mr ON mr.match_id = o.match_id AND mr.tenant_id = o.tenant_id
+WHERE o.player_id = $1 AND o.tenant_id = $2 AND mr.finished
+`
+
+type PlayerRecordByClosenessParams struct {
+	PlayerID uuid.UUID `json:"player_id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+}
+
+type PlayerRecordByClosenessRow struct {
+	LastHoleWins   int64 `json:"last_hole_wins"`
+	LastHoleLosses int64 `json:"last_hole_losses"`
+	LastHoleTies   int64 `json:"last_hole_ties"`
+	EarlyWins      int64 `json:"early_wins"`
+	EarlyLosses    int64 `json:"early_losses"`
+	EarlyTies      int64 `json:"early_ties"`
+}
+
+// How a player fares when a match goes the distance versus when it is closed out early.
+// holes_remaining = 0 means the 18th was played, which is the only bucket a halved match
+// can land in. One row, both splits, so this costs a single round trip.
+func (q *Queries) PlayerRecordByCloseness(ctx context.Context, arg PlayerRecordByClosenessParams) (PlayerRecordByClosenessRow, error) {
+	row := q.db.QueryRow(ctx, playerRecordByCloseness, arg.PlayerID, arg.TenantID)
+	var i PlayerRecordByClosenessRow
+	err := row.Scan(
+		&i.LastHoleWins,
+		&i.LastHoleLosses,
+		&i.LastHoleTies,
+		&i.EarlyWins,
+		&i.EarlyLosses,
+		&i.EarlyTies,
+	)
+	return i, err
+}
+
 const playerRecordByFormat = `-- name: PlayerRecordByFormat :many
 SELECT
     mf.name AS format_name,

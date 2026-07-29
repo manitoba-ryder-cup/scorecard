@@ -220,6 +220,23 @@ type PlayerStats struct {
 	Opponents  []PairRecord   `json:"opponents"`
 	Points     float64        `json:"points"`
 	CupsPlayed int            `json:"cups_played"`
+	// How they fare when a match goes the distance against when it is closed out early.
+	// A halved match can only be in last_hole, since a half requires playing the 18th.
+	LastHole     PlayerRecord `json:"last_hole"`
+	DecidedEarly PlayerRecord `json:"decided_early"`
+	// The heaviest result each way, null for a player who has never won or never lost.
+	BestWin      *NotableMatch `json:"best_win"`
+	HeaviestLoss *NotableMatch `json:"heaviest_loss"`
+}
+
+// NotableMatch is one match worth naming. lead and holes_remaining are the raw margin
+// rather than a rendered "9 & 7", so a caller formats it the same way it formats every
+// other match.
+type NotableMatch struct {
+	Year           string `json:"year"`
+	Lead           int32  `json:"lead"`
+	HolesRemaining int32  `json:"holes_remaining"`
+	Opponents      string `json:"opponents"`
 }
 
 // EnterTournamentPlayerRequest is the body for POST /v1/tournaments/{id}/players. The

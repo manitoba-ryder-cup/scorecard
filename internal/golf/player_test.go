@@ -13,6 +13,8 @@ type fakePlayerDB struct {
 	byFormat  []FormatRecord
 	teammates []PairRecord
 	opponents []PairRecord
+	lastHole  PlayerRecord
+	early     PlayerRecord
 }
 
 func (f *fakePlayerDB) GetPlayer(ctx context.Context, id uuid.UUID) (*Player, error) { return nil, nil }
@@ -28,6 +30,12 @@ func (f *fakePlayerDB) PlayerRecordByTeammate(ctx context.Context, playerID uuid
 }
 func (f *fakePlayerDB) PlayerRecordByOpponent(ctx context.Context, playerID uuid.UUID) ([]PairRecord, error) {
 	return f.opponents, nil
+}
+func (f *fakePlayerDB) PlayerRecordByCloseness(ctx context.Context, playerID uuid.UUID) (PlayerRecord, PlayerRecord, error) {
+	return f.lastHole, f.early, nil
+}
+func (f *fakePlayerDB) PlayerMarginExtremes(ctx context.Context, playerID uuid.UUID) (*NotableMatch, *NotableMatch, error) {
+	return nil, nil, nil
 }
 func (f *fakePlayerDB) CreatePlayer(ctx context.Context, in CreatePlayerInput) (*Player, error) {
 	f.created = &in
@@ -92,5 +100,32 @@ func TestPlayerStats_PointsMatchTheRowsBeneathThem(t *testing.T) {
 	}
 	if got.Points != fromRows {
 		t.Errorf("total %v disagrees with the rows (%v)", got.Points, fromRows)
+	}
+}
+
+func TestPlayerStats_ClosenessSplitAccountsForEveryMatch(t *testing.T) {
+	// The two buckets partition the finished matches, so together they have to come to
+	// the same W-L-T as the format split. A half can only be in the last-hole bucket: a
+	// match is only halved by playing the 18th.
+	db := &fakePlayerDB{
+		byFormat: []FormatRecord{
+			{FormatName: "Singles", Record: PlayerRecord{Wins: 5, Losses: 4, Ties: 1}},
+		},
+		lastHole: PlayerRecord{Wins: 2, Losses: 1, Ties: 1},
+		early:    PlayerRecord{Wins: 3, Losses: 3, Ties: 0},
+	}
+	svc := &PlayerService{PlayerDB: db}
+
+	got, err := svc.PlayerStats(context.Background(), playerA)
+	if err != nil {
+		t.Fatalf("PlayerStats: %v", err)
+	}
+	total := PlayerRecord{
+		Wins:   got.LastHole.Wins + got.DecidedEarly.Wins,
+		Losses: got.LastHole.Losses + got.DecidedEarly.Losses,
+		Ties:   got.LastHole.Ties + got.DecidedEarly.Ties,
+	}
+	if total != got.ByFormat[0].Record {
+		t.Errorf("closeness split %+v does not account for the format record %+v", total, got.ByFormat[0].Record)
 	}
 }

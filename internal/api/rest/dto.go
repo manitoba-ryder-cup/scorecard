@@ -73,15 +73,26 @@ func toPairRecordDTO(r golf.PairRecord) sdk.PairRecord {
 	}
 }
 
+func toNotableMatchDTO(m *golf.NotableMatch) *sdk.NotableMatch {
+	if m == nil {
+		return nil
+	}
+	return &sdk.NotableMatch{Year: m.Year, Lead: m.Lead, HolesRemaining: m.HolesRemaining, Opponents: m.Opponents}
+}
+
 func toPlayerStatsDTO(s golf.PlayerStats) sdk.PlayerStats {
 	return sdk.PlayerStats{
 		ByFormat: mapSlice(s.ByFormat, func(f golf.FormatRecord) sdk.FormatRecord {
 			return sdk.FormatRecord{FormatName: f.FormatName, Record: toPlayerRecordDTO(f.Record)}
 		}),
-		Teammates:  mapSlice(s.Teammates, toPairRecordDTO),
-		Opponents:  mapSlice(s.Opponents, toPairRecordDTO),
-		Points:     s.Points,
-		CupsPlayed: s.CupsPlayed,
+		Teammates:    mapSlice(s.Teammates, toPairRecordDTO),
+		Opponents:    mapSlice(s.Opponents, toPairRecordDTO),
+		Points:       s.Points,
+		CupsPlayed:   s.CupsPlayed,
+		LastHole:     toPlayerRecordDTO(s.LastHole),
+		DecidedEarly: toPlayerRecordDTO(s.DecidedEarly),
+		BestWin:      toNotableMatchDTO(s.BestWin),
+		HeaviestLoss: toNotableMatchDTO(s.HeaviestLoss),
 	}
 }
 

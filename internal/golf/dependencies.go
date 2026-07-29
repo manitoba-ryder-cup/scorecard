@@ -16,6 +16,8 @@ type playerDB interface {
 	PlayerRecordByFormat(ctx context.Context, playerID uuid.UUID) ([]FormatRecord, error)
 	PlayerRecordByTeammate(ctx context.Context, playerID uuid.UUID) ([]PairRecord, error)
 	PlayerRecordByOpponent(ctx context.Context, playerID uuid.UUID) ([]PairRecord, error)
+	PlayerRecordByCloseness(ctx context.Context, playerID uuid.UUID) (lastHole, decidedEarly PlayerRecord, err error)
+	PlayerMarginExtremes(ctx context.Context, playerID uuid.UUID) (bestWin, heaviestLoss *NotableMatch, err error)
 }
 
 // matchDB interface defines database operations for matches

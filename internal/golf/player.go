@@ -125,15 +125,27 @@ func (s *PlayerService) PlayerStats(ctx context.Context, playerID uuid.UUID) (*P
 	for _, f := range byFormat {
 		points += PointsFor(f.Record)
 	}
+	lastHole, decidedEarly, err := s.PlayerDB.PlayerRecordByCloseness(ctx, playerID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the closeness split: %w", err)
+	}
+	bestWin, heaviestLoss, err := s.PlayerDB.PlayerMarginExtremes(ctx, playerID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the margin extremes: %w", err)
+	}
 	history, err := s.PlayerDB.ListPlayerTournaments(ctx, playerID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to count cups played: %w", err)
 	}
 	return &PlayerStats{
-		ByFormat:   byFormat,
-		Teammates:  teammates,
-		Opponents:  opponents,
-		Points:     points,
-		CupsPlayed: len(history),
+		ByFormat:     byFormat,
+		Teammates:    teammates,
+		Opponents:    opponents,
+		Points:       points,
+		CupsPlayed:   len(history),
+		LastHole:     lastHole,
+		DecidedEarly: decidedEarly,
+		BestWin:      bestWin,
+		HeaviestLoss: heaviestLoss,
 	}, nil
 }

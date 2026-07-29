@@ -162,3 +162,44 @@ func (p *PlayersDB) PlayerRecordByOpponent(ctx context.Context, playerID uuid.UU
 		}), nil
 	})
 }
+
+func (p *PlayersDB) PlayerRecordByCloseness(ctx context.Context, playerID uuid.UUID) (golf.PlayerRecord, golf.PlayerRecord, error) {
+	type split struct{ lastHole, early golf.PlayerRecord }
+	got, err := withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) (split, error) {
+		r, err := q.PlayerRecordByCloseness(ctx, sqlc.PlayerRecordByClosenessParams{PlayerID: playerID, TenantID: tenantID})
+		if err != nil {
+			return split{}, fmt.Errorf("reading closeness split for player %s: %w", playerID, err)
+		}
+		return split{
+			lastHole: golf.PlayerRecord{Wins: int32(r.LastHoleWins), Losses: int32(r.LastHoleLosses), Ties: int32(r.LastHoleTies)},
+			early:    golf.PlayerRecord{Wins: int32(r.EarlyWins), Losses: int32(r.EarlyLosses), Ties: int32(r.EarlyTies)},
+		}, nil
+	})
+	return got.lastHole, got.early, err
+}
+
+func (p *PlayersDB) PlayerMarginExtremes(ctx context.Context, playerID uuid.UUID) (*golf.NotableMatch, *golf.NotableMatch, error) {
+	type extremes struct{ win, loss *golf.NotableMatch }
+	got, err := withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) (extremes, error) {
+		rows, err := q.PlayerMarginExtremes(ctx, sqlc.PlayerMarginExtremesParams{PlayerID: playerID, TenantID: tenantID})
+		if err != nil {
+			return extremes{}, fmt.Errorf("reading margin extremes for player %s: %w", playerID, err)
+		}
+		var out extremes
+		for _, r := range rows {
+			m := &golf.NotableMatch{
+				Year:           r.StartDate.Format("2006"),
+				Lead:           r.Lead,
+				HolesRemaining: r.HolesRemaining,
+				Opponents:      r.Opponents,
+			}
+			if r.Kind == "win" {
+				out.win = m
+			} else {
+				out.loss = m
+			}
+		}
+		return out, nil
+	})
+	return got.win, got.loss, err
+}
