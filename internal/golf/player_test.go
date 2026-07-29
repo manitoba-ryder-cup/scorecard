@@ -129,3 +129,18 @@ func TestPlayerStats_ClosenessSplitAccountsForEveryMatch(t *testing.T) {
 		t.Errorf("closeness split %+v does not account for the format record %+v", total, got.ByFormat[0].Record)
 	}
 }
+
+func TestCreatePlayer_TrimsNames(t *testing.T) {
+	// The boundary trims before checking a name isn't blank, then stores what was typed —
+	// so "Graydon " passed validation and was saved with the space, printing as a double
+	// space wherever a full name is assembled.
+	db := &fakePlayerDB{}
+	svc := &PlayerService{PlayerDB: db}
+
+	if _, err := svc.CreatePlayer(context.Background(), CreatePlayerInput{FirstName: "Graydon ", LastName: " Cramer "}); err != nil {
+		t.Fatalf("CreatePlayer: %v", err)
+	}
+	if db.created.FirstName != "Graydon" || db.created.LastName != "Cramer" {
+		t.Errorf("want names trimmed, stored %q / %q", db.created.FirstName, db.created.LastName)
+	}
+}

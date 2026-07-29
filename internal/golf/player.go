@@ -3,6 +3,7 @@ package golf
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -21,6 +22,8 @@ type CreatePlayerInput struct {
 // CreatePlayer persists a new player. A duplicate email or user_id surfaces as
 // ErrConflict from the repository.
 func (s *PlayerService) CreatePlayer(ctx context.Context, in CreatePlayerInput) (*Player, error) {
+	in.FirstName = strings.TrimSpace(in.FirstName)
+	in.LastName = strings.TrimSpace(in.LastName)
 	player, err := s.PlayerDB.CreatePlayer(ctx, in)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create player: %w", err)
