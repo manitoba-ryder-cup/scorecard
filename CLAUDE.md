@@ -175,6 +175,28 @@ tee time, which is an instant and so needs no timezone. Outside the window a wri
 the client's copy must be the *wider* one — permissive costs a clean 409, strict silently
 offers no way to record a legitimate score.
 
+### Entering a Tee Time
+
+`golf.ParseTeeTime` is the one parser: a bare wall clock (`2026-09-18T08:20`) is read at the
+course being played, an explicit RFC3339 offset is trusted as given. Both the seed CLI and
+`PUT /v1/matches/{id}/tee-time` go through it, so a seed file and the admin form cannot
+disagree about what "08:00" means. An unset course zone falls back to `sdk.DefaultTimeZone`
+rather than `LoadLocation`'s UTC, which would shift a round by the course's offset instead of
+failing where anyone would see it.
+
+Only the tee time is updatable. Course and tee are fixed at creation because `scores` carries
+an FK to `holes(course_id, tee_color_id)`, so swapping either under a scored match breaks it
+— which is why the route is a narrow sub-resource PUT rather than a full match update.
+
+Moving a tee time is deliberately allowed on a scored or finished match: the case that needs
+it most is a group that went out late with a hole already entered. `scoringOpen` reads the
+match's current tee time on every submission, so the window moves with it.
+
+`MatchResult.tee_time_local` serves that entry form — the same instant as the wall clock at
+the course. It exists because the admin client edits in the course's clock and a
+`datetime-local` field holds no zone. Everything else renders `tee_time` in the viewer's own
+zone; rendering `tee_time_local` would pin every spectator to the course's clock.
+
 ## Important Patterns
 
 ### Authentication and Authorization

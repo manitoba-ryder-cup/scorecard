@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
+	"github.com/manitoba-ryder-cup/scorecard/test/_util/request"
 )
 
 // playableCourse sets up a course with a White tee (slope/rating + 18 holes) and
@@ -137,5 +138,93 @@ func TestCreateMatchWithoutTeeSetRejected(t *testing.T) {
 	var apiErr *sdk.APIError
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
 		t.Fatalf("want 400 APIError, got %v", err)
+	}
+}
+
+func TestUpdateMatchTeeTime(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	ctx := context.Background()
+
+	tour, err := client.CreateTournament(ctx, sdk.CreateTournamentRequest{
+		Name: "Tee Time Cup", StartDate: "2026-08-01", EndDate: "2026-08-03", Location: "Winnipeg",
+	})
+	if err != nil {
+		t.Fatalf("create tournament: %v", err)
+	}
+	// playableCourse creates the course without a zone, so it takes the cup's default.
+	courseID, teeColorID, formatID := playableCourse(t, client)
+	match, err := client.CreateMatch(ctx, tour.ID, sdk.CreateMatchRequest{
+		CourseID: courseID, TeeColorID: teeColorID, MatchFormatID: formatID, TeeTime: fixtureTeeTime(),
+	})
+	if err != nil {
+		t.Fatalf("create match: %v", err)
+	}
+
+	// The wall clock a tee sheet says, at a Winnipeg course in August (CDT, UTC-5).
+	updated, err := client.UpdateMatchTeeTime(ctx, match.ID, sdk.UpdateTeeTimeRequest{TeeTime: "2026-08-01T08:20"})
+	if err != nil {
+		t.Fatalf("update tee time: %v", err)
+	}
+	if updated.TeeTime != "2026-08-01T13:20:00Z" {
+		t.Errorf("tee_time = %q, want 2026-08-01T13:20:00Z", updated.TeeTime)
+	}
+
+	results, err := client.GetTournamentResults(ctx, tour.ID)
+	if err != nil {
+		t.Fatalf("get results: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("got %d results, want 1", len(results))
+	}
+	if results[0].TeeTime != "2026-08-01T13:20:00Z" {
+		t.Errorf("results tee_time = %q, want the new instant", results[0].TeeTime)
+	}
+	if results[0].TeeTimeLocal != "2026-08-01T08:20" {
+		t.Errorf("results tee_time_local = %q, want the course's wall clock", results[0].TeeTimeLocal)
+	}
+}
+
+func TestUpdateMatchTeeTime_UnknownMatchIs404(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+
+	_, err := client.UpdateMatchTeeTime(context.Background(), uuid.New(), sdk.UpdateTeeTimeRequest{
+		TeeTime: "2026-08-01T08:20",
+	})
+
+	var apiErr *sdk.APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+		t.Errorf("err = %v, want a 404 APIError", err)
+	}
+}
+
+// Sent raw so the SDK's own Validate cannot be what rejects it: a non-SDK caller posting a
+// malformed tee time must still be turned away by the server.
+func TestUpdateMatchTeeTime_ServerRejectsAMalformedTeeTime(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	ctx := context.Background()
+
+	tour, err := client.CreateTournament(ctx, sdk.CreateTournamentRequest{
+		Name: "Bad Tee Time Cup", StartDate: "2026-08-01", EndDate: "2026-08-03", Location: "Winnipeg",
+	})
+	if err != nil {
+		t.Fatalf("create tournament: %v", err)
+	}
+	courseID, teeColorID, formatID := playableCourse(t, client)
+	match, err := client.CreateMatch(ctx, tour.ID, sdk.CreateMatchRequest{
+		CourseID: courseID, TeeColorID: teeColorID, MatchFormatID: formatID, TeeTime: fixtureTeeTime(),
+	})
+	if err != nil {
+		t.Fatalf("create match: %v", err)
+	}
+
+	path := "/v1/matches/" + match.ID.String() + "/tee-time"
+	for _, body := range []string{`{"tee_time":"half eight"}`, `{"tee_time":""}`, `{}`} {
+		status, respBody := request.Raw(t, http.MethodPut, path, body, freshToken(t))
+		if status != http.StatusBadRequest {
+			t.Errorf("body %s: status = %d (%s), want 400", body, status, respBody)
+		}
 	}
 }
