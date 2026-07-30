@@ -169,14 +169,36 @@ func toMatchResultDTO(m golf.MatchResult) sdk.MatchResult {
 		holeResults = []*uuid.UUID{}
 	}
 	return sdk.MatchResult{
-		MatchStatus: toMatchStatusDTO(m.StoredResult),
-		MatchID:     m.MatchID,
-		FormatName:  m.FormatName,
-		Sides:       mapSlice(m.Sides, toMatchSideDTO),
-		HoleResults: holeResults,
-		TeeTime:     m.TeeTime.Format(time.RFC3339),
-		CourseName:  m.CourseName,
+		MatchStatus:  toMatchStatusDTO(m.StoredResult),
+		MatchID:      m.MatchID,
+		FormatName:   m.FormatName,
+		Sides:        mapSlice(m.Sides, toMatchSideDTO),
+		HoleResults:  holeResults,
+		TeeTime:      m.TeeTime.Format(time.RFC3339),
+		TeeTimeLocal: teeTimeLocal(m.TeeTime, m.CourseTimeZone),
+		CourseName:   m.CourseName,
 	}
+}
+
+// wallClockLayout is what a datetime-local input holds: no zone, no seconds.
+const wallClockLayout = "2006-01-02T15:04"
+
+// teeTimeLocal renders an instant as the wall clock at the course, which is what an admin
+// enters against. An unset or unloadable zone falls back to the cup's rather than to UTC,
+// which would show a tee time shifted by the course's offset. A stored zone that won't load
+// shouldn't be reachable — CreateCourseRequest.Validate rejects one — but the fallback costs
+// nothing and the alternative is a wrong time rendered confidently.
+func teeTimeLocal(t time.Time, timeZone string) string {
+	if timeZone == "" {
+		timeZone = sdk.DefaultTimeZone
+	}
+	loc, err := time.LoadLocation(timeZone)
+	if err != nil {
+		if loc, err = time.LoadLocation(sdk.DefaultTimeZone); err != nil {
+			return t.UTC().Format(wallClockLayout)
+		}
+	}
+	return t.In(loc).Format(wallClockLayout)
 }
 
 func toMatchSideDTO(s golf.MatchSide) sdk.MatchSide {

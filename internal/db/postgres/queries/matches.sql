@@ -29,9 +29,10 @@ SELECT m.* FROM matches m
 WHERE m.tournament_id = $1 AND m.tenant_id = $2
 ORDER BY m.tee_time;
 
--- Joined with format + course names so the results view resolves both in one query.
+-- Joined with format + course names so the results view resolves both in one query. The
+-- course's zone rides along because an admin enters a tee time against it.
 -- name: ListMatchesWithDetailsByTournament :many
-SELECT m.*, mf.name AS format_name, c.name AS course_name
+SELECT m.*, mf.name AS format_name, c.name AS course_name, c.time_zone AS course_time_zone
 FROM matches m
 JOIN match_formats mf ON mf.id = m.match_format_id
 JOIN courses c ON c.id = m.course_id AND c.tenant_id = m.tenant_id

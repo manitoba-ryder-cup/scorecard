@@ -2,6 +2,7 @@ package rest
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
@@ -89,5 +90,41 @@ func TestToHoleStatusDTO_OneBallHoleHasNoPlayerScores(t *testing.T) {
 
 	if got.TeamScores[0].PlayerScores == nil || len(got.TeamScores[0].PlayerScores) != 0 {
 		t.Errorf("want empty non-nil player scores, got %+v", got.TeamScores[0].PlayerScores)
+	}
+}
+
+func TestToMatchResultDTO_ServesBothTheInstantAndTheCourseWallClock(t *testing.T) {
+	teeTime := time.Date(2026, 9, 18, 13, 0, 0, 0, time.UTC)
+	r := golf.MatchResult{
+		MatchID:        uuid.New(),
+		FormatName:     "Singles",
+		CourseName:     "Pine Ridge",
+		CourseTimeZone: "America/Winnipeg",
+		TeeTime:        teeTime,
+	}
+
+	got := toMatchResultDTO(r)
+
+	// The instant is what every spectator view renders, in the viewer's own zone.
+	if got.TeeTime != "2026-09-18T13:00:00Z" {
+		t.Errorf("tee_time = %q, want the RFC3339 instant", got.TeeTime)
+	}
+	// The wall clock is what an admin edits against, so it is the course's clock and
+	// carries no zone — exactly what a datetime-local input holds.
+	if got.TeeTimeLocal != "2026-09-18T08:00" {
+		t.Errorf("tee_time_local = %q, want 2026-09-18T08:00", got.TeeTimeLocal)
+	}
+}
+
+// A course with no stored zone must not fall through to UTC, which would show a tee time
+// shifted by the course's offset — 13:00 for a round that goes out at 08:00.
+func TestToMatchResultDTO_FallsBackToTheCupsZone(t *testing.T) {
+	r := golf.MatchResult{
+		MatchID: uuid.New(),
+		TeeTime: time.Date(2026, 9, 18, 13, 0, 0, 0, time.UTC),
+	}
+
+	if got := toMatchResultDTO(r); got.TeeTimeLocal != "2026-09-18T08:00" {
+		t.Errorf("tee_time_local = %q, want the cup's zone applied", got.TeeTimeLocal)
 	}
 }

@@ -394,15 +394,19 @@ type MatchSide struct {
 // per played hole in order, the winning team's id (null = halved); its length is the
 // number of holes played. winner_team_id is null unless finished, while leader_team_id
 // reports who is ahead at any point (null = all square) so a live leaderboard needs no
-// client-side derivation. tee_time is RFC3339.
+// client-side derivation. tee_time is RFC3339. tee_time_local is the same instant as the
+// wall clock at the course, for admin entry only — every spectator view renders tee_time
+// in the viewer's own zone, so displaying tee_time_local would pin them all to the
+// course's clock.
 type MatchResult struct {
-	MatchStatus              // finished/winner/leader/lead/holes_remaining, flattened into this object
-	MatchID     uuid.UUID    `json:"match_id"`
-	FormatName  string       `json:"format_name"`
-	Sides       []MatchSide  `json:"sides"`
-	HoleResults []*uuid.UUID `json:"hole_results"`
-	TeeTime     string       `json:"tee_time"`
-	CourseName  string       `json:"course_name"`
+	MatchStatus               // finished/winner/leader/lead/holes_remaining, flattened into this object
+	MatchID      uuid.UUID    `json:"match_id"`
+	FormatName   string       `json:"format_name"`
+	Sides        []MatchSide  `json:"sides"`
+	HoleResults  []*uuid.UUID `json:"hole_results"`
+	TeeTime      string       `json:"tee_time"`
+	TeeTimeLocal string       `json:"tee_time_local"`
+	CourseName   string       `json:"course_name"`
 }
 
 // MatchStatus is a match's outcome state: the one shape for it, returned by the match

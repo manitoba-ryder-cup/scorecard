@@ -133,7 +133,7 @@ func (q *Queries) ListMatchesByTournament(ctx context.Context, arg ListMatchesBy
 }
 
 const listMatchesWithDetailsByTournament = `-- name: ListMatchesWithDetailsByTournament :many
-SELECT m.id, m.tournament_id, m.course_id, m.tee_color_id, m.match_format_id, m.tenant_id, m.tee_time, m.handicapped, m.created_at, m.updated_at, mf.name AS format_name, c.name AS course_name
+SELECT m.id, m.tournament_id, m.course_id, m.tee_color_id, m.match_format_id, m.tenant_id, m.tee_time, m.handicapped, m.created_at, m.updated_at, mf.name AS format_name, c.name AS course_name, c.time_zone AS course_time_zone
 FROM matches m
 JOIN match_formats mf ON mf.id = m.match_format_id
 JOIN courses c ON c.id = m.course_id AND c.tenant_id = m.tenant_id
@@ -147,21 +147,23 @@ type ListMatchesWithDetailsByTournamentParams struct {
 }
 
 type ListMatchesWithDetailsByTournamentRow struct {
-	ID            uuid.UUID `json:"id"`
-	TournamentID  uuid.UUID `json:"tournament_id"`
-	CourseID      uuid.UUID `json:"course_id"`
-	TeeColorID    uuid.UUID `json:"tee_color_id"`
-	MatchFormatID uuid.UUID `json:"match_format_id"`
-	TenantID      uuid.UUID `json:"tenant_id"`
-	TeeTime       time.Time `json:"tee_time"`
-	Handicapped   bool      `json:"handicapped"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
-	FormatName    string    `json:"format_name"`
-	CourseName    string    `json:"course_name"`
+	ID             uuid.UUID `json:"id"`
+	TournamentID   uuid.UUID `json:"tournament_id"`
+	CourseID       uuid.UUID `json:"course_id"`
+	TeeColorID     uuid.UUID `json:"tee_color_id"`
+	MatchFormatID  uuid.UUID `json:"match_format_id"`
+	TenantID       uuid.UUID `json:"tenant_id"`
+	TeeTime        time.Time `json:"tee_time"`
+	Handicapped    bool      `json:"handicapped"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+	FormatName     string    `json:"format_name"`
+	CourseName     string    `json:"course_name"`
+	CourseTimeZone string    `json:"course_time_zone"`
 }
 
-// Joined with format + course names so the results view resolves both in one query.
+// Joined with format + course names so the results view resolves both in one query. The
+// course's zone rides along because an admin enters a tee time against it.
 func (q *Queries) ListMatchesWithDetailsByTournament(ctx context.Context, arg ListMatchesWithDetailsByTournamentParams) ([]ListMatchesWithDetailsByTournamentRow, error) {
 	rows, err := q.db.Query(ctx, listMatchesWithDetailsByTournament, arg.TournamentID, arg.TenantID)
 	if err != nil {
@@ -184,6 +186,7 @@ func (q *Queries) ListMatchesWithDetailsByTournament(ctx context.Context, arg Li
 			&i.UpdatedAt,
 			&i.FormatName,
 			&i.CourseName,
+			&i.CourseTimeZone,
 		); err != nil {
 			return nil, err
 		}
