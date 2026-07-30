@@ -136,6 +136,29 @@ func (r CreateMatchRequest) Validate(ctx context.Context) error {
 	return nil
 }
 
+// Validate checks a match update. A present field must be usable — an explicit null uuid
+// or a blank tee time is a caller error, not a request to leave the value alone.
+func (r UpdateMatchRequest) Validate(ctx context.Context) error {
+	if r.CourseID == nil && r.TeeColorID == nil && r.MatchFormatID == nil && r.TeeTime == nil && r.Handicapped == nil {
+		return fmt.Errorf("no fields to update")
+	}
+	if r.CourseID != nil && *r.CourseID == uuid.Nil {
+		return fmt.Errorf("course_id must not be empty")
+	}
+	if r.TeeColorID != nil && *r.TeeColorID == uuid.Nil {
+		return fmt.Errorf("tee_color_id must not be empty")
+	}
+	if r.MatchFormatID != nil && *r.MatchFormatID == uuid.Nil {
+		return fmt.Errorf("match_format_id must not be empty")
+	}
+	if r.TeeTime != nil {
+		if _, err := time.Parse(time.RFC3339, *r.TeeTime); err != nil {
+			return fmt.Errorf("tee_time must be RFC3339 (e.g. 2026-08-01T08:00:00Z)")
+		}
+	}
+	return nil
+}
+
 // Validate checks an add-participant request: both references are required.
 func (r AddParticipantRequest) Validate(ctx context.Context) error {
 	if r.PlayerID == uuid.Nil {

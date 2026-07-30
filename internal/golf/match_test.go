@@ -14,6 +14,7 @@ import (
 type fakeMatchDB struct {
 	match   *Match
 	details []MatchDetail
+	updated *UpdateMatchInput // what UpdateMatch was last handed
 }
 
 func (f *fakeMatchDB) GetMatch(ctx context.Context, id uuid.UUID) (*Match, error) {
@@ -27,6 +28,10 @@ func (f *fakeMatchDB) ListMatchDetailsByTournament(ctx context.Context, tourname
 }
 func (f *fakeMatchDB) CreateMatch(ctx context.Context, in CreateMatchInput) (*Match, error) {
 	return nil, nil
+}
+func (f *fakeMatchDB) UpdateMatch(ctx context.Context, in UpdateMatchInput) (*Match, error) {
+	f.updated = &in
+	return f.match, nil
 }
 
 type fakeParticipantDB struct {

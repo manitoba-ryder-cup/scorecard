@@ -193,3 +193,41 @@ func TestValidateRejectsOverlongFields(t *testing.T) {
 		})
 	}
 }
+
+func uuidptr(u uuid.UUID) *uuid.UUID { return &u }
+func boolptr(b bool) *bool           { return &b }
+
+func TestUpdateMatchRequest_Validate(t *testing.T) {
+	ctx := context.Background()
+	id := uuid.New()
+	cases := []struct {
+		name    string
+		req     UpdateMatchRequest
+		wantErr bool
+	}{
+		{"tee time only", UpdateMatchRequest{TeeTime: strptr("2026-09-18T13:00:00Z")}, false},
+		{"course only", UpdateMatchRequest{CourseID: uuidptr(id)}, false},
+		// false is a real value, so a request that only unsets handicapped must be honoured
+		// rather than read as an empty body.
+		{"handicapped false only", UpdateMatchRequest{Handicapped: boolptr(false)}, false},
+		{"every field", UpdateMatchRequest{
+			CourseID: uuidptr(id), TeeColorID: uuidptr(id), MatchFormatID: uuidptr(id),
+			TeeTime: strptr("2026-09-18T13:00:00Z"), Handicapped: boolptr(true),
+		}, false},
+
+		{"nothing set", UpdateMatchRequest{}, true},
+		{"explicit nil course", UpdateMatchRequest{CourseID: uuidptr(uuid.Nil)}, true},
+		{"explicit nil tee colour", UpdateMatchRequest{TeeColorID: uuidptr(uuid.Nil)}, true},
+		{"explicit nil format", UpdateMatchRequest{MatchFormatID: uuidptr(uuid.Nil)}, true},
+		{"blank tee time", UpdateMatchRequest{TeeTime: strptr("")}, true},
+		{"wall clock tee time", UpdateMatchRequest{TeeTime: strptr("2026-09-18T13:00")}, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.req.Validate(ctx)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("Validate() err = %v, wantErr = %v", err, tc.wantErr)
+			}
+		})
+	}
+}

@@ -15,6 +15,18 @@ INSERT INTO matches (
 SELECT * FROM matches
 WHERE id = $1 AND tenant_id = $2;
 
+-- A null argument leaves the column alone, so a caller changing one field never has to
+-- read the match first just to echo the rest back.
+-- name: UpdateMatch :one
+UPDATE matches
+SET course_id       = COALESCE(sqlc.narg('course_id'), course_id),
+    tee_color_id    = COALESCE(sqlc.narg('tee_color_id'), tee_color_id),
+    match_format_id = COALESCE(sqlc.narg('match_format_id'), match_format_id),
+    tee_time        = COALESCE(sqlc.narg('tee_time'), tee_time),
+    handicapped     = COALESCE(sqlc.narg('handicapped'), handicapped)
+WHERE id = sqlc.arg('id') AND tenant_id = sqlc.arg('tenant_id')
+RETURNING *;
+
 -- Serializes a match's score writes. Submitting a score is a read-modify-write of
 -- match_results, so without this lock two concurrent submissions can each recompute
 -- from a snapshot taken before the other committed, and the later write wins with a

@@ -213,6 +213,11 @@ func (c *Client) CreateMatch(ctx context.Context, tournamentID uuid.UUID, req Cr
 	return &out, c.do(ctx, http.MethodPost, pathID(RouteV1TournamentMatches, tournamentID), req, &out)
 }
 
+func (c *Client) UpdateMatch(ctx context.Context, matchID uuid.UUID, req UpdateMatchRequest) (*Match, error) {
+	var out Match
+	return &out, c.do(ctx, http.MethodPut, pathID(RouteV1Match, matchID), req, &out)
+}
+
 func (c *Client) ListParticipants(ctx context.Context, matchID uuid.UUID) ([]MatchParticipant, error) {
 	var out []MatchParticipant
 	return out, c.do(ctx, http.MethodGet, pathID(RouteV1MatchParticipants, matchID), nil, &out)

@@ -139,3 +139,63 @@ func TestCreateMatchWithoutTeeSetRejected(t *testing.T) {
 		t.Fatalf("want 400 APIError, got %v", err)
 	}
 }
+
+func TestUpdateMatchLeavesUnmentionedFieldsAlone(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	ctx := context.Background()
+
+	tour, err := client.CreateTournament(ctx, sdk.CreateTournamentRequest{
+		Name: "Update Cup", StartDate: "2026-08-01", EndDate: "2026-08-03", Location: "Winnipeg",
+	})
+	if err != nil {
+		t.Fatalf("create tournament: %v", err)
+	}
+	courseID, teeColorID, formatID := playableCourse(t, client)
+
+	match, err := client.CreateMatch(ctx, tour.ID, sdk.CreateMatchRequest{
+		CourseID: courseID, TeeColorID: teeColorID, MatchFormatID: formatID,
+		TeeTime: "2026-08-01T08:00:00Z", Handicapped: true,
+	})
+	if err != nil {
+		t.Fatalf("create match: %v", err)
+	}
+
+	moved := "2026-08-01T14:30:00Z"
+	updated, err := client.UpdateMatch(ctx, match.ID, sdk.UpdateMatchRequest{TeeTime: &moved})
+	if err != nil {
+		t.Fatalf("update match: %v", err)
+	}
+
+	got, _ := time.Parse(time.RFC3339, updated.TeeTime)
+	want, _ := time.Parse(time.RFC3339, moved)
+	if !got.Equal(want) {
+		t.Errorf("tee_time: want %s, got %s", moved, updated.TeeTime)
+	}
+	// The point of the COALESCEs: a caller who mentioned only the tee time must not have
+	// silently blanked everything else.
+	if updated.CourseID != courseID || updated.TeeColorID != teeColorID || updated.MatchFormatID != formatID {
+		t.Errorf("unmentioned references changed: %+v", updated)
+	}
+	if !updated.Handicapped {
+		t.Error("handicapped was true and unmentioned, so it should still be true")
+	}
+	if updated.TournamentID != tour.ID {
+		t.Errorf("tournament changed: want %s, got %s", tour.ID, updated.TournamentID)
+	}
+}
+
+func TestUpdateMatchUnknownMatchIsNotFound(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	moved := "2026-08-01T14:30:00Z"
+
+	_, err := client.UpdateMatch(context.Background(), uuid.New(), sdk.UpdateMatchRequest{TeeTime: &moved})
+	if err == nil {
+		t.Fatal("want an error updating a match that does not exist")
+	}
+	var apiErr *sdk.APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+		t.Fatalf("want 404, got %v", err)
+	}
+}
