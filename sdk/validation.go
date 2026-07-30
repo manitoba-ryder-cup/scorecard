@@ -142,6 +142,33 @@ func (r CreateMatchRequest) Validate(ctx context.Context) error {
 	return nil
 }
 
+// Validate checks a tee-time update. Shape only: which zone a bare wall clock means
+// depends on the match's course, which is stored state and so a domain concern.
+func (r UpdateTeeTimeRequest) Validate(ctx context.Context) error {
+	if strings.TrimSpace(r.TeeTime) == "" {
+		return fmt.Errorf("tee_time is required")
+	}
+	if !isTeeTimeShape(r.TeeTime) {
+		return fmt.Errorf("tee_time must be RFC3339 (2026-09-18T13:20:00Z) or a wall clock (2026-09-18T08:20)")
+	}
+	return nil
+}
+
+// isTeeTimeShape reports whether a tee time parses as either accepted form, without
+// deciding what a wall clock means — golf.ParseTeeTime does that against the course's zone,
+// using these same layouts.
+func isTeeTimeShape(s string) bool {
+	if _, err := time.Parse(time.RFC3339, s); err == nil {
+		return true
+	}
+	for _, layout := range WallClockLayouts {
+		if _, err := time.Parse(layout, s); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
 // Validate checks an add-participant request: both references are required.
 func (r AddParticipantRequest) Validate(ctx context.Context) error {
 	if r.PlayerID == uuid.Nil {

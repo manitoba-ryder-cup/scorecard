@@ -21,6 +21,7 @@ type MatchService interface {
 	AddParticipant(ctx context.Context, matchID, playerID, teamID uuid.UUID) (*golf.MatchParticipant, error)
 	RemoveParticipant(ctx context.Context, matchID, playerID uuid.UUID) error
 	ListParticipants(ctx context.Context, matchID uuid.UUID) ([]golf.MatchParticipant, error)
+	UpdateTeeTime(ctx context.Context, matchID uuid.UUID, teeTime string) (*golf.Match, error)
 }
 
 type MatchesHandler struct {
@@ -70,6 +71,24 @@ func (h *MatchesHandler) CreateMatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondJSON(w, http.StatusCreated, toMatchDTO(*match))
+}
+
+// PUT /v1/matches/{id}/tee-time
+func (h *MatchesHandler) UpdateTeeTime(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUIDOr400(w, r, "id", "match")
+	if !ok {
+		return
+	}
+	req, ok := decodeAndValidate[sdk.UpdateTeeTimeRequest](w, r)
+	if !ok {
+		return
+	}
+	match, err := h.matchService.UpdateTeeTime(r.Context(), id, req.TeeTime)
+	if err != nil {
+		respondDomainError(r.Context(), w, "Failed to update tee time", err)
+		return
+	}
+	respondJSON(w, http.StatusOK, toMatchDTO(*match))
 }
 
 func toMatchDTO(m golf.Match) sdk.Match {

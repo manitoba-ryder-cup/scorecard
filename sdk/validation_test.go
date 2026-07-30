@@ -193,3 +193,30 @@ func TestValidateRejectsOverlongFields(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateTeeTimeRequest_Validate(t *testing.T) {
+	ctx := context.Background()
+	cases := []struct {
+		name    string
+		req     UpdateTeeTimeRequest
+		wantErr bool
+	}{
+		{"a wall clock off the tee sheet", UpdateTeeTimeRequest{TeeTime: "2026-09-18T08:20"}, false},
+		{"a wall clock with seconds", UpdateTeeTimeRequest{TeeTime: "2026-09-18T08:20:30"}, false},
+		{"an explicit instant", UpdateTeeTimeRequest{TeeTime: "2026-09-18T13:20:00Z"}, false},
+		{"an offset elsewhere", UpdateTeeTimeRequest{TeeTime: "2026-09-18T08:20:00-04:00"}, false},
+		{"empty", UpdateTeeTimeRequest{}, true},
+		{"whitespace", UpdateTeeTimeRequest{TeeTime: "   "}, true},
+		{"a date with no time", UpdateTeeTimeRequest{TeeTime: "2026-09-18"}, true},
+		{"a time with no date", UpdateTeeTimeRequest{TeeTime: "08:20"}, true},
+		{"prose", UpdateTeeTimeRequest{TeeTime: "half eight"}, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.req.Validate(ctx)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("Validate() err = %v, wantErr = %v", err, tc.wantErr)
+			}
+		})
+	}
+}

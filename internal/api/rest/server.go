@@ -101,6 +101,7 @@ func NewServer(config *Config) *Server {
 	scoped("POST", sdk.RouteV1MatchScores, sdk.ScopeScoresWrite, matchesHandler.SubmitScore)
 	public("GET", sdk.RouteV1MatchWinner, matchesHandler.GetMatchStatus)
 	public("GET", sdk.RouteV1MatchStatus, matchesHandler.GetMatchStatus)
+	scoped("PUT", sdk.RouteV1MatchTeeTime, sdk.ScopeTournamentsWrite, matchesHandler.UpdateTeeTime)
 
 	// Tournament routes
 	public("GET", sdk.RouteV1Tournaments, tournamentsHandler.ListTournaments)

@@ -308,6 +308,14 @@ type CreateMatchRequest struct {
 	Handicapped   bool      `json:"handicapped"`
 }
 
+// UpdateTeeTimeRequest is the body for PUT /v1/matches/{id}/tee-time. tee_time is either a
+// bare wall clock ("2026-09-18T08:20"), read at the course the match is played on, or an
+// RFC3339 instant, trusted as given. Only the tee time is updatable: course and tee are
+// fixed at creation because a match's scores reference them.
+type UpdateTeeTimeRequest struct {
+	TeeTime string `json:"tee_time"`
+}
+
 // MatchParticipant is a player (on a team) taking part in a match.
 type MatchParticipant struct {
 	TournamentID uuid.UUID `json:"tournament_id"`

@@ -213,6 +213,13 @@ func (c *Client) CreateMatch(ctx context.Context, tournamentID uuid.UUID, req Cr
 	return &out, c.do(ctx, http.MethodPost, pathID(RouteV1TournamentMatches, tournamentID), req, &out)
 }
 
+// UpdateMatchTeeTime moves a match's tee time. req.TeeTime is either a wall clock read at
+// the match's course or an explicit instant.
+func (c *Client) UpdateMatchTeeTime(ctx context.Context, matchID uuid.UUID, req UpdateTeeTimeRequest) (*Match, error) {
+	var out Match
+	return &out, c.do(ctx, http.MethodPut, pathID(RouteV1MatchTeeTime, matchID), req, &out)
+}
+
 func (c *Client) ListParticipants(ctx context.Context, matchID uuid.UUID) ([]MatchParticipant, error) {
 	var out []MatchParticipant
 	return out, c.do(ctx, http.MethodGet, pathID(RouteV1MatchParticipants, matchID), nil, &out)

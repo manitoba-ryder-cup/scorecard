@@ -46,4 +46,5 @@ const (
 	RouteV1MatchStatus       = "/v1/matches/{id}/status"
 	RouteV1MatchParticipants = "/v1/matches/{id}/participants"
 	RouteV1MatchParticipant  = "/v1/matches/{id}/participants/{playerId}"
+	RouteV1MatchTeeTime      = "/v1/matches/{id}/tee-time"
 )
