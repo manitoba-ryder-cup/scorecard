@@ -29,8 +29,14 @@ This is a port of the Python/Flask application in the sibling `scorecardpy/` rep
 - `make test-teardown` — stop the test stack and drop its volumes
 - `make lint` — golangci-lint via Docker
 - `make fmt` — gofmt + goimports
+- `make coverage-html` — HTML coverage report
+- `make help` — list every target
 
 Run `make fmt` before `make build` to resolve imports.
+
+CI runs eight jobs on every push and PR: format, lint, build, test (unit + integration),
+govulncheck, sqlc-drift, docker build, and a migrate up/down/up cycle against a live Postgres.
+The Go minor is pinned in the workflow, not read from `go.mod` — bumping Go means editing both.
 
 ### Database Migrations
 
@@ -125,7 +131,8 @@ test/                    # Integration suite (needs the docker-compose stack)
 
 - **Player** — stable identity (name, optional heimdall `user_id`, optional email) plus an
   all-time record and cups won, both derived on read from `match_results`
-- **Tournament** — the event; created with both teams in one transaction
+- **Tournament** — the event; created with both teams in one transaction, and carries its
+  location. It has no timezone — that moved to the course
 - **Team** — Red or Blue, with an optional captain
 - **TournamentPlayer** — a player entered in a tournament, carrying the per-tournament tier,
   biography, and handicap (these are *not* on Player)
@@ -133,7 +140,13 @@ test/                    # Integration suite (needs the docker-compose stack)
 - **Match / MatchParticipant / Score** — a match, its two sides, and hole scores
 - **MatchResult** — the materialized per-match outcome; team points, standings, and player
   records all derive from it
-- **Course / Hole / TeeSet / TeeColor / MatchFormat** — course setup and reference data
+- **Course / Hole / TeeSet / TeeColor / MatchFormat** — course setup and reference data. A
+  course owns the IANA time zone its tee times are entered in (`sdk.DefaultTimeZone`,
+  `America/Winnipeg`, when unnamed); tee times are stored and served as UTC instants
+- **PlayerStats** — per-format and per-partner/opponent records, cup points, and how matches
+  end (went the distance vs. closed out early, plus the heaviest result each way). Derived on
+  read like the all-time record. A halved match can only land in `last_hole`, since a half
+  requires playing the 18th
 
 ### Match Scoring
 
@@ -149,6 +162,18 @@ test/                    # Integration suite (needs the docker-compose stack)
 **Handicapping is not implemented.** `matches.handicapped` and the stroke indexes on `holes`
 are stored so the schema supports it, but scoring is gross only. Do not describe the API as
 supporting handicapped play.
+
+### The Scoring Window
+
+Scores are accepted only from `scoringOpensBefore` (2h) before a match's tee time until
+`scoringClosesAfter` (12h) after it — both in `internal/golf/match.go`, both measured from the
+tee time, which is an instant and so needs no timezone. Outside the window a write is
+`ErrConflict` (409), and the error names the window's bounds.
+
+`Match.TeeTime` is required for exactly this reason. The web client mirrors these constants in
+`src/lib/scoringWindow.ts` to gate its UI; this side is the one that decides, so if they drift
+the client's copy must be the *wider* one — permissive costs a clean 409, strict silently
+offers no way to record a legitimate score.
 
 ## Important Patterns
 
@@ -183,14 +208,18 @@ closure.
 
 ### The Score Write Path
 
-`ScoresDB.SaveScoreAndRecompute` is the only writer of `match_results`. It takes a
-`FOR UPDATE` lock on the match, writes the score, re-reads every score, and upserts the
-recomputed result — all in one transaction. **Do not split these steps.** A single
-transaction is not enough on its own: under READ COMMITTED two concurrent submissions can
-each recompute from a snapshot missing the other's score, and the later write reverts the
-result to a partial view. The domain passes its scoring rule in as a callback so the
-persistence layer owns only the transaction and the lock. Covered by
-`test/concurrency_test.go`.
+`ScoresDB.SaveScoresAndRecompute` is the only writer of `match_results` (`results.go` reads
+only). A whole hole is one unit: it takes every score on that hole, and in one transaction
+takes a `FOR UPDATE` lock on the match (`LockMatchForScoring`), re-reads the committed
+scores, runs the domain's `guard`, writes, re-reads, and upserts the `recompute`d result.
+
+**Do not split these steps, and keep the lock before the first read.** A single transaction
+is not enough on its own: under READ COMMITTED two concurrent submissions can each recompute
+from a snapshot missing the other's score, and the later write reverts the result to a
+partial view. The lock-then-read order is also what stops the guard's decision being raced —
+it must see the same committed set the recompute will. Both the scoring rule and the guard
+arrive as callbacks, so the persistence layer owns only the transaction and the lock.
+Covered by `test/concurrency_test.go`.
 
 ### Code Generation with sqlc
 
@@ -248,9 +277,14 @@ an ordinary SIGTERM exits zero.
 ## URL Structure
 
 The service serves `/v1/...` and `/healthz`. The public site reaches it through the edge at
-`/api/scorecard/*`, which strips that prefix. Route constants live in `sdk/routes.go` — note
-that `internal/api/rest/server.go` currently repeats most paths as literals rather than using
-them.
+`/api/scorecard/*`, which strips that prefix. Route constants live in `sdk/routes.go` and
+`internal/api/rest/server.go` registers every route from them — there are no path literals in
+the routing table, so a route change is a compile-time concern. Keep it that way.
+
+A match's `/winner` and `/status` are deliberately the same handler. They started as two
+endpoints and were collapsed when a match got one outcome shape covering both a finished match
+and one still in progress; `/status` is the name the handler kept. Both are still routed, so
+neither can be dropped without a client change.
 
 ## Development Guidelines
 

@@ -16,6 +16,8 @@ This is a ground-up rewrite of the original Python/Flask application.
   standings, and player records derive from one small table instead of rescanning scores
 - **Player records** — all-time wins/losses/ties and cups won, derived on read (never stored,
   so they cannot go stale)
+- **Career stats** — per-format and per-partner/opponent records, cup points, and how a
+  player's matches end (gone the distance vs. closed out early), all derived on read
 - **Course management** — courses, tee sets, and per-tee hole configuration
 - **Public reads** — anonymous spectators can read a configured tenant; writes require a
   scoped token
@@ -46,31 +48,43 @@ make dev
 
 ### Database Setup
 
+The application role must **not** be a superuser and must not hold `BYPASSRLS` — either
+silently bypasses tenant isolation, because Postgres skips RLS policies for such a role. So
+bootstrap the container as a separate superuser and create the application role beneath it:
+
 ```bash
 docker run -d \
   --name scorecard-postgres \
-  -e POSTGRES_USER=scorecard \
-  -e POSTGRES_PASSWORD=scorecard_dev \
+  -e POSTGRES_USER=superuser \
+  -e POSTGRES_PASSWORD=superuser \
   -e POSTGRES_DB=scorecard \
   -p 5432:5432 \
   postgres:16-alpine
+
+docker exec -i scorecard-postgres psql -v ON_ERROR_STOP=1 -U superuser -d scorecard <<'SQL'
+CREATE USER scorecard WITH PASSWORD 'scorecard_password';
+GRANT CONNECT ON DATABASE scorecard TO scorecard;
+GRANT USAGE, CREATE ON SCHEMA public TO scorecard;
+SQL
 ```
+
+`CREATE` on the schema is needed because the application role runs the migrations itself, and
+it then owns the tables it creates — which is why `FORCE ROW LEVEL SECURITY` matters (see
+[Multi-Tenancy](#multi-tenancy)). This mirrors `test/postgres/init/`, which is what the
+integration stack does.
 
 Migrations run automatically on server startup, or apply them manually:
 
 ```bash
-./bin/scorecard migrate up --database-url "postgres://scorecard:scorecard_dev@localhost:5432/scorecard?sslmode=disable"
+./bin/scorecard migrate up --database-url "postgres://scorecard:scorecard_password@localhost:5432/scorecard?sslmode=disable"
 ```
-
-The application role must **not** be a superuser and must not hold `BYPASSRLS` — either would
-bypass tenant isolation.
 
 ### Running the Service
 
 ```bash
 ./bin/scorecard start \
   --http-address ":5000" \
-  --database-url "postgres://scorecard:scorecard_dev@localhost:5432/scorecard?sslmode=disable" \
+  --database-url "postgres://scorecard:scorecard_password@localhost:5432/scorecard?sslmode=disable" \
   --jwt-public-key "/path/to/heimdall.pub" \
   --environment "development"
 ```
@@ -120,7 +134,7 @@ bypass tenant isolation.
 ## Golf Domain Model
 
 - **Player** — stable identity; all-time record and cups won are derived on read
-- **Tournament** — the event, created together with both teams
+- **Tournament** — the event, created together with both teams; carries its location
 - **Team** — Red or Blue, with an optional captain
 - **TournamentPlayer** — a player entered in a tournament, with that year's tier, biography,
   and handicap
@@ -128,8 +142,13 @@ bypass tenant isolation.
 - **Match** — a match within a tournament, on a course/tee, in a format
 - **MatchParticipant** — a player, with their team, taking part in a match
 - **Score** — one hole score, per player or per team depending on the format
-- **Course / Hole / TeeSet / TeeColor** — course setup
+- **Course / Hole / TeeSet / TeeColor** — course setup. A course carries the IANA time zone
+  its tee times are entered in (defaulting to `America/Winnipeg`); tee times themselves are
+  stored and served as UTC instants
 - **MatchFormat** — global seeded reference data (Singles, Fourball, Alt Shot, Scramble, Scotch)
+
+Scores are only accepted within a window around each match's tee time — from 2 hours before
+until 12 hours after. Outside it, a write is a 409.
 
 ## API Endpoints
 
@@ -152,6 +171,7 @@ to the configured public tenant (401 if none is configured). Writes require the 
 | POST | `/v1/players` | `scorecard:players:write` |
 | GET | `/v1/players/{id}` | public read |
 | GET | `/v1/players/{id}/tournaments` | public read |
+| GET | `/v1/players/{id}/stats` | public read |
 
 ### Courses and Reference Data
 
@@ -206,6 +226,9 @@ to the configured public tenant (401 if none is configured). Writes require the 
 | GET | `/v1/matches/{id}/winner` | public read |
 | GET | `/v1/matches/{id}/status` | public read |
 
+A match's `/winner` and `/status` are the same handler and return the same shape — one outcome
+type covers a finished match and one still in progress. `/status` is the name to prefer.
+
 ## Development
 
 ### Common Commands
@@ -219,6 +242,7 @@ make fmt            # Format
 make lint           # Lint (golangci-lint via Docker)
 make sqlc           # Regenerate database code
 make clean          # Remove build artifacts
+make help           # List every target
 ```
 
 ### Integration Testing
@@ -233,6 +257,24 @@ make test-teardown  # Stop the stack and drop its volumes
 
 The suite includes `test/isolation/`, which verifies cross-tenant isolation at both layers —
 through the API, and directly against the database as the application role.
+
+### Continuous Integration
+
+Every push to `main`/`master` and every pull request runs eight jobs:
+
+| Job | What it gates |
+|---|---|
+| Format | `gofmt`/`goimports` cleanliness |
+| Lint | `make lint` (golangci-lint) |
+| Build | `make dev`, then `./bin/scorecard version` actually runs |
+| Test | `make test`, then the integration suite against a real stack |
+| Security Scan | `govulncheck` |
+| Code Generation Validation | reruns `make sqlc` and fails if the tree is dirty |
+| Docker Build | the production image builds |
+| SQL Migrations | migrates up, rolls back, migrates up again against a live Postgres |
+
+The Go minor version is pinned in the workflow rather than read from `go.mod`, so bumping Go
+means editing both.
 
 ### Code Generation
 
@@ -252,10 +294,14 @@ by hand — CI regenerates it and fails on drift.
 golang-migrate format, in `internal/db/postgres/migrations/`:
 
 ```bash
-./bin/scorecard migrate up
-./bin/scorecard migrate down
+./bin/scorecard migrate up       # or: make migrate-up
+./bin/scorecard migrate down     # or: make migrate-down
 ./bin/scorecard migrate version
 ```
+
+There are only two migrations — `001_init` and `002_seed_match_formats` — because schema
+changes are still made by amending them in place rather than adding a new one. That holds
+only while no deployment carries data worth preserving; once one does, this stops being safe.
 
 ### Seeding a Tournament
 
