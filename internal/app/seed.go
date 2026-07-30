@@ -153,7 +153,7 @@ func SeedTournament(ctx context.Context, svc *Services, in *SeedInput) (*SeedSum
 			return nil, fmt.Errorf("unknown match format %q", mg.Format)
 		}
 		for _, tt := range mg.TeeTimes {
-			teeTime, err := parseTeeTime(tt, course.TimeZone)
+			teeTime, err := golf.ParseTeeTime(tt, course.TimeZone)
 			if err != nil {
 				return nil, err
 			}
@@ -246,24 +246,4 @@ func lookupFormats(ctx context.Context, svc *Services) (map[string]uuid.UUID, er
 		m[f.Name] = f.ID
 	}
 	return m, nil
-}
-
-// parseTeeTime reads a tee time from a seed file. A bare wall clock is what a tee sheet
-// actually says, so it is read at the course being played — writing those as UTC is how
-// thirteen years of history ended up teeing off at 3am. An explicit offset is trusted as
-// given, so a file that already carries one is unaffected.
-func parseTeeTime(s, timeZone string) (time.Time, error) {
-	if t, err := time.Parse(time.RFC3339, s); err == nil {
-		return t, nil
-	}
-	loc, err := time.LoadLocation(timeZone)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("course time_zone %q is not an IANA name: %w", timeZone, err)
-	}
-	for _, layout := range []string{"2006-01-02T15:04:05", "2006-01-02T15:04"} {
-		if t, err := time.ParseInLocation(layout, s, loc); err == nil {
-			return t, nil
-		}
-	}
-	return time.Time{}, fmt.Errorf("invalid tee_time %q: want a wall clock (2006-01-02T15:04) or an RFC3339 instant", s)
 }

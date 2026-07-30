@@ -16,6 +16,12 @@ import (
 // DateFormat is the wire format for date-only fields (ISO-8601 calendar date).
 const DateFormat = "2006-01-02"
 
+// WallClockLayouts are the bare-wall-clock tee-time layouts accepted alongside RFC3339,
+// in the order they are tried. Seconds are optional because a datetime-local input omits
+// them. Exported so the server resolves a wall clock with the same layouts the boundary
+// accepted, rather than keeping a second list that can drift from this one.
+var WallClockLayouts = []string{"2006-01-02T15:04:05", "2006-01-02T15:04"}
+
 // Request-shape validation lives here, on the SDK types, so it is defined once and
 // invoked at every boundary — the client (before sending), and each server transport
 // (REST now, gRPC later). Only context-free checks belong here; rules that need
