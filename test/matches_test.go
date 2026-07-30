@@ -20,13 +20,22 @@ func fixtureTeeTime() string { return time.Now().UTC().Format(time.RFC3339) }
 
 func playableCourse(t *testing.T, client *sdk.Client) (courseID, teeColorID, formatID uuid.UUID) {
 	t.Helper()
+	return playableCourseInZone(t, client, "") // server-default zone
+}
+
+// playableCourseInZone is playableCourse with an explicit course time zone. Most fixtures
+// don't care and take the default; a test that asserts a *rendered* wall clock needs a zone
+// that isn't the default, because the default equals teeTimeLocal's own fallback — a test
+// against a Winnipeg course can't tell "the course's zone" from "no zone reached the DTO".
+func playableCourseInZone(t *testing.T, client *sdk.Client, timeZone string) (courseID, teeColorID, formatID uuid.UUID) {
+	t.Helper()
 	ctx := context.Background()
 
 	tc, err := client.CreateTeeColor(ctx, sdk.CreateTeeColorRequest{Color: "White"})
 	if err != nil {
 		t.Fatalf("create tee color: %v", err)
 	}
-	course, err := client.CreateCourse(ctx, sdk.CreateCourseRequest{Name: "Pine Ridge"})
+	course, err := client.CreateCourse(ctx, sdk.CreateCourseRequest{Name: "Pine Ridge", TimeZone: timeZone})
 	if err != nil {
 		t.Fatalf("create course: %v", err)
 	}
@@ -152,8 +161,12 @@ func TestUpdateMatchTeeTime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create tournament: %v", err)
 	}
-	// playableCourse creates the course without a zone, so it takes the cup's default.
-	courseID, teeColorID, formatID := playableCourse(t, client)
+	// A zone other than the server default: America/Winnipeg is also teeTimeLocal's own
+	// fallback, so a Winnipeg course can't tell "the course's zone came through" apart from
+	// "no zone reached the DTO and it fell back anyway". Phoenix is UTC-7 year-round, so
+	// there's no DST case to reason about either (test/courses_test.go uses it for the same
+	// reason).
+	courseID, teeColorID, formatID := playableCourseInZone(t, client, "America/Phoenix")
 	match, err := client.CreateMatch(ctx, tour.ID, sdk.CreateMatchRequest{
 		CourseID: courseID, TeeColorID: teeColorID, MatchFormatID: formatID, TeeTime: fixtureTeeTime(),
 	})
@@ -161,13 +174,13 @@ func TestUpdateMatchTeeTime(t *testing.T) {
 		t.Fatalf("create match: %v", err)
 	}
 
-	// The wall clock a tee sheet says, at a Winnipeg course in August (CDT, UTC-5).
+	// The wall clock a tee sheet says, at a Phoenix course (MST, UTC-7 year-round).
 	updated, err := client.UpdateMatchTeeTime(ctx, match.ID, sdk.UpdateTeeTimeRequest{TeeTime: "2026-08-01T08:20"})
 	if err != nil {
 		t.Fatalf("update tee time: %v", err)
 	}
-	if updated.TeeTime != "2026-08-01T13:20:00Z" {
-		t.Errorf("tee_time = %q, want 2026-08-01T13:20:00Z", updated.TeeTime)
+	if updated.TeeTime != "2026-08-01T15:20:00Z" {
+		t.Errorf("tee_time = %q, want 2026-08-01T15:20:00Z", updated.TeeTime)
 	}
 
 	results, err := client.GetTournamentResults(ctx, tour.ID)
@@ -177,9 +190,12 @@ func TestUpdateMatchTeeTime(t *testing.T) {
 	if len(results) != 1 {
 		t.Fatalf("got %d results, want 1", len(results))
 	}
-	if results[0].TeeTime != "2026-08-01T13:20:00Z" {
+	if results[0].TeeTime != "2026-08-01T15:20:00Z" {
 		t.Errorf("results tee_time = %q, want the new instant", results[0].TeeTime)
 	}
+	// This is the assertion that actually closes the coverage gap: if toDomainMatchDetail
+	// dropped CourseTimeZone, teeTimeLocal would fall back to Winnipeg and render 10:20, not
+	// the Phoenix wall clock the admin typed.
 	if results[0].TeeTimeLocal != "2026-08-01T08:20" {
 		t.Errorf("results tee_time_local = %q, want the course's wall clock", results[0].TeeTimeLocal)
 	}
