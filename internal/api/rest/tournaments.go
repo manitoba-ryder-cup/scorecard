@@ -14,7 +14,9 @@ type TournamentService interface {
 	ListTournaments(ctx context.Context) ([]golf.Tournament, error)
 	CreateTournament(ctx context.Context, in golf.CreateTournamentInput) (*golf.Tournament, error)
 	GetOutcome(ctx context.Context, tournamentID uuid.UUID) (golf.TournamentOutcome, error)
-	GetTeamsData(ctx context.Context, tournamentID uuid.UUID) ([]golf.TeamData, error)
+	// The bool reports whether the cup is finished, which decides how long the response
+	// may be cached — see cache.go.
+	GetTeamsData(ctx context.Context, tournamentID uuid.UUID) ([]golf.TeamData, bool, error)
 }
 
 type TournamentsHandler struct {
@@ -87,10 +89,16 @@ func (h *TournamentsHandler) GetTournamentTeams(w http.ResponseWriter, r *http.R
 	if !ok {
 		return
 	}
-	teams, err := h.tournamentService.GetTeamsData(r.Context(), id)
+	teams, finished, err := h.tournamentService.GetTeamsData(r.Context(), id)
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to get teams data", err)
 		return
+	}
+	// A finished cup is settled for good; a live one is polled every twenty seconds.
+	if finished {
+		cacheSettled(w)
+	} else {
+		cacheLive(w)
 	}
 	respondJSON(w, http.StatusOK, mapSlice(teams, toTournamentTeamDTO))
 }

@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 )
 
 // handler that responds with the given status, the way respondJSON does.
@@ -58,6 +60,69 @@ func TestCacheableRead_ImplicitOK(t *testing.T) {
 	})
 	if got := cacheControlFor(t, implicit, false); got != "public, max-age=60" {
 		t.Errorf("implicit 200: got %q, want a public max-age", got)
+	}
+}
+
+// A finished cup can never change again, so it is worth caching properly. This is what
+// makes the History page — eighteen requests, one per cup — cheap for every visitor
+// rather than only for one who reloads within the minute.
+func TestCacheableRead_SettledIsCachedForADay(t *testing.T) {
+	settled := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cacheSettled(w)
+		w.WriteHeader(http.StatusOK)
+	})
+	if got := cacheControlFor(t, settled, false); got != "public, max-age=86400" {
+		t.Errorf("settled: got %q, want a day", got)
+	}
+}
+
+// The rule the live leaderboard depends on. TournamentView polls /teams and /results every
+// twenty seconds; cached even briefly, two of three polls would return the same stored
+// answer and a spectator would watch scores land late.
+func TestCacheableRead_LiveIsNeverCached(t *testing.T) {
+	live := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cacheLive(w)
+		w.WriteHeader(http.StatusOK)
+	})
+	if got := cacheControlFor(t, live, false); got != "no-store" {
+		t.Errorf("live: got %q, want no-store", got)
+	}
+}
+
+// A token wins over any handler's opinion — a scorer must never be handed a stored answer.
+func TestCacheableRead_SettledStillNotCachedForAScorer(t *testing.T) {
+	settled := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cacheSettled(w)
+		w.WriteHeader(http.StatusOK)
+	})
+	if got := cacheControlFor(t, settled, true); got != "no-store" {
+		t.Errorf("settled + token: got %q, want no-store", got)
+	}
+}
+
+// Handlers call it unconditionally; on a route that was never registered as a cacheable
+// read there is no cacheWriter to configure, and that must not panic.
+func TestSetMaxAge_NoopOffACacheableRoute(t *testing.T) {
+	rec := httptest.NewRecorder()
+	cacheSettled(rec)
+	cacheLive(rec)
+	if got := rec.Header().Get("Cache-Control"); got != "" {
+		t.Errorf("unwrapped writer: got %q, want no header", got)
+	}
+}
+
+func TestAllFinished(t *testing.T) {
+	finished := golf.MatchResult{StoredResult: golf.StoredResult{Finished: true}}
+	unfinished := golf.MatchResult{}
+
+	if allFinished(nil) {
+		t.Error("an empty schedule is a cup that hasn't started, not one that is over")
+	}
+	if !allFinished([]golf.MatchResult{finished, finished}) {
+		t.Error("every match finished should settle the tournament")
+	}
+	if allFinished([]golf.MatchResult{finished, unfinished}) {
+		t.Error("one match still out should keep it live")
 	}
 }
 

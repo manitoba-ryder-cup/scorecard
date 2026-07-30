@@ -68,17 +68,25 @@ func teamIDs(teams []TeamWithCaptain) []uuid.UUID {
 	return ids
 }
 
-// GetTeamsData builds each team's summary (color, captain, points) for a tournament.
-func (s *TournamentService) GetTeamsData(ctx context.Context, tournamentID uuid.UUID) ([]TeamData, error) {
+// GetTeamsData builds each team's summary (color, captain, points) for a tournament, and
+// reports whether the cup is over.
+//
+// Finished is a by-product, not extra work: the outcomes it is computed from are the same
+// ones the points come from. It is here because this endpoint serves two opposite
+// audiences — a spectator polling a live leaderboard every twenty seconds, and the History
+// page fanning out across eighteen cups that will never change again — and whether the cup
+// is finished is the only thing that tells them apart.
+func (s *TournamentService) GetTeamsData(ctx context.Context, tournamentID uuid.UUID) ([]TeamData, bool, error) {
 	teams, err := s.TeamService.ListTeamsByTournament(ctx, tournamentID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list teams: %w", err)
+		return nil, false, fmt.Errorf("failed to list teams: %w", err)
 	}
 	outcomes, err := s.ResultDB.ListMatchOutcomes(ctx, tournamentID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list match outcomes: %w", err)
+		return nil, false, fmt.Errorf("failed to list match outcomes: %w", err)
 	}
-	points := ComputeTeamPoints(outcomes, teamIDs(teams))
+	ids := teamIDs(teams)
+	points := ComputeTeamPoints(outcomes, ids)
 
 	result := []TeamData{}
 	for _, team := range teams {
@@ -89,7 +97,7 @@ func (s *TournamentService) GetTeamsData(ctx context.Context, tournamentID uuid.
 			Points:  points[team.ID],
 		})
 	}
-	return result, nil
+	return result, ComputeTournamentOutcome(outcomes, ids).Finished, nil
 }
 
 // GetTournament retrieves a tournament by ID
