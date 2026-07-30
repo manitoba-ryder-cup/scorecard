@@ -205,6 +205,25 @@ type PlayerStats struct {
 	HeaviestLoss *NotableMatch
 }
 
+// PlayerStatsRows is everything PlayerStats reads, gathered in one call so the aggregates
+// share a single transaction. Fetched separately they each paid their own BEGIN / SET
+// LOCAL app.current_tenant_id / COMMIT, and with the database in another region those
+// round trips — not the queries, which run in well under a millisecond — were nearly the
+// whole response time.
+//
+// It carries rows only. What they mean (points, cups played, which margin is the best
+// win) stays in PlayerStats.
+type PlayerStatsRows struct {
+	ByFormat     []FormatRecord
+	Teammates    []PairRecord
+	Opponents    []PairRecord
+	LastHole     PlayerRecord
+	DecidedEarly PlayerRecord
+	BestWin      *NotableMatch
+	HeaviestLoss *NotableMatch
+	History      []PlayerTournamentHistory
+}
+
 // NotableMatch is one match worth naming — the margin, who was across it, and the cup it
 // happened in. Lead and HolesRemaining are left as they are rather than rendered into
 // "9 & 7" here, so the margin reads the same as every other match in the app.

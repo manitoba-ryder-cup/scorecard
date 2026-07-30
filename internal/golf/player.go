@@ -110,45 +110,25 @@ func PointsFor(r PlayerRecord) float64 {
 // Points is reported with the number of cups it was earned over rather than as a rate:
 // both numbers are worth seeing, and how to round the division is a display decision.
 func (s *PlayerService) PlayerStats(ctx context.Context, playerID uuid.UUID) (*PlayerStats, error) {
-	byFormat, err := s.PlayerDB.PlayerRecordByFormat(ctx, playerID)
+	rows, err := s.PlayerDB.PlayerStatsRows(ctx, playerID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list format records: %w", err)
-	}
-	teammates, err := s.PlayerDB.PlayerRecordByTeammate(ctx, playerID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list teammate records: %w", err)
-	}
-	opponents, err := s.PlayerDB.PlayerRecordByOpponent(ctx, playerID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list opponent records: %w", err)
+		return nil, fmt.Errorf("failed to read player stats: %w", err)
 	}
 	// Summed from the format split rather than counted again, so a career total can never
 	// disagree with the rows shown beneath it.
 	var points float64
-	for _, f := range byFormat {
+	for _, f := range rows.ByFormat {
 		points += PointsFor(f.Record)
 	}
-	lastHole, decidedEarly, err := s.PlayerDB.PlayerRecordByCloseness(ctx, playerID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read the closeness split: %w", err)
-	}
-	bestWin, heaviestLoss, err := s.PlayerDB.PlayerMarginExtremes(ctx, playerID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read the margin extremes: %w", err)
-	}
-	history, err := s.PlayerDB.ListPlayerTournaments(ctx, playerID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to count cups played: %w", err)
-	}
 	return &PlayerStats{
-		ByFormat:     byFormat,
-		Teammates:    teammates,
-		Opponents:    opponents,
+		ByFormat:     rows.ByFormat,
+		Teammates:    rows.Teammates,
+		Opponents:    rows.Opponents,
 		Points:       points,
-		CupsPlayed:   len(history),
-		LastHole:     lastHole,
-		DecidedEarly: decidedEarly,
-		BestWin:      bestWin,
-		HeaviestLoss: heaviestLoss,
+		CupsPlayed:   len(rows.History),
+		LastHole:     rows.LastHole,
+		DecidedEarly: rows.DecidedEarly,
+		BestWin:      rows.BestWin,
+		HeaviestLoss: rows.HeaviestLoss,
 	}, nil
 }

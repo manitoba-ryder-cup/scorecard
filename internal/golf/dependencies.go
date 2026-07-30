@@ -13,11 +13,9 @@ type playerDB interface {
 	CreatePlayer(ctx context.Context, in CreatePlayerInput) (*Player, error)
 	// Result is left unset — the service derives it from the standings.
 	ListPlayerTournaments(ctx context.Context, playerID uuid.UUID) ([]PlayerTournamentHistory, error)
-	PlayerRecordByFormat(ctx context.Context, playerID uuid.UUID) ([]FormatRecord, error)
-	PlayerRecordByTeammate(ctx context.Context, playerID uuid.UUID) ([]PairRecord, error)
-	PlayerRecordByOpponent(ctx context.Context, playerID uuid.UUID) ([]PairRecord, error)
-	PlayerRecordByCloseness(ctx context.Context, playerID uuid.UUID) (lastHole, decidedEarly PlayerRecord, err error)
-	PlayerMarginExtremes(ctx context.Context, playerID uuid.UUID) (bestWin, heaviestLoss *NotableMatch, err error)
+	// One call rather than one per aggregate, so they share a transaction — see
+	// PlayerStatsRows for why that is worth a wider port.
+	PlayerStatsRows(ctx context.Context, playerID uuid.UUID) (*PlayerStatsRows, error)
 }
 
 // matchDB interface defines database operations for matches

@@ -118,75 +118,60 @@ func toDomainPlayer(p sqlc.Player) golf.Player {
 	}
 }
 
-func (p *PlayersDB) PlayerRecordByFormat(ctx context.Context, playerID uuid.UUID) ([]golf.FormatRecord, error) {
-	return withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) ([]golf.FormatRecord, error) {
-		rows, err := q.PlayerRecordByFormat(ctx, sqlc.PlayerRecordByFormatParams{PlayerID: playerID, TenantID: tenantID})
+// PlayerStatsRows runs every aggregate the stats page needs inside one tenant-scoped
+// transaction. These used to be six separate calls, and because each withTenant opens its
+// own transaction that meant six rounds of BEGIN / SET LOCAL / COMMIT — around two dozen
+// round trips for queries that each execute in well under a millisecond. With the
+// database in another region the round trips were nearly the whole response.
+func (p *PlayersDB) PlayerStatsRows(ctx context.Context, playerID uuid.UUID) (*golf.PlayerStatsRows, error) {
+	return withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.PlayerStatsRows, error) {
+		out := &golf.PlayerStatsRows{}
+
+		byFormat, err := q.PlayerRecordByFormat(ctx, sqlc.PlayerRecordByFormatParams{PlayerID: playerID, TenantID: tenantID})
 		if err != nil {
 			return nil, fmt.Errorf("listing format records for player %s: %w", playerID, err)
 		}
-		return mapSlice(rows, func(r sqlc.PlayerRecordByFormatRow) golf.FormatRecord {
+		out.ByFormat = mapSlice(byFormat, func(r sqlc.PlayerRecordByFormatRow) golf.FormatRecord {
 			return golf.FormatRecord{
 				FormatName: r.FormatName,
 				Record:     golf.PlayerRecord{Wins: int32(r.Wins), Losses: int32(r.Losses), Ties: int32(r.Ties)},
 			}
-		}), nil
-	})
-}
+		})
 
-func (p *PlayersDB) PlayerRecordByTeammate(ctx context.Context, playerID uuid.UUID) ([]golf.PairRecord, error) {
-	return withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) ([]golf.PairRecord, error) {
-		rows, err := q.PlayerRecordByTeammate(ctx, sqlc.PlayerRecordByTeammateParams{PlayerID: playerID, TenantID: tenantID})
+		teammates, err := q.PlayerRecordByTeammate(ctx, sqlc.PlayerRecordByTeammateParams{PlayerID: playerID, TenantID: tenantID})
 		if err != nil {
 			return nil, fmt.Errorf("listing teammate records for player %s: %w", playerID, err)
 		}
-		return mapSlice(rows, func(r sqlc.PlayerRecordByTeammateRow) golf.PairRecord {
+		out.Teammates = mapSlice(teammates, func(r sqlc.PlayerRecordByTeammateRow) golf.PairRecord {
 			return golf.PairRecord{
 				PlayerID: r.PlayerID, FirstName: r.FirstName, LastName: r.LastName, Matches: int(r.Matches),
 				Record: golf.PlayerRecord{Wins: int32(r.Wins), Losses: int32(r.Losses), Ties: int32(r.Ties)},
 			}
-		}), nil
-	})
-}
+		})
 
-func (p *PlayersDB) PlayerRecordByOpponent(ctx context.Context, playerID uuid.UUID) ([]golf.PairRecord, error) {
-	return withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) ([]golf.PairRecord, error) {
-		rows, err := q.PlayerRecordByOpponent(ctx, sqlc.PlayerRecordByOpponentParams{PlayerID: playerID, TenantID: tenantID})
+		opponents, err := q.PlayerRecordByOpponent(ctx, sqlc.PlayerRecordByOpponentParams{PlayerID: playerID, TenantID: tenantID})
 		if err != nil {
 			return nil, fmt.Errorf("listing opponent records for player %s: %w", playerID, err)
 		}
-		return mapSlice(rows, func(r sqlc.PlayerRecordByOpponentRow) golf.PairRecord {
+		out.Opponents = mapSlice(opponents, func(r sqlc.PlayerRecordByOpponentRow) golf.PairRecord {
 			return golf.PairRecord{
 				PlayerID: r.PlayerID, FirstName: r.FirstName, LastName: r.LastName, Matches: int(r.Matches),
 				Record: golf.PlayerRecord{Wins: int32(r.Wins), Losses: int32(r.Losses), Ties: int32(r.Ties)},
 			}
-		}), nil
-	})
-}
+		})
 
-func (p *PlayersDB) PlayerRecordByCloseness(ctx context.Context, playerID uuid.UUID) (golf.PlayerRecord, golf.PlayerRecord, error) {
-	type split struct{ lastHole, early golf.PlayerRecord }
-	got, err := withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) (split, error) {
-		r, err := q.PlayerRecordByCloseness(ctx, sqlc.PlayerRecordByClosenessParams{PlayerID: playerID, TenantID: tenantID})
+		closeness, err := q.PlayerRecordByCloseness(ctx, sqlc.PlayerRecordByClosenessParams{PlayerID: playerID, TenantID: tenantID})
 		if err != nil {
-			return split{}, fmt.Errorf("reading closeness split for player %s: %w", playerID, err)
+			return nil, fmt.Errorf("reading closeness split for player %s: %w", playerID, err)
 		}
-		return split{
-			lastHole: golf.PlayerRecord{Wins: int32(r.LastHoleWins), Losses: int32(r.LastHoleLosses), Ties: int32(r.LastHoleTies)},
-			early:    golf.PlayerRecord{Wins: int32(r.EarlyWins), Losses: int32(r.EarlyLosses), Ties: int32(r.EarlyTies)},
-		}, nil
-	})
-	return got.lastHole, got.early, err
-}
+		out.LastHole = golf.PlayerRecord{Wins: int32(closeness.LastHoleWins), Losses: int32(closeness.LastHoleLosses), Ties: int32(closeness.LastHoleTies)}
+		out.DecidedEarly = golf.PlayerRecord{Wins: int32(closeness.EarlyWins), Losses: int32(closeness.EarlyLosses), Ties: int32(closeness.EarlyTies)}
 
-func (p *PlayersDB) PlayerMarginExtremes(ctx context.Context, playerID uuid.UUID) (*golf.NotableMatch, *golf.NotableMatch, error) {
-	type extremes struct{ win, loss *golf.NotableMatch }
-	got, err := withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) (extremes, error) {
-		rows, err := q.PlayerMarginExtremes(ctx, sqlc.PlayerMarginExtremesParams{PlayerID: playerID, TenantID: tenantID})
+		extremes, err := q.PlayerMarginExtremes(ctx, sqlc.PlayerMarginExtremesParams{PlayerID: playerID, TenantID: tenantID})
 		if err != nil {
-			return extremes{}, fmt.Errorf("reading margin extremes for player %s: %w", playerID, err)
+			return nil, fmt.Errorf("reading margin extremes for player %s: %w", playerID, err)
 		}
-		var out extremes
-		for _, r := range rows {
+		for _, r := range extremes {
 			m := &golf.NotableMatch{
 				Year:           r.StartDate.Format("2006"),
 				Lead:           r.Lead,
@@ -194,12 +179,18 @@ func (p *PlayersDB) PlayerMarginExtremes(ctx context.Context, playerID uuid.UUID
 				Opponents:      r.Opponents,
 			}
 			if r.Kind == "win" {
-				out.win = m
+				out.BestWin = m
 			} else {
-				out.loss = m
+				out.HeaviestLoss = m
 			}
 		}
+
+		history, err := q.ListPlayerTournaments(ctx, sqlc.ListPlayerTournamentsParams{PlayerID: playerID, TenantID: tenantID})
+		if err != nil {
+			return nil, fmt.Errorf("listing player tournaments %s: %w", playerID, err)
+		}
+		out.History = mapSlice(history, toPlayerTournamentHistory)
+
 		return out, nil
 	})
-	return got.win, got.loss, err
 }

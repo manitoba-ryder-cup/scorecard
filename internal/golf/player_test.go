@@ -22,20 +22,15 @@ func (f *fakePlayerDB) ListPlayers(ctx context.Context) ([]Player, error)       
 func (f *fakePlayerDB) ListPlayerTournaments(ctx context.Context, playerID uuid.UUID) ([]PlayerTournamentHistory, error) {
 	return f.history, nil
 }
-func (f *fakePlayerDB) PlayerRecordByFormat(ctx context.Context, playerID uuid.UUID) ([]FormatRecord, error) {
-	return f.byFormat, nil
-}
-func (f *fakePlayerDB) PlayerRecordByTeammate(ctx context.Context, playerID uuid.UUID) ([]PairRecord, error) {
-	return f.teammates, nil
-}
-func (f *fakePlayerDB) PlayerRecordByOpponent(ctx context.Context, playerID uuid.UUID) ([]PairRecord, error) {
-	return f.opponents, nil
-}
-func (f *fakePlayerDB) PlayerRecordByCloseness(ctx context.Context, playerID uuid.UUID) (PlayerRecord, PlayerRecord, error) {
-	return f.lastHole, f.early, nil
-}
-func (f *fakePlayerDB) PlayerMarginExtremes(ctx context.Context, playerID uuid.UUID) (*NotableMatch, *NotableMatch, error) {
-	return nil, nil, nil
+func (f *fakePlayerDB) PlayerStatsRows(ctx context.Context, playerID uuid.UUID) (*PlayerStatsRows, error) {
+	return &PlayerStatsRows{
+		ByFormat:     f.byFormat,
+		Teammates:    f.teammates,
+		Opponents:    f.opponents,
+		LastHole:     f.lastHole,
+		DecidedEarly: f.early,
+		History:      f.history,
+	}, nil
 }
 func (f *fakePlayerDB) CreatePlayer(ctx context.Context, in CreatePlayerInput) (*Player, error) {
 	f.created = &in
