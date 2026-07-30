@@ -433,6 +433,22 @@ func TestListResults_AssemblesSidesProgressAndOutcome(t *testing.T) {
 	}
 }
 
+// The DTO mapper reads CourseTimeZone off golf.MatchResult, not MatchDetail, so if
+// buildMatchResult stopped copying it across, every existing test would still pass and the
+// zone would arrive empty at the wire — this is the one link cheap to test without a DB.
+func TestBuildMatchResult_CarriesTheCourseTimeZoneFromMatchDetail(t *testing.T) {
+	detail := MatchDetail{
+		Match:          Match{ID: matchID},
+		CourseTimeZone: "America/Winnipeg",
+	}
+
+	got := buildMatchResult(detail, nil, nil)
+
+	if got.CourseTimeZone != "America/Winnipeg" {
+		t.Errorf("CourseTimeZone = %q, want it carried from MatchDetail", got.CourseTimeZone)
+	}
+}
+
 func TestHoleWinner(t *testing.T) {
 	tests := []struct {
 		name string
