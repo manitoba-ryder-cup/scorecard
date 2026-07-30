@@ -64,12 +64,13 @@ func NewServer(config *Config) *Server {
 	mux.HandleFunc("GET "+sdk.RouteHealth, HandleHealth(config.DB))
 
 	// Match formats are global seeded reference data — truly public, no tenant needed.
-	mux.HandleFunc("GET "+sdk.RouteV1MatchFormats, formatsHandler.ListMatchFormats)
+	mux.HandleFunc("GET "+sdk.RouteV1MatchFormats, cacheableRead(formatsHandler.ListMatchFormats))
 
 	// public registers a read route with optional authentication: a token's tenant is
-	// used when present, else the configured public tenant (401 if neither).
+	// used when present, else the configured public tenant (401 if neither). Anonymous
+	// successes are marked edge-cacheable on the way out — see cacheableRead.
 	public := func(method, route string, handler http.HandlerFunc) {
-		mux.HandleFunc(method+" "+route, optionalAuth(jwtMiddleware, config.PublicTenantID, handler))
+		mux.HandleFunc(method+" "+route, cacheableRead(optionalAuth(jwtMiddleware, config.PublicTenantID, handler)))
 	}
 	// scoped registers a write route that requires a valid token carrying `scope`.
 	scoped := func(method, route, scope string, handler http.HandlerFunc) {
