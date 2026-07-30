@@ -218,6 +218,11 @@ func TestTenantIsolation_MatchesAndScores(t *testing.T) {
 			t.Fatalf("tenant A's match has %d participant(s) after tenant B's delete; want 2", len(participants))
 		}
 	})
+
+	t.Run("tenant B cannot move the tee time of tenant A match", func(t *testing.T) {
+		_, err := tenantB.UpdateMatchTeeTime(ctx, fixA.MatchID, sdk.UpdateTeeTimeRequest{TeeTime: "2026-08-01T08:20"})
+		requireRejected(t, err, "update tee time")
+	})
 }
 
 // TestTenantIsolation_Roster checks the draft and captaincy of another tenant's team
