@@ -55,14 +55,34 @@ func TestEnterUpdateAndListTournamentPlayers(t *testing.T) {
 	}
 
 	// Attributes can be updated independently.
+	tier, bio, hdcp := "silver", "Updated", float32(3)
 	updated, err := client.UpdateTournamentPlayer(ctx, tournamentID, playerID, sdk.UpdateTournamentPlayerRequest{
-		Tier: "silver", Biography: "Updated", Hdcp: 3,
+		Tier: &tier, Biography: &bio, Hdcp: &hdcp,
 	})
 	if err != nil {
 		t.Fatalf("update: %v", err)
 	}
 	if updated.Tier != "silver" || updated.Hdcp != 3 {
 		t.Fatalf("unexpected update: %+v", updated)
+	}
+
+	// The reason the update is partial: a biography is usually written by someone with no
+	// reason to know the handicap, and a full replacement would zero it.
+	newBio := "Rewritten later, by someone who never saw a handicap."
+	again, err := client.UpdateTournamentPlayer(ctx, tournamentID, playerID, sdk.UpdateTournamentPlayerRequest{
+		Biography: &newBio,
+	})
+	if err != nil {
+		t.Fatalf("second update: %v", err)
+	}
+	if again.Biography != newBio {
+		t.Errorf("biography = %q, want it rewritten", again.Biography)
+	}
+	if again.Tier != "silver" {
+		t.Errorf("tier = %q, want the stored silver to survive", again.Tier)
+	}
+	if again.Hdcp != 3 {
+		t.Errorf("hdcp = %v, want the stored 3 to survive", again.Hdcp)
 	}
 }
 
@@ -223,7 +243,8 @@ func TestUpdateUnenteredPlayerReturns404(t *testing.T) {
 	tournamentID, playerID := enterPrereqs(t, client)
 
 	// Player exists but was never entered in this tournament.
-	_, err := client.UpdateTournamentPlayer(ctx, tournamentID, playerID, sdk.UpdateTournamentPlayerRequest{Tier: "gold"})
+	gold := "gold"
+	_, err := client.UpdateTournamentPlayer(ctx, tournamentID, playerID, sdk.UpdateTournamentPlayerRequest{Tier: &gold})
 	var apiErr *sdk.APIError
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
 		t.Fatalf("want 404 APIError, got %v", err)

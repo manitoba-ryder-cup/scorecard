@@ -11,7 +11,7 @@ import (
 
 type RosterService interface {
 	EnterPlayer(ctx context.Context, in golf.EnterPlayerInput) (*golf.TournamentPlayer, error)
-	UpdatePlayer(ctx context.Context, in golf.EnterPlayerInput) (*golf.TournamentPlayer, error)
+	UpdatePlayer(ctx context.Context, in golf.UpdateRosterEntryInput) (*golf.TournamentPlayer, error)
 	ListPlayers(ctx context.Context, tournamentID uuid.UUID) ([]golf.TournamentPlayer, error)
 	DraftPlayer(ctx context.Context, teamID, playerID uuid.UUID) (*golf.TeamMember, error)
 	UndraftPlayer(ctx context.Context, teamID, playerID uuid.UUID) error
@@ -78,7 +78,7 @@ func (h *RosterHandler) UpdatePlayer(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	entry, err := h.rosterService.UpdatePlayer(r.Context(), golf.EnterPlayerInput{
+	entry, err := h.rosterService.UpdatePlayer(r.Context(), golf.UpdateRosterEntryInput{
 		TournamentID: tournamentID,
 		PlayerID:     playerID,
 		Tier:         req.Tier,

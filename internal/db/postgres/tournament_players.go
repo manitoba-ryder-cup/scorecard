@@ -36,19 +36,29 @@ func (t *TournamentPlayersDB) CreateTournamentPlayer(ctx context.Context, in gol
 	})
 }
 
-func (t *TournamentPlayersDB) UpdateTournamentPlayer(ctx context.Context, in golf.EnterPlayerInput) (*golf.TournamentPlayer, error) {
+// UpdateTournamentPlayer writes the supplied attributes, then reads the entry back
+// enriched. Two statements in one transaction rather than one CTE — see the query file for
+// why — so the read cannot observe anything but this write.
+func (t *TournamentPlayersDB) UpdateTournamentPlayer(ctx context.Context, in golf.UpdateRosterEntryInput) (*golf.TournamentPlayer, error) {
 	return withTenant(ctx, t.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.TournamentPlayer, error) {
-		row, err := q.UpdateTournamentPlayer(ctx, sqlc.UpdateTournamentPlayerParams{
+		if _, err := q.UpdateTournamentPlayer(ctx, sqlc.UpdateTournamentPlayerParams{
 			TournamentID: in.TournamentID,
 			PlayerID:     in.PlayerID,
 			TenantID:     tenantID,
 			Tier:         in.Tier,
 			Biography:    in.Biography,
 			Hdcp:         in.Hdcp,
-		})
-		if err != nil {
+		}); err != nil {
 			// No row means the player was never entered -> ErrNotFound (404).
 			return nil, fmt.Errorf("updating tournament player: %w", mapReadErr(err))
+		}
+		row, err := q.GetTournamentPlayer(ctx, sqlc.GetTournamentPlayerParams{
+			TournamentID: in.TournamentID,
+			PlayerID:     in.PlayerID,
+			TenantID:     tenantID,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("reading back tournament player: %w", mapReadErr(err))
 		}
 		tp := toTournamentPlayer(row.TournamentID, row.PlayerID, row.Tier, row.Biography, row.Hdcp,
 			row.FirstName, row.LastName, row.PhotoPath, row.TeamID)

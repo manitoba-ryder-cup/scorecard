@@ -15,20 +15,31 @@ FROM ins
 JOIN players p ON ins.player_id = p.id
 LEFT JOIN team_members tm ON tm.tournament_id = ins.tournament_id AND tm.player_id = ins.player_id;
 
--- UpdateTournamentPlayer updates attributes and returns the enriched entry.
+-- UpdateTournamentPlayer writes only the attributes that were supplied: a null argument
+-- leaves the column alone, so setting a biography never has to restate the tier and
+-- handicap. Most entries carry a handicap, and echoing one back is how it gets lost.
+--
+-- Separate from the enriched read below rather than one CTE, because sqlc cannot analyse
+-- an UPDATE inside a CTE once its SET clause references the columns it is updating. The
+-- repository runs both in a single transaction, so this costs a statement, not a trip.
 -- name: UpdateTournamentPlayer :one
-WITH upd AS (
-    UPDATE tournament_players
-    SET tier = $4, biography = $5, hdcp = $6, updated_at = now()
-    WHERE tournament_players.tournament_id = $1
-      AND tournament_players.player_id = $2
-      AND tournament_players.tenant_id = $3
-    RETURNING *
-)
-SELECT upd.*, p.first_name, p.last_name, p.photo_path, tm.team_id
-FROM upd
-JOIN players p ON upd.player_id = p.id
-LEFT JOIN team_members tm ON tm.tournament_id = upd.tournament_id AND tm.player_id = upd.player_id;
+UPDATE tournament_players
+SET tier = COALESCE(sqlc.narg('tier'), tier),
+    biography = COALESCE(sqlc.narg('biography'), biography),
+    hdcp = COALESCE(sqlc.narg('hdcp'), hdcp),
+    updated_at = now()
+WHERE tournament_id = sqlc.arg('tournament_id')
+  AND player_id = sqlc.arg('player_id')
+  AND tenant_id = sqlc.arg('tenant_id')
+RETURNING player_id;
+
+-- GetTournamentPlayer returns one entered player, enriched the same way the list is.
+-- name: GetTournamentPlayer :one
+SELECT tp.*, p.first_name, p.last_name, p.photo_path, tm.team_id
+FROM tournament_players tp
+JOIN players p ON tp.player_id = p.id
+LEFT JOIN team_members tm ON tm.tournament_id = tp.tournament_id AND tm.player_id = tp.player_id
+WHERE tp.tournament_id = $1 AND tp.player_id = $2 AND tp.tenant_id = $3;
 
 -- ListTournamentPlayers returns every entered player, enriched.
 -- name: ListTournamentPlayers :many

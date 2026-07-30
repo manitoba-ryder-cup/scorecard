@@ -231,3 +231,34 @@ func TestUpdateMatchRequest_Validate(t *testing.T) {
 		})
 	}
 }
+
+func f32ptr(f float32) *float32 { return &f }
+
+func TestUpdateTournamentPlayerRequest_Validate(t *testing.T) {
+	ctx := context.Background()
+	cases := []struct {
+		name    string
+		req     UpdateTournamentPlayerRequest
+		wantErr bool
+	}{
+		{"biography only", UpdateTournamentPlayerRequest{Biography: strptr("Holed out from the car park.")}, false},
+		{"tier only", UpdateTournamentPlayerRequest{Tier: strptr("gold")}, false},
+		// Zero is a real handicap — read as absent it could never be set back to scratch.
+		{"handicap of zero", UpdateTournamentPlayerRequest{Hdcp: f32ptr(0)}, false},
+		// Clearing a biography is a legitimate edit; clearing a tier is not.
+		{"biography cleared", UpdateTournamentPlayerRequest{Biography: strptr("")}, false},
+
+		{"nothing set", UpdateTournamentPlayerRequest{}, true},
+		{"tier blanked", UpdateTournamentPlayerRequest{Tier: strptr("")}, true},
+		{"tier all spaces", UpdateTournamentPlayerRequest{Tier: strptr("   ")}, true},
+		{"tier too long", UpdateTournamentPlayerRequest{Tier: strptr(strings.Repeat("g", 200))}, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.req.Validate(ctx)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("Validate() err = %v, wantErr = %v", err, tc.wantErr)
+			}
+		})
+	}
+}
