@@ -15,6 +15,7 @@ type MatchService interface {
 	CalculateMatchScores(ctx context.Context, matchID uuid.UUID) ([]golf.HoleResult, error)
 	SubmitHoleScores(ctx context.Context, matchID uuid.UUID, hole int32, entries []golf.ScoreEntry) (golf.StoredResult, error)
 	CreateMatch(ctx context.Context, in golf.CreateMatchInput) (*golf.Match, error)
+	UpdateMatch(ctx context.Context, in golf.UpdateMatchInput) (*golf.Match, error)
 	ListMatches(ctx context.Context, tournamentID uuid.UUID) ([]golf.Match, error)
 	ListMatchHoles(ctx context.Context, matchID uuid.UUID) ([]golf.Hole, error)
 	ListResults(ctx context.Context, tournamentID uuid.UUID) ([]golf.MatchResult, error)
@@ -70,6 +71,36 @@ func (h *MatchesHandler) CreateMatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondJSON(w, http.StatusCreated, toMatchDTO(*match))
+}
+
+// PUT /v1/matches/{id}
+func (h *MatchesHandler) UpdateMatch(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUIDOr400(w, r, "id", "match")
+	if !ok {
+		return
+	}
+	req, ok := decodeAndValidate[sdk.UpdateMatchRequest](w, r)
+	if !ok {
+		return
+	}
+	in := golf.UpdateMatchInput{
+		ID:            id,
+		CourseID:      req.CourseID,
+		TeeColorID:    req.TeeColorID,
+		MatchFormatID: req.MatchFormatID,
+		Handicapped:   req.Handicapped,
+	}
+	if req.TeeTime != nil {
+		// Validate already confirmed it parses.
+		teeTime, _ := time.Parse(time.RFC3339, *req.TeeTime)
+		in.TeeTime = &teeTime
+	}
+	match, err := h.matchService.UpdateMatch(r.Context(), in)
+	if err != nil {
+		respondDomainError(r.Context(), w, "Failed to update match", err)
+		return
+	}
+	respondJSON(w, http.StatusOK, toMatchDTO(*match))
 }
 
 func toMatchDTO(m golf.Match) sdk.Match {

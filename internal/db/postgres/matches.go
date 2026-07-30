@@ -40,6 +40,27 @@ func (m *MatchesDB) CreateMatch(ctx context.Context, in golf.CreateMatchInput) (
 	})
 }
 
+func (m *MatchesDB) UpdateMatch(ctx context.Context, in golf.UpdateMatchInput) (*golf.Match, error) {
+	return withTenant(ctx, m.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Match, error) {
+		match, err := q.UpdateMatch(ctx, sqlc.UpdateMatchParams{
+			ID:            in.ID,
+			TenantID:      tenantID,
+			CourseID:      in.CourseID,
+			TeeColorID:    in.TeeColorID,
+			MatchFormatID: in.MatchFormatID,
+			TeeTime:       in.TeeTime,
+			Handicapped:   in.Handicapped,
+		})
+		if err != nil {
+			// An update can fail either way: no row means no such match in this tenant
+			// (404), while an unknown course/tee/format is a client error from the FK.
+			return nil, fmt.Errorf("updating match %s: %w", in.ID, mapWriteErr(mapReadErr(err)))
+		}
+		dm := toDomainMatch(match)
+		return &dm, nil
+	})
+}
+
 // GetMatch retrieves a match by ID with tenant isolation
 func (m *MatchesDB) GetMatch(ctx context.Context, id uuid.UUID) (*golf.Match, error) {
 	return withTenant(ctx, m.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Match, error) {

@@ -24,6 +24,7 @@ type matchDB interface {
 	ListMatchesByTournament(ctx context.Context, tournamentID uuid.UUID) ([]Match, error)
 	ListMatchDetailsByTournament(ctx context.Context, tournamentID uuid.UUID) ([]MatchDetail, error)
 	CreateMatch(ctx context.Context, in CreateMatchInput) (*Match, error)
+	UpdateMatch(ctx context.Context, in UpdateMatchInput) (*Match, error)
 }
 
 // participantDB interface defines database operations for match participants

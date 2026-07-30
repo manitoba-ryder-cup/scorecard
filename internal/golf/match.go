@@ -51,6 +51,29 @@ func (s *MatchService) CreateMatch(ctx context.Context, in CreateMatchInput) (*M
 	return match, nil
 }
 
+// UpdateMatchInput changes an existing match. The tournament is deliberately not among
+// the fields: a match's scores and participants reference it, so moving one between cups
+// is not an edit.
+type UpdateMatchInput struct {
+	ID            uuid.UUID
+	CourseID      *uuid.UUID
+	TeeColorID    *uuid.UUID
+	MatchFormatID *uuid.UUID
+	TeeTime       *time.Time
+	Handicapped   *bool
+}
+
+// UpdateMatch is deliberately allowed on a match that already has scores: the case that
+// needs it most is a group that went out late with a hole already entered. The scoring
+// window is measured from the tee time on every submission, so it moves along with it.
+func (s *MatchService) UpdateMatch(ctx context.Context, in UpdateMatchInput) (*Match, error) {
+	match, err := s.MatchDB.UpdateMatch(ctx, in)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update match: %w", err)
+	}
+	return match, nil
+}
+
 // ListMatches returns a tournament's matches.
 func (s *MatchService) ListMatches(ctx context.Context, tournamentID uuid.UUID) ([]Match, error) {
 	matches, err := s.MatchDB.ListMatchesByTournament(ctx, tournamentID)

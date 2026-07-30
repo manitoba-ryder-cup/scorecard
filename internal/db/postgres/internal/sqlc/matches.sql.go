@@ -216,3 +216,52 @@ func (q *Queries) LockMatchForScoring(ctx context.Context, arg LockMatchForScori
 	err := row.Scan(&id)
 	return id, err
 }
+
+const updateMatch = `-- name: UpdateMatch :one
+UPDATE matches
+SET course_id       = COALESCE($1, course_id),
+    tee_color_id    = COALESCE($2, tee_color_id),
+    match_format_id = COALESCE($3, match_format_id),
+    tee_time        = COALESCE($4, tee_time),
+    handicapped     = COALESCE($5, handicapped)
+WHERE id = $6 AND tenant_id = $7
+RETURNING id, tournament_id, course_id, tee_color_id, match_format_id, tenant_id, tee_time, handicapped, created_at, updated_at
+`
+
+type UpdateMatchParams struct {
+	CourseID      *uuid.UUID `json:"course_id"`
+	TeeColorID    *uuid.UUID `json:"tee_color_id"`
+	MatchFormatID *uuid.UUID `json:"match_format_id"`
+	TeeTime       *time.Time `json:"tee_time"`
+	Handicapped   *bool      `json:"handicapped"`
+	ID            uuid.UUID  `json:"id"`
+	TenantID      uuid.UUID  `json:"tenant_id"`
+}
+
+// A null argument leaves the column alone, so a caller changing one field never has to
+// read the match first just to echo the rest back.
+func (q *Queries) UpdateMatch(ctx context.Context, arg UpdateMatchParams) (Match, error) {
+	row := q.db.QueryRow(ctx, updateMatch,
+		arg.CourseID,
+		arg.TeeColorID,
+		arg.MatchFormatID,
+		arg.TeeTime,
+		arg.Handicapped,
+		arg.ID,
+		arg.TenantID,
+	)
+	var i Match
+	err := row.Scan(
+		&i.ID,
+		&i.TournamentID,
+		&i.CourseID,
+		&i.TeeColorID,
+		&i.MatchFormatID,
+		&i.TenantID,
+		&i.TeeTime,
+		&i.Handicapped,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}

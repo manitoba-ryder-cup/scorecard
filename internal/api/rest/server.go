@@ -113,6 +113,7 @@ func NewServer(config *Config) *Server {
 	// Match setup routes (matches live under a tournament)
 	public("GET", sdk.RouteV1TournamentMatches, matchesHandler.ListMatches)
 	scoped("POST", sdk.RouteV1TournamentMatches, sdk.ScopeTournamentsWrite, matchesHandler.CreateMatch)
+	scoped("PUT", sdk.RouteV1Match, sdk.ScopeTournamentsWrite, matchesHandler.UpdateMatch)
 
 	// Tournament roster routes
 	public("GET", sdk.RouteV1TournamentPlayers, rosterHandler.ListPlayers)

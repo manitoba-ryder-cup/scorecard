@@ -308,6 +308,19 @@ type CreateMatchRequest struct {
 	Handicapped   bool      `json:"handicapped"`
 }
 
+// UpdateMatchRequest is the body for PUT /v1/matches/{id}. Omitted fields keep their
+// stored value; a body that sets none is rejected rather than treated as a no-op.
+//
+// The tournament is deliberately absent — a match's scores and participants reference it,
+// so moving one between cups is not an edit.
+type UpdateMatchRequest struct {
+	CourseID      *uuid.UUID `json:"course_id,omitempty"`
+	TeeColorID    *uuid.UUID `json:"tee_color_id,omitempty"`
+	MatchFormatID *uuid.UUID `json:"match_format_id,omitempty"`
+	TeeTime       *string    `json:"tee_time,omitempty"`
+	Handicapped   *bool      `json:"handicapped,omitempty"`
+}
+
 // MatchParticipant is a player (on a team) taking part in a match.
 type MatchParticipant struct {
 	TournamentID uuid.UUID `json:"tournament_id"`

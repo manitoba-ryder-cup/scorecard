@@ -40,6 +40,7 @@ const (
 
 	// Matches
 	RouteV1TournamentMatches = "/v1/tournaments/{id}/matches"
+	RouteV1Match             = "/v1/matches/{id}"
 	RouteV1MatchScores       = "/v1/matches/{id}/scores"
 	RouteV1MatchHoles        = "/v1/matches/{id}/holes"
 	RouteV1MatchWinner       = "/v1/matches/{id}/winner"
