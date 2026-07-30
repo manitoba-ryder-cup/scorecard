@@ -84,7 +84,7 @@ type teamMemberDB interface {
 // tournamentPlayerDB interface defines database operations for tournament entries
 type tournamentPlayerDB interface {
 	CreateTournamentPlayer(ctx context.Context, in EnterPlayerInput) (*TournamentPlayer, error)
-	UpdateTournamentPlayer(ctx context.Context, in EnterPlayerInput) (*TournamentPlayer, error)
+	UpdateTournamentPlayer(ctx context.Context, in UpdateRosterEntryInput) (*TournamentPlayer, error)
 	ListTournamentPlayers(ctx context.Context, tournamentID uuid.UUID) ([]TournamentPlayer, error)
 	ListTournamentPlayersByTeam(ctx context.Context, teamID uuid.UUID) ([]TournamentPlayer, error)
 }

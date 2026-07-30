@@ -81,6 +81,56 @@ func (q *Queries) CreateTournamentPlayer(ctx context.Context, arg CreateTourname
 	return i, err
 }
 
+const getTournamentPlayer = `-- name: GetTournamentPlayer :one
+SELECT tp.tournament_id, tp.player_id, tp.tenant_id, tp.tier, tp.biography, tp.hdcp, tp.created_at, tp.updated_at, p.first_name, p.last_name, p.photo_path, tm.team_id
+FROM tournament_players tp
+JOIN players p ON tp.player_id = p.id
+LEFT JOIN team_members tm ON tm.tournament_id = tp.tournament_id AND tm.player_id = tp.player_id
+WHERE tp.tournament_id = $1 AND tp.player_id = $2 AND tp.tenant_id = $3
+`
+
+type GetTournamentPlayerParams struct {
+	TournamentID uuid.UUID `json:"tournament_id"`
+	PlayerID     uuid.UUID `json:"player_id"`
+	TenantID     uuid.UUID `json:"tenant_id"`
+}
+
+type GetTournamentPlayerRow struct {
+	TournamentID uuid.UUID  `json:"tournament_id"`
+	PlayerID     uuid.UUID  `json:"player_id"`
+	TenantID     uuid.UUID  `json:"tenant_id"`
+	Tier         string     `json:"tier"`
+	Biography    string     `json:"biography"`
+	Hdcp         float32    `json:"hdcp"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	FirstName    string     `json:"first_name"`
+	LastName     string     `json:"last_name"`
+	PhotoPath    string     `json:"photo_path"`
+	TeamID       *uuid.UUID `json:"team_id"`
+}
+
+// GetTournamentPlayer returns one entered player, enriched the same way the list is.
+func (q *Queries) GetTournamentPlayer(ctx context.Context, arg GetTournamentPlayerParams) (GetTournamentPlayerRow, error) {
+	row := q.db.QueryRow(ctx, getTournamentPlayer, arg.TournamentID, arg.PlayerID, arg.TenantID)
+	var i GetTournamentPlayerRow
+	err := row.Scan(
+		&i.TournamentID,
+		&i.PlayerID,
+		&i.TenantID,
+		&i.Tier,
+		&i.Biography,
+		&i.Hdcp,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.FirstName,
+		&i.LastName,
+		&i.PhotoPath,
+		&i.TeamID,
+	)
+	return i, err
+}
+
 const listPlayerTournaments = `-- name: ListPlayerTournaments :many
 SELECT
     t.id AS tournament_id,
@@ -293,68 +343,43 @@ func (q *Queries) ListTournamentPlayersByTeam(ctx context.Context, arg ListTourn
 }
 
 const updateTournamentPlayer = `-- name: UpdateTournamentPlayer :one
-WITH upd AS (
-    UPDATE tournament_players
-    SET tier = $4, biography = $5, hdcp = $6, updated_at = now()
-    WHERE tournament_players.tournament_id = $1
-      AND tournament_players.player_id = $2
-      AND tournament_players.tenant_id = $3
-    RETURNING tournament_id, player_id, tenant_id, tier, biography, hdcp, created_at, updated_at
-)
-SELECT upd.tournament_id, upd.player_id, upd.tenant_id, upd.tier, upd.biography, upd.hdcp, upd.created_at, upd.updated_at, p.first_name, p.last_name, p.photo_path, tm.team_id
-FROM upd
-JOIN players p ON upd.player_id = p.id
-LEFT JOIN team_members tm ON tm.tournament_id = upd.tournament_id AND tm.player_id = upd.player_id
+UPDATE tournament_players
+SET tier = COALESCE($1, tier),
+    biography = COALESCE($2, biography),
+    hdcp = COALESCE($3, hdcp),
+    updated_at = now()
+WHERE tournament_id = $4
+  AND player_id = $5
+  AND tenant_id = $6
+RETURNING player_id
 `
 
 type UpdateTournamentPlayerParams struct {
+	Tier         *string   `json:"tier"`
+	Biography    *string   `json:"biography"`
+	Hdcp         *float32  `json:"hdcp"`
 	TournamentID uuid.UUID `json:"tournament_id"`
 	PlayerID     uuid.UUID `json:"player_id"`
 	TenantID     uuid.UUID `json:"tenant_id"`
-	Tier         string    `json:"tier"`
-	Biography    string    `json:"biography"`
-	Hdcp         float32   `json:"hdcp"`
 }
 
-type UpdateTournamentPlayerRow struct {
-	TournamentID uuid.UUID  `json:"tournament_id"`
-	PlayerID     uuid.UUID  `json:"player_id"`
-	TenantID     uuid.UUID  `json:"tenant_id"`
-	Tier         string     `json:"tier"`
-	Biography    string     `json:"biography"`
-	Hdcp         float32    `json:"hdcp"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
-	FirstName    string     `json:"first_name"`
-	LastName     string     `json:"last_name"`
-	PhotoPath    string     `json:"photo_path"`
-	TeamID       *uuid.UUID `json:"team_id"`
-}
-
-// UpdateTournamentPlayer updates attributes and returns the enriched entry.
-func (q *Queries) UpdateTournamentPlayer(ctx context.Context, arg UpdateTournamentPlayerParams) (UpdateTournamentPlayerRow, error) {
+// UpdateTournamentPlayer writes only the attributes that were supplied: a null argument
+// leaves the column alone, so setting a biography never has to restate the tier and
+// handicap. Most entries carry a handicap, and echoing one back is how it gets lost.
+//
+// Separate from the enriched read below rather than one CTE, because sqlc cannot analyse
+// an UPDATE inside a CTE once its SET clause references the columns it is updating. The
+// repository runs both in a single transaction, so this costs a statement, not a trip.
+func (q *Queries) UpdateTournamentPlayer(ctx context.Context, arg UpdateTournamentPlayerParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, updateTournamentPlayer,
-		arg.TournamentID,
-		arg.PlayerID,
-		arg.TenantID,
 		arg.Tier,
 		arg.Biography,
 		arg.Hdcp,
+		arg.TournamentID,
+		arg.PlayerID,
+		arg.TenantID,
 	)
-	var i UpdateTournamentPlayerRow
-	err := row.Scan(
-		&i.TournamentID,
-		&i.PlayerID,
-		&i.TenantID,
-		&i.Tier,
-		&i.Biography,
-		&i.Hdcp,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.FirstName,
-		&i.LastName,
-		&i.PhotoPath,
-		&i.TeamID,
-	)
-	return i, err
+	var player_id uuid.UUID
+	err := row.Scan(&player_id)
+	return player_id, err
 }

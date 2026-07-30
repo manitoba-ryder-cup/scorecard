@@ -250,10 +250,13 @@ type EnterTournamentPlayerRequest struct {
 }
 
 // UpdateTournamentPlayerRequest is the body for PUT /v1/tournaments/{id}/players/{playerId}.
+// Omitted fields keep their stored value; a body that sets none is rejected rather than
+// treated as a no-op. Partial because a biography is usually written by someone who has no
+// reason to know the player's handicap, and a full replacement would zero it.
 type UpdateTournamentPlayerRequest struct {
-	Tier      string  `json:"tier"`
-	Biography string  `json:"biography"`
-	Hdcp      float32 `json:"hdcp"`
+	Tier      *string  `json:"tier,omitempty"`
+	Biography *string  `json:"biography,omitempty"`
+	Hdcp      *float32 `json:"hdcp,omitempty"`
 }
 
 // TeamMember is the draft outcome: a player assigned to a team for a tournament.

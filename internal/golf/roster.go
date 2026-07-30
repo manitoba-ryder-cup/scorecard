@@ -49,10 +49,23 @@ func (s *RosterService) EnterPlayer(ctx context.Context, in EnterPlayerInput) (*
 	return entry, nil
 }
 
+// UpdateRosterEntryInput changes a player's attributes for one tournament. A nil field
+// keeps its stored value, which is what lets a biography be written without restating a
+// handicap the writer has no reason to know.
+//
+// No tier defaulting here, unlike entering a player: an omitted tier means leave it alone,
+// and quietly resetting it to the default would be a different thing entirely.
+type UpdateRosterEntryInput struct {
+	TournamentID uuid.UUID
+	PlayerID     uuid.UUID
+	Tier         *string
+	Biography    *string
+	Hdcp         *float32
+}
+
 // UpdatePlayer updates an entered player's attributes. ErrNotFound if the player has
 // not been entered in the tournament.
-func (s *RosterService) UpdatePlayer(ctx context.Context, in EnterPlayerInput) (*TournamentPlayer, error) {
-	in.Tier = tierOrDefault(in.Tier)
+func (s *RosterService) UpdatePlayer(ctx context.Context, in UpdateRosterEntryInput) (*TournamentPlayer, error) {
 	entry, err := s.TournamentPlayerDB.UpdateTournamentPlayer(ctx, in)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update tournament player: %w", err)

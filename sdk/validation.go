@@ -107,8 +107,18 @@ func (r EnterTournamentPlayerRequest) Validate(ctx context.Context) error {
 
 // Validate checks a tournament-entry update. Handicap may be negative (plus handicaps).
 func (r UpdateTournamentPlayerRequest) Validate(ctx context.Context) error {
-	if len(r.Tier) > maxTierLen {
-		return fmt.Errorf("tier must be at most %d characters", maxTierLen)
+	if r.Tier == nil && r.Biography == nil && r.Hdcp == nil {
+		return fmt.Errorf("no fields to update")
+	}
+	if r.Tier != nil {
+		// A present tier must name one: blanking it would leave an entry with no flight,
+		// which entering a player is not even allowed to do.
+		if strings.TrimSpace(*r.Tier) == "" {
+			return fmt.Errorf("tier must not be empty")
+		}
+		if len(*r.Tier) > maxTierLen {
+			return fmt.Errorf("tier must be at most %d characters", maxTierLen)
+		}
 	}
 	return nil
 }
