@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres/internal/sqlc"
@@ -34,6 +35,23 @@ func (m *MatchesDB) CreateMatch(ctx context.Context, in golf.CreateMatchInput) (
 		})
 		if err != nil {
 			return nil, fmt.Errorf("creating match: %w", mapWriteErr(err))
+		}
+		dm := toDomainMatch(match)
+		return &dm, nil
+	})
+}
+
+// UpdateMatchTeeTime rewrites a match's tee time. A match that isn't there comes back as
+// ErrNotFound (no rows from the RETURNING) rather than a silent no-op.
+func (m *MatchesDB) UpdateMatchTeeTime(ctx context.Context, id uuid.UUID, teeTime time.Time) (*golf.Match, error) {
+	return withTenant(ctx, m.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Match, error) {
+		match, err := q.UpdateMatchTeeTime(ctx, sqlc.UpdateMatchTeeTimeParams{
+			ID:       id,
+			TenantID: tenantID,
+			TeeTime:  teeTime,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("updating tee time for match %s: %w", id, mapReadErr(err))
 		}
 		dm := toDomainMatch(match)
 		return &dm, nil

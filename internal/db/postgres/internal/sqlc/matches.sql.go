@@ -216,3 +216,36 @@ func (q *Queries) LockMatchForScoring(ctx context.Context, arg LockMatchForScori
 	err := row.Scan(&id)
 	return id, err
 }
+
+const updateMatchTeeTime = `-- name: UpdateMatchTeeTime :one
+UPDATE matches
+SET tee_time = $3
+WHERE id = $1 AND tenant_id = $2
+RETURNING id, tournament_id, course_id, tee_color_id, match_format_id, tenant_id, tee_time, handicapped, created_at, updated_at
+`
+
+type UpdateMatchTeeTimeParams struct {
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+	TeeTime  time.Time `json:"tee_time"`
+}
+
+// Only the tee time moves. Course and tee are fixed at creation because scores carry an
+// FK to holes(course_id, tee_color_id), so swapping either under a scored match breaks it.
+func (q *Queries) UpdateMatchTeeTime(ctx context.Context, arg UpdateMatchTeeTimeParams) (Match, error) {
+	row := q.db.QueryRow(ctx, updateMatchTeeTime, arg.ID, arg.TenantID, arg.TeeTime)
+	var i Match
+	err := row.Scan(
+		&i.ID,
+		&i.TournamentID,
+		&i.CourseID,
+		&i.TeeColorID,
+		&i.MatchFormatID,
+		&i.TenantID,
+		&i.TeeTime,
+		&i.Handicapped,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}

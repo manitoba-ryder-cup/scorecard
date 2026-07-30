@@ -2,6 +2,7 @@ package golf
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -26,6 +27,8 @@ type matchDB interface {
 	ListMatchesByTournament(ctx context.Context, tournamentID uuid.UUID) ([]Match, error)
 	ListMatchDetailsByTournament(ctx context.Context, tournamentID uuid.UUID) ([]MatchDetail, error)
 	CreateMatch(ctx context.Context, in CreateMatchInput) (*Match, error)
+	// UpdateMatchTeeTime rewrites only the tee time; ErrNotFound if the match isn't there.
+	UpdateMatchTeeTime(ctx context.Context, id uuid.UUID, teeTime time.Time) (*Match, error)
 }
 
 // participantDB interface defines database operations for match participants

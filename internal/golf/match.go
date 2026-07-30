@@ -17,6 +17,8 @@ type MatchService struct {
 	ScoreDB       scoreDB
 	ResultDB      resultDB
 	HoleDB        holeDB
+	// CourseDB resolves the zone a wall-clock tee time is entered against.
+	CourseDB courseDB
 	// Now is the clock the scoring window is read against; nil means time.Now.
 	Now func() time.Time
 }
@@ -49,6 +51,33 @@ func (s *MatchService) CreateMatch(ctx context.Context, in CreateMatchInput) (*M
 		return nil, fmt.Errorf("failed to create match: %w", err)
 	}
 	return match, nil
+}
+
+// UpdateTeeTime moves a match's tee time. The value is either an instant or a wall clock
+// read at the course being played, so the course is loaded for its zone. The match is
+// loaded first so an unknown id is a clean 404 rather than an update matching no rows.
+//
+// Deliberately unguarded on a scored or finished match: the case that needs this most is a
+// group that went out late with a hole already entered. The scoring window is measured from
+// the tee time on every submission, so it moves along with it.
+func (s *MatchService) UpdateTeeTime(ctx context.Context, matchID uuid.UUID, teeTime string) (*Match, error) {
+	match, err := s.MatchDB.GetMatch(ctx, matchID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load match: %w", err)
+	}
+	course, err := s.CourseDB.GetCourse(ctx, match.CourseID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load course: %w", err)
+	}
+	parsed, err := ParseTeeTime(teeTime, course.TimeZone)
+	if err != nil {
+		return nil, err
+	}
+	updated, err := s.MatchDB.UpdateMatchTeeTime(ctx, matchID, parsed)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update tee time: %w", err)
+	}
+	return updated, nil
 }
 
 // ListMatches returns a tournament's matches.

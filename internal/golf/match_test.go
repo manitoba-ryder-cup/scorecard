@@ -12,11 +12,17 @@ import (
 // --- fakes ---
 
 type fakeMatchDB struct {
-	match   *Match
-	details []MatchDetail
+	match     *Match
+	details   []MatchDetail
+	teeTimeAt time.Time // last value passed to UpdateMatchTeeTime
+	getErr    error
+	updateErr error
 }
 
 func (f *fakeMatchDB) GetMatch(ctx context.Context, id uuid.UUID) (*Match, error) {
+	if f.getErr != nil {
+		return nil, f.getErr
+	}
 	return f.match, nil
 }
 func (f *fakeMatchDB) ListMatchesByTournament(ctx context.Context, tournamentID uuid.UUID) ([]Match, error) {
@@ -27,6 +33,15 @@ func (f *fakeMatchDB) ListMatchDetailsByTournament(ctx context.Context, tourname
 }
 func (f *fakeMatchDB) CreateMatch(ctx context.Context, in CreateMatchInput) (*Match, error) {
 	return nil, nil
+}
+func (f *fakeMatchDB) UpdateMatchTeeTime(ctx context.Context, id uuid.UUID, teeTime time.Time) (*Match, error) {
+	if f.updateErr != nil {
+		return nil, f.updateErr
+	}
+	f.teeTimeAt = teeTime
+	updated := *f.match
+	updated.TeeTime = teeTime
+	return &updated, nil
 }
 
 type fakeParticipantDB struct {
@@ -122,6 +137,19 @@ func (f *fakeResultDB) ListAllTournamentStandings(ctx context.Context) (map[uuid
 func (f *fakeResultDB) ListCupData(ctx context.Context) (CupData, error) {
 	return CupData{}, nil
 }
+
+type fakeCourseDB struct {
+	course *Course
+	err    error
+}
+
+func (f *fakeCourseDB) CreateCourse(ctx context.Context, in CreateCourseInput) (*Course, error) {
+	return nil, nil
+}
+func (f *fakeCourseDB) GetCourse(ctx context.Context, id uuid.UUID) (*Course, error) {
+	return f.course, f.err
+}
+func (f *fakeCourseDB) ListCourses(ctx context.Context) ([]Course, error) { return nil, nil }
 
 // teeOff is when the match under test goes out; duringTheRound is an hour later, inside
 // the window every write test needs the clock to be in.
@@ -505,5 +533,91 @@ func TestListResults_NoLeaderWhenAllSquare(t *testing.T) {
 	}
 	if results[0].LeaderTeamID != nil {
 		t.Errorf("leader = %v, want none when all square", results[0].LeaderTeamID)
+	}
+}
+
+func TestUpdateTeeTime_ReadsAWallClockAtTheCourse(t *testing.T) {
+	matchID, courseID := uuid.New(), uuid.New()
+	matches := &fakeMatchDB{match: &Match{ID: matchID, CourseID: courseID, TeeTime: time.Now()}}
+	svc := &MatchService{
+		MatchDB:  matches,
+		CourseDB: &fakeCourseDB{course: &Course{ID: courseID, TimeZone: "America/Winnipeg"}},
+	}
+
+	updated, err := svc.UpdateTeeTime(context.Background(), matchID, "2026-09-18T08:20")
+	if err != nil {
+		t.Fatalf("UpdateTeeTime: %v", err)
+	}
+
+	const want = "2026-09-18T13:20:00Z"
+	if got := matches.teeTimeAt.UTC().Format(time.RFC3339); got != want {
+		t.Errorf("persisted %s, want %s", got, want)
+	}
+	if got := updated.TeeTime.UTC().Format(time.RFC3339); got != want {
+		t.Errorf("returned %s, want %s", got, want)
+	}
+}
+
+func TestUpdateTeeTime_TrustsAnExplicitInstant(t *testing.T) {
+	matchID, courseID := uuid.New(), uuid.New()
+	matches := &fakeMatchDB{match: &Match{ID: matchID, CourseID: courseID, TeeTime: time.Now()}}
+	svc := &MatchService{
+		MatchDB:  matches,
+		CourseDB: &fakeCourseDB{course: &Course{ID: courseID, TimeZone: "America/Winnipeg"}},
+	}
+
+	if _, err := svc.UpdateTeeTime(context.Background(), matchID, "2026-09-18T13:20:00Z"); err != nil {
+		t.Fatalf("UpdateTeeTime: %v", err)
+	}
+
+	const want = "2026-09-18T13:20:00Z"
+	if got := matches.teeTimeAt.UTC().Format(time.RFC3339); got != want {
+		t.Errorf("persisted %s, want %s — an instant must not be re-read at the course", got, want)
+	}
+}
+
+func TestUpdateTeeTime_RejectsAMalformedTeeTime(t *testing.T) {
+	matchID, courseID := uuid.New(), uuid.New()
+	matches := &fakeMatchDB{match: &Match{ID: matchID, CourseID: courseID, TeeTime: time.Now()}}
+	svc := &MatchService{
+		MatchDB:  matches,
+		CourseDB: &fakeCourseDB{course: &Course{ID: courseID, TimeZone: "America/Winnipeg"}},
+	}
+
+	if _, err := svc.UpdateTeeTime(context.Background(), matchID, "half eight"); !errors.Is(err, ErrInvalidInput) {
+		t.Errorf("err = %v, want ErrInvalidInput", err)
+	}
+	if !matches.teeTimeAt.IsZero() {
+		t.Error("a malformed tee time must not reach the database")
+	}
+}
+
+// The tee time is loaded before it is written so an unknown match is a clean 404 rather
+// than an UPDATE that quietly matches no rows.
+func TestUpdateTeeTime_UnknownMatchIsNotFound(t *testing.T) {
+	svc := &MatchService{
+		MatchDB:  &fakeMatchDB{getErr: ErrNotFound},
+		CourseDB: &fakeCourseDB{},
+	}
+
+	if _, err := svc.UpdateTeeTime(context.Background(), uuid.New(), "2026-09-18T08:20"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("err = %v, want ErrNotFound", err)
+	}
+}
+
+// A match already under way is the case that needs this most: the group went out late and
+// hole 1 is already entered. The scoring window is measured from the tee time on every
+// submission, so moving it is all that is required.
+func TestUpdateTeeTime_AllowsAScoredMatch(t *testing.T) {
+	matchID, courseID := uuid.New(), uuid.New()
+	matches := &fakeMatchDB{match: &Match{ID: matchID, CourseID: courseID, TeeTime: time.Now()}}
+	svc := &MatchService{
+		MatchDB:  matches,
+		CourseDB: &fakeCourseDB{course: &Course{ID: courseID, TimeZone: "America/Winnipeg"}},
+		ScoreDB:  &fakeScoreDB{scores: []Score{{MatchID: matchID, HoleNumber: 1, Strokes: 4}}},
+	}
+
+	if _, err := svc.UpdateTeeTime(context.Background(), matchID, "2026-09-18T10:20"); err != nil {
+		t.Fatalf("a scored match must still accept a new tee time: %v", err)
 	}
 }
