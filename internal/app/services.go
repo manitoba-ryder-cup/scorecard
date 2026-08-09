@@ -8,6 +8,10 @@ import (
 // Services bundles the domain services wired over one database. The HTTP server and the
 // CLI commands share it, so the dependency graph is assembled in exactly one place.
 type Services struct {
+	// db backs the services above; kept so a multi-step operation can run them all in
+	// one transaction (see SeedTournament).
+	db *postgres.DB
+
 	Player     *golf.PlayerService
 	Match      *golf.MatchService
 	Tournament *golf.TournamentService
@@ -36,6 +40,7 @@ func NewServices(db *postgres.DB) *Services {
 	teamService := &golf.TeamService{TeamDB: teamsDB}
 
 	return &Services{
+		db: db,
 		Player: &golf.PlayerService{
 			PlayerDB: playersDB,
 			ResultDB: resultsDB,

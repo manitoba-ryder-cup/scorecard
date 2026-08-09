@@ -2,7 +2,9 @@ package test
 
 import (
 	"context"
+	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/app"
@@ -152,6 +154,73 @@ func TestSeedTournamentRejectsCaptainNotInRoster(t *testing.T) {
 
 	if _, err := app.SeedTournament(ctx, svc, in); err == nil {
 		t.Fatal("want an error when a captain isn't in the roster, got nil")
+	}
+
+	// The error must arrive before anything is written. This used to fail only after the
+	// tournament and its whole roster were committed, so a typo left an event behind and
+	// a rerun made a second one.
+	tournaments, err := svc.Tournament.ListTournaments(ctx)
+	if err != nil {
+		t.Fatalf("list tournaments: %v", err)
+	}
+	if len(tournaments) != 0 {
+		t.Fatalf("a rejected seed should write nothing, found %d tournament(s)", len(tournaments))
+	}
+	players, err := svc.Player.ListPlayers(ctx)
+	if err != nil {
+		t.Fatalf("list players: %v", err)
+	}
+	if len(players) != 0 {
+		t.Fatalf("a rejected seed should create no players, found %d", len(players))
+	}
+}
+
+// A bad file is caught before the first write; this covers what planning cannot see —
+// something failing partway through the writes themselves.
+func TestSeedWritesRollBackTogether(t *testing.T) {
+	t.Parallel()
+	db, err := postgres.NewDB(context.Background(), util.LoadConfig().DatabaseURL)
+	if err != nil {
+		t.Fatalf("connect db: %v", err)
+	}
+	t.Cleanup(db.Close)
+	ctx := identity.WithTenant(context.Background(), uuid.New())
+	svc := app.NewServices(db)
+
+	boom := errors.New("connection lost at match ten")
+	err = postgres.WithinTenantTx(ctx, db, func(ctx context.Context) error {
+		// CreateTournament spans two tables and opens its own withTenant closure, so this
+		// also proves an inner transaction joins the outer one instead of committing early.
+		if _, err := svc.Tournament.CreateTournament(ctx, golf.CreateTournamentInput{
+			Name: "Doomed Cup", StartDate: time.Now(), EndDate: time.Now(), Location: "Clear Lake",
+		}); err != nil {
+			return err
+		}
+		email := "ghost@x.com"
+		if _, err := svc.Player.CreatePlayer(ctx, golf.CreatePlayerInput{
+			FirstName: "Ghost", LastName: "Player", Email: &email,
+		}); err != nil {
+			return err
+		}
+		return boom
+	})
+	if !errors.Is(err, boom) {
+		t.Fatalf("want the failure surfaced, got %v", err)
+	}
+
+	tournaments, err := svc.Tournament.ListTournaments(ctx)
+	if err != nil {
+		t.Fatalf("list tournaments: %v", err)
+	}
+	if len(tournaments) != 0 {
+		t.Fatalf("want the tournament rolled back, found %d", len(tournaments))
+	}
+	players, err := svc.Player.ListPlayers(ctx)
+	if err != nil {
+		t.Fatalf("list players: %v", err)
+	}
+	if len(players) != 0 {
+		t.Fatalf("want the player rolled back, found %d", len(players))
 	}
 }
 
