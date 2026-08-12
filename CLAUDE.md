@@ -181,6 +181,19 @@ Published as two instants rather than a boolean, because a yes/no is only true w
 computed and score entry is left open on a fairway for hours. Changing a constant here now
 changes the client's behaviour on its next read, with no release on that side.
 
+## Transactions
+
+A write that spans several tables belongs in **one repository method, inside one
+`withTenant` closure** — that closure is the transaction. `CreateTournamentWithTeams` and
+`SeedDB.SeedTournament` are the examples: the caller asks for a tournament or a seeded
+event and never learns a transaction was involved.
+
+Do not open transactions above the repository layer. An earlier attempt threaded one down
+from `internal/app` through the context, which made every repository call in the app change
+behaviour based on invisible state. Where two repository methods both need the same writes,
+extract a helper taking `*sqlc.Queries` and let each closure compose it — see
+`createTournamentWithTeams`.
+
 ## Important Patterns
 
 ### Authentication and Authorization

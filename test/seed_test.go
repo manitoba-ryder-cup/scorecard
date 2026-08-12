@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/app"
@@ -152,6 +153,107 @@ func TestSeedTournamentRejectsCaptainNotInRoster(t *testing.T) {
 
 	if _, err := app.SeedTournament(ctx, svc, in); err == nil {
 		t.Fatal("want an error when a captain isn't in the roster, got nil")
+	}
+
+	// The error must arrive before anything is written. This used to fail only after the
+	// tournament and its whole roster were committed, so a typo left an event behind and
+	// a rerun made a second one.
+	tournaments, err := svc.Tournament.ListTournaments(ctx)
+	if err != nil {
+		t.Fatalf("list tournaments: %v", err)
+	}
+	if len(tournaments) != 0 {
+		t.Fatalf("a rejected seed should write nothing, found %d tournament(s)", len(tournaments))
+	}
+	players, err := svc.Player.ListPlayers(ctx)
+	if err != nil {
+		t.Fatalf("list players: %v", err)
+	}
+	if len(players) != 0 {
+		t.Fatalf("a rejected seed should create no players, found %d", len(players))
+	}
+}
+
+// A bad file is caught before the first write, so a failure among the writes themselves
+// has to be provoked directly. The plan below is valid everywhere planning looks and its
+// last match references a format that does not exist, so the insert fails after the
+// tournament, both teams and the whole roster are already written.
+func TestSeedWritesAreOneTransaction(t *testing.T) {
+	t.Parallel()
+	ctx, svc := newSeedServices(t)
+	course, teeColor := seedCourse(t, ctx, svc)
+
+	courses, err := svc.Course.ListCourses(ctx)
+	if err != nil {
+		t.Fatalf("list courses: %v", err)
+	}
+	colors, err := svc.Course.ListTeeColors(ctx)
+	if err != nil {
+		t.Fatalf("list tee colors: %v", err)
+	}
+	formats, err := svc.Format.ListFormats(ctx)
+	if err != nil || len(formats) == 0 {
+		t.Fatalf("list formats: %v", err)
+	}
+	_ = course
+	_ = teeColor
+
+	plan := golf.SeedPlan{
+		Tournament: golf.CreateTournamentInput{
+			Name: "Doomed Cup", StartDate: time.Now(), EndDate: time.Now(), Location: "Clear Lake",
+		},
+		CourseID:   courses[0].ID,
+		TeeColorID: colors[0].ID,
+		Players: []golf.SeedPlayer{
+			{FirstName: "Ryan", LastName: "Reddish", Email: "doomed-rc@x.com", Tier: "gold"},
+			{FirstName: "Bill", LastName: "Bluer", Email: "doomed-bc@x.com", Tier: "gold"},
+		},
+		Captains: map[string]string{"Red": "doomed-rc@x.com", "Blue": "doomed-bc@x.com"},
+		Matches: []golf.PlannedMatch{
+			{Format: "Singles", FormatID: formats[0].ID, TeeTime: time.Now()},
+			// The one that fails, after everything above is written.
+			{Format: "Singles", FormatID: uuid.New(), TeeTime: time.Now()},
+		},
+	}
+
+	if _, err := svc.Seed.Seed(ctx, plan); err == nil {
+		t.Fatal("want the seed to fail on the unknown match format")
+	}
+
+	// Nothing may survive: not the tournament, not its teams, not the roster, and not the
+	// first match that did insert successfully.
+	tournaments, err := svc.Tournament.ListTournaments(ctx)
+	if err != nil {
+		t.Fatalf("list tournaments: %v", err)
+	}
+	if len(tournaments) != 0 {
+		t.Fatalf("want the tournament rolled back, found %d", len(tournaments))
+	}
+	players, err := svc.Player.ListPlayers(ctx)
+	if err != nil {
+		t.Fatalf("list players: %v", err)
+	}
+	if len(players) != 0 {
+		t.Fatalf("want the players rolled back, found %d", len(players))
+	}
+
+	// The roster and the match that did insert cleanly have to go too — those are the
+	// rows a per-call transaction would leave orphaned behind a failed run.
+	for _, tour := range tournaments {
+		entries, err := svc.Roster.ListPlayers(ctx, tour.ID)
+		if err != nil {
+			t.Fatalf("list roster: %v", err)
+		}
+		if len(entries) != 0 {
+			t.Errorf("roster entries survived: %d", len(entries))
+		}
+		matches, err := svc.Match.ListMatches(ctx, tour.ID)
+		if err != nil {
+			t.Fatalf("list matches: %v", err)
+		}
+		if len(matches) != 0 {
+			t.Errorf("matches survived: %d", len(matches))
+		}
 	}
 }
 
