@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
+	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
 // SeedInput is the contract for the advance setup of a tournament: the event, its roster
@@ -58,12 +59,33 @@ type SeedSummary struct {
 	Matches        int
 }
 
-// SeedTournament creates a tournament (with its two teams), enters the roster, and marks
-// each side's captain (drafting only the captain onto their team). It then creates the
-// matches for each format, leaving them without participants. The field's draft and match
-// participants are assigned live at the event, not here. The course, tee color, and
-// formats are referenced by name and must already exist.
+// SeedTournament validates the setup and writes it.
+//
+// Planning resolves every name and parses every time without touching the database, so a
+// typo in a hand-edited file costs nothing. Writing is one call, and one transaction: the
+// event either exists in full or not at all. Neither half is redundant — planning turns a
+// bad file into a free error, and the transaction covers what planning cannot see, like
+// the connection dropping at match ten.
 func SeedTournament(ctx context.Context, svc *Services, in *SeedInput) (*SeedSummary, error) {
+	plan, err := planSeed(ctx, svc, in)
+	if err != nil {
+		return nil, err
+	}
+	summary, err := svc.Seed.Seed(ctx, *plan)
+	if err != nil {
+		return nil, err
+	}
+	return &SeedSummary{
+		TournamentID:   summary.TournamentID,
+		PlayersEntered: summary.PlayersEntered,
+		Matches:        summary.Matches,
+	}, nil
+}
+
+// planSeed resolves and checks the whole file without writing anything. Every error it
+// returns is one the caller can fix by editing the file and running again, against a
+// database it has not touched.
+func planSeed(ctx context.Context, svc *Services, in *SeedInput) (*golf.SeedPlan, error) {
 	course, err := lookupCourse(ctx, svc, in.Course)
 	if err != nil {
 		return nil, err
@@ -86,67 +108,16 @@ func SeedTournament(ctx context.Context, svc *Services, in *SeedInput) (*SeedSum
 		return nil, fmt.Errorf("invalid tournament end_date: %w", err)
 	}
 
-	tournament, err := svc.Tournament.CreateTournament(ctx, golf.CreateTournamentInput{
-		Name: in.Tournament.Name, StartDate: start, EndDate: end, Location: in.Tournament.Location,
-	})
+	players, roster, err := planRoster(in.Players)
 	if err != nil {
-		return nil, fmt.Errorf("creating tournament: %w", err)
+		return nil, err
 	}
-
-	// The tournament seeds its two teams; map colour -> id so captains land on the right side.
-	teams, err := svc.Team.ListTeamsByTournament(ctx, tournament.ID)
-	if err != nil {
-		return nil, fmt.Errorf("listing teams: %w", err)
-	}
-	teamByColor := make(map[string]uuid.UUID, len(teams))
-	for _, t := range teams {
-		teamByColor[t.Color] = t.ID
-	}
-
-	finder, err := newPlayerFinder(ctx, svc)
+	captains, err := planCaptains(in.Captains, roster)
 	if err != nil {
 		return nil, err
 	}
 
-	summary := &SeedSummary{TournamentID: tournament.ID}
-
-	// Enter the whole roster; record ids by email so captains can be resolved.
-	enteredByEmail := make(map[string]uuid.UUID, len(in.Players))
-	for _, sp := range in.Players {
-		playerID, err := finder.findOrCreate(ctx, svc, sp)
-		if err != nil {
-			return nil, err
-		}
-		if _, err := svc.Roster.EnterPlayer(ctx, golf.EnterPlayerInput{
-			TournamentID: tournament.ID, PlayerID: playerID,
-			Tier: sp.Tier, Biography: sp.Biography, Hdcp: sp.Hdcp,
-		}); err != nil {
-			return nil, fmt.Errorf("entering %s: %w", sp.Email, err)
-		}
-		enteredByEmail[strings.ToLower(sp.Email)] = playerID
-		summary.PlayersEntered++
-	}
-
-	// Draft each captain onto their team and set them as captain. The rest of the field
-	// is entered but undrafted — the draft happens live.
-	for color, email := range in.Captains {
-		teamID, ok := teamByColor[color]
-		if !ok {
-			return nil, fmt.Errorf("tournament has no %q team", color)
-		}
-		captainID, ok := enteredByEmail[strings.ToLower(email)]
-		if !ok {
-			return nil, fmt.Errorf("%s captain %q is not in the roster", color, email)
-		}
-		if _, err := svc.Roster.DraftPlayer(ctx, teamID, captainID); err != nil {
-			return nil, fmt.Errorf("drafting %s captain: %w", color, err)
-		}
-		if _, err := svc.Team.SetCaptain(ctx, teamID, captainID); err != nil {
-			return nil, fmt.Errorf("setting %s captain: %w", color, err)
-		}
-	}
-
-	// Matches per format, in schedule order (no participants — assigned live).
+	var matches []golf.PlannedMatch
 	for _, mg := range in.Matches {
 		formatID, ok := formatIDs[mg.Format]
 		if !ok {
@@ -157,55 +128,60 @@ func SeedTournament(ctx context.Context, svc *Services, in *SeedInput) (*SeedSum
 			if err != nil {
 				return nil, err
 			}
-			if _, err := svc.Match.CreateMatch(ctx, golf.CreateMatchInput{
-				TournamentID: tournament.ID, CourseID: course.ID, TeeColorID: teeColorID,
-				MatchFormatID: formatID, TeeTime: teeTime,
-			}); err != nil {
-				return nil, fmt.Errorf("creating %s match: %w", mg.Format, err)
-			}
-			summary.Matches++
+			matches = append(matches, golf.PlannedMatch{Format: mg.Format, FormatID: formatID, TeeTime: teeTime})
 		}
 	}
-	return summary, nil
+
+	return &golf.SeedPlan{
+		Tournament: golf.CreateTournamentInput{
+			Name: in.Tournament.Name, StartDate: start, EndDate: end, Location: in.Tournament.Location,
+		},
+		CourseID:   course.ID,
+		TeeColorID: teeColorID,
+		Players:    players,
+		Captains:   captains,
+		Matches:    matches,
+	}, nil
 }
 
-// playerFinder resolves seed players to existing players by email (created only if new),
-// so a returning player isn't duplicated year to year.
-type playerFinder struct {
-	byEmail map[string]uuid.UUID
-}
-
-func newPlayerFinder(ctx context.Context, svc *Services) (*playerFinder, error) {
-	players, err := svc.Player.ListPlayers(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("listing players: %w", err)
-	}
-	byEmail := make(map[string]uuid.UUID, len(players))
-	for _, p := range players {
-		if p.Email != nil {
-			byEmail[strings.ToLower(*p.Email)] = p.ID
+// planRoster returns the roster in file order and indexed by lowercased email. A player
+// without one cannot be recognised next year, and a repeated one would be entered twice
+// under the same identity. Tier is defaulted here, so the plan is exactly what lands.
+func planRoster(in []SeedPlayer) ([]golf.SeedPlayer, map[string]golf.SeedPlayer, error) {
+	players := make([]golf.SeedPlayer, 0, len(in))
+	byEmail := make(map[string]golf.SeedPlayer, len(in))
+	for _, sp := range in {
+		if strings.TrimSpace(sp.Email) == "" {
+			return nil, nil, fmt.Errorf("player %s %s has no email", sp.FirstName, sp.LastName)
 		}
+		key := strings.ToLower(strings.TrimSpace(sp.Email))
+		if _, dup := byEmail[key]; dup {
+			return nil, nil, fmt.Errorf("player %s appears twice in the roster", sp.Email)
+		}
+		p := golf.SeedPlayer{
+			FirstName: sp.FirstName, LastName: sp.LastName, Email: sp.Email,
+			Tier: golf.TierOrDefault(sp.Tier), Biography: sp.Biography, Hdcp: sp.Hdcp,
+		}
+		players = append(players, p)
+		byEmail[key] = p
 	}
-	return &playerFinder{byEmail: byEmail}, nil
+	return players, byEmail, nil
 }
 
-func (f *playerFinder) findOrCreate(ctx context.Context, svc *Services, sp SeedPlayer) (uuid.UUID, error) {
-	if sp.Email == "" {
-		return uuid.Nil, fmt.Errorf("player %s %s has no email", sp.FirstName, sp.LastName)
+// planCaptains checks each captain names a real side and someone actually entered.
+func planCaptains(captains map[string]string, roster map[string]golf.SeedPlayer) (map[string]string, error) {
+	out := make(map[string]string, len(captains))
+	for color, email := range captains {
+		if color != sdk.TeamColorRed && color != sdk.TeamColorBlue {
+			return nil, fmt.Errorf("captain colour %q is not %s or %s", color, sdk.TeamColorRed, sdk.TeamColorBlue)
+		}
+		key := strings.ToLower(strings.TrimSpace(email))
+		if _, ok := roster[key]; !ok {
+			return nil, fmt.Errorf("%s captain %q is not in the roster", color, email)
+		}
+		out[color] = key
 	}
-	key := strings.ToLower(sp.Email)
-	if id, ok := f.byEmail[key]; ok {
-		return id, nil
-	}
-	email := sp.Email
-	p, err := svc.Player.CreatePlayer(ctx, golf.CreatePlayerInput{
-		FirstName: sp.FirstName, LastName: sp.LastName, Email: &email,
-	})
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("creating player %s: %w", sp.Email, err)
-	}
-	f.byEmail[key] = p.ID
-	return p.ID, nil
+	return out, nil
 }
 
 // lookupCourse returns the whole course, not just its id: its timezone is what a bare

@@ -22,12 +22,12 @@ type CreateTournamentInput struct {
 // tournamentTeamColors are the two sides every tournament is created with. A Ryder
 // Cup has exactly two teams, no more no less, so they're seeded with the tournament
 // rather than added by an admin — there is no valid state with zero or one team.
-var tournamentTeamColors = []string{sdk.TeamColorRed, sdk.TeamColorBlue}
+var TournamentTeamColors = []string{sdk.TeamColorRed, sdk.TeamColorBlue}
 
 // CreateTournament persists a new tournament together with its two teams (Red and
 // Blue) in a single atomic operation.
 func (s *TournamentService) CreateTournament(ctx context.Context, in CreateTournamentInput) (*Tournament, error) {
-	tournament, err := s.TournamentDB.CreateTournamentWithTeams(ctx, in, tournamentTeamColors)
+	tournament, err := s.TournamentDB.CreateTournamentWithTeams(ctx, in, TournamentTeamColors)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create tournament: %w", err)
 	}

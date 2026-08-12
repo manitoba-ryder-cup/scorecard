@@ -15,6 +15,7 @@ type Services struct {
 	Format     *golf.FormatService
 	Roster     *golf.RosterService
 	Team       *golf.TeamService
+	Seed       *golf.SeedService
 }
 
 // NewServices constructs the repository adapters and wires the domain services.
@@ -67,5 +68,8 @@ func NewServices(db *postgres.DB) *Services {
 			ResultDB:           resultsDB,
 		},
 		Team: teamService,
+		Seed: &golf.SeedService{
+			SeedDB: postgres.NewSeedDB(db),
+		},
 	}
 }
