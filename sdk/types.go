@@ -411,6 +411,11 @@ type MatchResult struct {
 	HoleResults []*uuid.UUID `json:"hole_results"`
 	TeeTime     string       `json:"tee_time"`
 	CourseName  string       `json:"course_name"`
+	// The scoring window, RFC3339. Both bounds are sent so the client gates its UI on the
+	// server's rule rather than a second copy of it, and sent as instants rather than a
+	// yes/no so they stay correct on a page left open across the boundary.
+	ScoringOpensAt  string `json:"scoring_opens_at"`
+	ScoringClosesAt string `json:"scoring_closes_at"`
 }
 
 // MatchStatus is a match's outcome state: the one shape for it, returned by the match
