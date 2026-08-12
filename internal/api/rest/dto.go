@@ -168,14 +168,17 @@ func toMatchResultDTO(m golf.MatchResult) sdk.MatchResult {
 	if holeResults == nil {
 		holeResults = []*uuid.UUID{}
 	}
+	opens, closes := golf.ScoringWindow(m.TeeTime)
 	return sdk.MatchResult{
-		MatchStatus: toMatchStatusDTO(m.StoredResult),
-		MatchID:     m.MatchID,
-		FormatName:  m.FormatName,
-		Sides:       mapSlice(m.Sides, toMatchSideDTO),
-		HoleResults: holeResults,
-		TeeTime:     m.TeeTime.Format(time.RFC3339),
-		CourseName:  m.CourseName,
+		MatchStatus:     toMatchStatusDTO(m.StoredResult),
+		MatchID:         m.MatchID,
+		FormatName:      m.FormatName,
+		Sides:           mapSlice(m.Sides, toMatchSideDTO),
+		HoleResults:     holeResults,
+		TeeTime:         m.TeeTime.Format(time.RFC3339),
+		CourseName:      m.CourseName,
+		ScoringOpensAt:  opens.Format(time.RFC3339),
+		ScoringClosesAt: closes.Format(time.RFC3339),
 	}
 }
 

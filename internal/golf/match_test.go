@@ -286,6 +286,46 @@ func TestSubmitHoleScores_RejectsAWriteOutsideTheScoringWindow(t *testing.T) {
 	}
 }
 
+// The API publishes these two instants and the client gates its UI on them, so they have
+// to be exactly the bounds the write path enforces. Divergence would be invisible from
+// either side alone: the UI would offer a control the server refuses, or withhold one it
+// would have accepted.
+func TestScoringWindowIsTheWindowSubmitEnforces(t *testing.T) {
+	opens, closes := ScoringWindow(teeOff)
+
+	for _, tc := range []struct {
+		name string
+		now  time.Time
+		want bool
+	}{
+		{"a second before the published open", opens.Add(-time.Second), false},
+		{"exactly the published open", opens, true},
+		{"midway between the published bounds", opens.Add(closes.Sub(opens) / 2), true},
+		{"exactly the published close", closes, true},
+		{"a second after the published close", closes.Add(time.Second), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := scoringOpen(tc.now, teeOff); got != tc.want {
+				t.Errorf("scoringOpen(%s) = %v, want %v — published window is %s to %s",
+					tc.now.Format(time.RFC3339), got, tc.want,
+					opens.Format(time.RFC3339), closes.Format(time.RFC3339))
+			}
+		})
+	}
+}
+
+// Both bounds hang off the tee time, so a match with no fixed start has no window either
+// — worth pinning, because the client subtracts these from its own clock.
+func TestScoringWindowStraddlesTheTeeTime(t *testing.T) {
+	opens, closes := ScoringWindow(teeOff)
+	if !opens.Before(teeOff) {
+		t.Errorf("window should open before the tee time, got %s for a %s tee off", opens, teeOff)
+	}
+	if !closes.After(teeOff) {
+		t.Errorf("window should close after the tee time, got %s for a %s tee off", closes, teeOff)
+	}
+}
+
 func TestSubmitHoleScores_ScoresEachMatchOnItsOwnTeeTime(t *testing.T) {
 	// A morning group's window is shut long before the afternoon group's opens, so the
 	// tournament-wide window this replaced no longer lets one be scored from the other.

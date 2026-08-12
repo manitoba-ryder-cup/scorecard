@@ -170,10 +170,16 @@ Scores are accepted only from `scoringOpensBefore` (2h) before a match's tee tim
 tee time, which is an instant and so needs no timezone. Outside the window a write is
 `ErrConflict` (409), and the error names the window's bounds.
 
-`Match.TeeTime` is required for exactly this reason. The web client mirrors these constants in
-`src/lib/scoringWindow.ts` to gate its UI; this side is the one that decides, so if they drift
-the client's copy must be the *wider* one — permissive costs a clean 409, strict silently
-offers no way to record a legitimate score.
+`Match.TeeTime` is required for exactly this reason. `MatchResult` also carries the window
+itself as `scoring_opens_at`/`scoring_closes_at`, derived by `golf.ScoringWindow` — the one
+place either bound is computed, including for the 409 message. The web client gates its UI on
+those fields rather than keeping its own copy of the constants, which is what it used to do:
+the rule then lived in two repos with nothing keeping them equal, and a client stricter than
+this side would silently offer no way to record a legitimate score.
+
+Published as two instants rather than a boolean, because a yes/no is only true when it was
+computed and score entry is left open on a fairway for hours. Changing a constant here now
+changes the client's behaviour on its next read, with no release on that side.
 
 ## Important Patterns
 

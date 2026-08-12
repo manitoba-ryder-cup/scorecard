@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
@@ -92,6 +93,45 @@ func TestTournamentResultsForAnUnplayedMatch(t *testing.T) {
 	}
 	if len(r.HoleResults) != 0 {
 		t.Fatalf("want no hole results, got %d", len(r.HoleResults))
+	}
+}
+
+// The client gates score entry on these two fields instead of recomputing the rule, so
+// the API has to actually send them, parseable, and anchored to this match's tee time.
+func TestTournamentResultsPublishTheScoringWindow(t *testing.T) {
+	t.Parallel()
+	client, fix := authedClient(t)
+
+	results, err := client.GetTournamentResults(context.Background(), fix.TournamentID)
+	if err != nil {
+		t.Fatalf("get results: %v", err)
+	}
+	r := results[0]
+
+	teeTime, err := time.Parse(time.RFC3339, r.TeeTime)
+	if err != nil {
+		t.Fatalf("tee_time %q is not RFC3339: %v", r.TeeTime, err)
+	}
+	opens, err := time.Parse(time.RFC3339, r.ScoringOpensAt)
+	if err != nil {
+		t.Fatalf("scoring_opens_at %q is not RFC3339: %v", r.ScoringOpensAt, err)
+	}
+	closes, err := time.Parse(time.RFC3339, r.ScoringClosesAt)
+	if err != nil {
+		t.Fatalf("scoring_closes_at %q is not RFC3339: %v", r.ScoringClosesAt, err)
+	}
+
+	if !opens.Before(teeTime) || !closes.After(teeTime) {
+		t.Errorf("want the window to straddle the tee time, got %s .. %s around %s",
+			r.ScoringOpensAt, r.ScoringClosesAt, r.TeeTime)
+	}
+	// Per match, not per tournament — an afternoon group's window opens after a morning
+	// group's has shut, which is the whole reason it hangs off the tee time.
+	if got := teeTime.Sub(opens); got != 2*time.Hour {
+		t.Errorf("want the window to open 2h before the tee time, got %s", got)
+	}
+	if got := closes.Sub(teeTime); got != 12*time.Hour {
+		t.Errorf("want the window to close 12h after the tee time, got %s", got)
 	}
 }
 

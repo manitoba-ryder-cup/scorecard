@@ -140,16 +140,29 @@ const (
 	scoringClosesAfter = 12 * time.Hour
 )
 
-// scoringOpen reports whether a match's scores can be recorded at the given moment. The
-// client keeps its own copy of this rule to gate its UI; the copies only have to agree
-// roughly, because this is the one that decides. If they ever drift, the client should be
-// the wider of the two — being permissive costs a clean 409, being strict silently offers
-// no way to record a legitimate score.
+// ScoringWindow returns the interval a match's scores can be recorded in.
+//
+// Exported because the API publishes both bounds on every match. The client used to hold
+// its own copy of the constants above and gate its UI on them, which put one rule in two
+// repos with nothing keeping them equal — and the failure was silent and one-sided, since
+// a client stricter than the server offers no way to record a legitimate score.
+//
+// Bounds rather than a yes/no: a boolean is only true at the instant it was computed, and
+// this page is left open on a fairway for hours. Instants let the client keep answering
+// the question itself, against its own clock, exactly as it already does with tee time.
+func ScoringWindow(teeTime time.Time) (opens, closes time.Time) {
+	return teeTime.Add(-scoringOpensBefore), teeTime.Add(scoringClosesAfter)
+}
+
+// scoringOpen reports whether a match's scores can be recorded at the given moment. This
+// is the copy that decides; the client's gate is only there to avoid offering a control
+// that cannot work.
 //
 // Deliberately not tied to the tournament's dates: those are a calendar day wide, which
 // let Sunday's matches be scored on Saturday and only mean anything in some timezone.
 func scoringOpen(now, teeTime time.Time) bool {
-	return !now.Before(teeTime.Add(-scoringOpensBefore)) && !now.After(teeTime.Add(scoringClosesAfter))
+	opens, closes := ScoringWindow(teeTime)
+	return !now.Before(opens) && !now.After(closes)
 }
 
 // SubmitHoleScores persists every score for one hole and recomputes the match's
@@ -167,10 +180,10 @@ func (s *MatchService) SubmitHoleScores(ctx context.Context, matchID uuid.UUID, 
 	// Both are the same question — is this match being played around now — which its tee
 	// time answers on its own.
 	if !scoringOpen(s.now(), match.TeeTime) {
+		opens, closes := ScoringWindow(match.TeeTime)
 		return zero, fmt.Errorf("%w: match %s tees off at %s; scores can only be recorded from %s to %s",
 			ErrConflict, matchID, match.TeeTime.Format(time.RFC3339),
-			match.TeeTime.Add(-scoringOpensBefore).Format(time.RFC3339),
-			match.TeeTime.Add(scoringClosesAfter).Format(time.RFC3339))
+			opens.Format(time.RFC3339), closes.Format(time.RFC3339))
 	}
 
 	// Reject scores for a team that isn't actually playing this match. This needs the
