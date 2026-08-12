@@ -18,9 +18,9 @@ type RosterService struct {
 	ResultDB           resultDB
 }
 
-// tierOrDefault mirrors the schema default, applied here rather than in each caller —
+// TierOrDefault mirrors the schema default, applied here rather than in each caller —
 // the API and the seed CLI both enter players.
-func tierOrDefault(tier string) string {
+func TierOrDefault(tier string) string {
 	if tier == "" {
 		return sdk.DefaultTier
 	}
@@ -41,7 +41,7 @@ type EnterPlayerInput struct {
 // EnterPlayer enters a player in a tournament with their attributes. A duplicate
 // entry surfaces as ErrConflict; an unknown player/tournament as ErrInvalidInput.
 func (s *RosterService) EnterPlayer(ctx context.Context, in EnterPlayerInput) (*TournamentPlayer, error) {
-	in.Tier = tierOrDefault(in.Tier)
+	in.Tier = TierOrDefault(in.Tier)
 	entry, err := s.TournamentPlayerDB.CreateTournamentPlayer(ctx, in)
 	if err != nil {
 		return nil, fmt.Errorf("failed to enter tournament player: %w", err)

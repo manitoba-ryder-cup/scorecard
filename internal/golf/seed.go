@@ -47,11 +47,6 @@ type SeedSummary struct {
 	Matches        int
 }
 
-// TierOrDefault fills in the default tee-box colour for a player entered without one.
-// Exported for planning, which applies it before the write so the stored plan is exactly
-// what lands.
-func TierOrDefault(tier string) string { return tierOrDefault(tier) }
-
 // seedDB writes a whole tournament setup as one unit.
 type seedDB interface {
 	SeedTournament(ctx context.Context, plan SeedPlan) (*SeedSummary, error)
