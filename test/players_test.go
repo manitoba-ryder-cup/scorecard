@@ -62,6 +62,60 @@ func TestCreatePlayerAndReadBack(t *testing.T) {
 	}
 }
 
+// A photo is the player's, not a tournament's, so it is set and cleared here rather than
+// on a roster entry.
+func TestUpdatePlayerPhoto(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	ctx := context.Background()
+
+	created, err := client.CreatePlayer(ctx, sdk.CreatePlayerRequest{FirstName: "Nigel", LastName: "Milnes"})
+	if err != nil {
+		t.Fatalf("create player: %v", err)
+	}
+
+	photo := "/img/players/nigel.webp"
+	updated, err := client.UpdatePlayer(ctx, created.ID, sdk.UpdatePlayerRequest{PhotoPath: &photo})
+	if err != nil {
+		t.Fatalf("set photo: %v", err)
+	}
+	if updated.PhotoPath != photo {
+		t.Fatalf("want photo %q, got %q", photo, updated.PhotoPath)
+	}
+	// The name was not in the body and must not have been blanked by the write.
+	if updated.FirstName != "Nigel" || updated.LastName != "Milnes" {
+		t.Fatalf("an omitted field was overwritten: %+v", updated)
+	}
+
+	cleared := ""
+	after, err := client.UpdatePlayer(ctx, created.ID, sdk.UpdatePlayerRequest{PhotoPath: &cleared})
+	if err != nil {
+		t.Fatalf("clear photo: %v", err)
+	}
+	if after.PhotoPath != "" {
+		t.Errorf("want the photo cleared, got %q", after.PhotoPath)
+	}
+
+	got, err := client.GetPlayer(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("read back: %v", err)
+	}
+	if got.PhotoPath != "" {
+		t.Errorf("cleared photo did not persist: %q", got.PhotoPath)
+	}
+}
+
+func TestUpdateNonexistentPlayerReturns404(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	name := "Ghost"
+	_, err := client.UpdatePlayer(context.Background(), uuid.New(), sdk.UpdatePlayerRequest{FirstName: &name})
+	var apiErr *sdk.APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+		t.Fatalf("want 404, got %v", err)
+	}
+}
+
 func TestCreatePlayerRosterOnly(t *testing.T) {
 	t.Parallel()
 	client := freshClient(t)

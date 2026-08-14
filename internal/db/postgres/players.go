@@ -39,6 +39,25 @@ func (p *PlayersDB) CreatePlayer(ctx context.Context, in golf.CreatePlayerInput)
 	})
 }
 
+// UpdatePlayer writes the supplied attributes and leaves the rest alone.
+func (p *PlayersDB) UpdatePlayer(ctx context.Context, in golf.UpdatePlayerInput) (*golf.Player, error) {
+	return withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Player, error) {
+		player, err := q.UpdatePlayer(ctx, sqlc.UpdatePlayerParams{
+			ID:        in.ID,
+			TenantID:  tenantID,
+			FirstName: in.FirstName,
+			LastName:  in.LastName,
+			PhotoPath: in.PhotoPath,
+		})
+		if err != nil {
+			// No row means no such player for this tenant -> ErrNotFound (404).
+			return nil, fmt.Errorf("updating player %s: %w", in.ID, mapReadErr(err))
+		}
+		pl := toDomainPlayer(player)
+		return &pl, nil
+	})
+}
+
 // GetPlayer retrieves a player (with their all-time record and cups) by ID.
 func (p *PlayersDB) GetPlayer(ctx context.Context, id uuid.UUID) (*golf.Player, error) {
 	return withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Player, error) {

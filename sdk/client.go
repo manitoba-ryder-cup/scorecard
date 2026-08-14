@@ -56,6 +56,11 @@ func (c *Client) CreatePlayer(ctx context.Context, req CreatePlayerRequest) (*Pl
 	return &out, c.do(ctx, http.MethodPost, RouteV1Players, req, &out)
 }
 
+func (c *Client) UpdatePlayer(ctx context.Context, id uuid.UUID, req UpdatePlayerRequest) (*Player, error) {
+	var out Player
+	return &out, c.do(ctx, http.MethodPut, pathID(RouteV1Player, id), req, &out)
+}
+
 func (c *Client) GetPlayerTournaments(ctx context.Context, id uuid.UUID) ([]PlayerTournamentHistory, error) {
 	var out []PlayerTournamentHistory
 	return out, c.do(ctx, http.MethodGet, pathID(RouteV1PlayerTournaments, id), nil, &out)

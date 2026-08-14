@@ -238,6 +238,36 @@ func (r CreateTeeSetRequest) Validate(ctx context.Context) error {
 	return nil
 }
 
+func (r UpdatePlayerRequest) Validate(ctx context.Context) error {
+	if r.FirstName == nil && r.LastName == nil && r.PhotoPath == nil {
+		return fmt.Errorf("at least one field must be set")
+	}
+	// A name can be corrected but not removed; a photo can be cleared, which is how one
+	// is taken down.
+	if r.FirstName != nil {
+		if err := validateRequired(*r.FirstName, "first_name"); err != nil {
+			return err
+		}
+		if err := validateMaxLen(*r.FirstName, "first_name", maxNameLen); err != nil {
+			return err
+		}
+	}
+	if r.LastName != nil {
+		if err := validateRequired(*r.LastName, "last_name"); err != nil {
+			return err
+		}
+		if err := validateMaxLen(*r.LastName, "last_name", maxNameLen); err != nil {
+			return err
+		}
+	}
+	if r.PhotoPath != nil {
+		if err := validateMaxLen(*r.PhotoPath, "photo_path", maxNameLen); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Validate checks a player creation request. Email and user_id are optional; an
 // email, when given, must be well-formed.
 func (r CreatePlayerRequest) Validate(ctx context.Context) error {

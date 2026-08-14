@@ -145,3 +145,14 @@ UNION ALL
     ORDER BY mr.lead DESC, mr.holes_remaining DESC
     LIMIT 1
 );
+
+-- A null argument leaves the column alone, so clearing a photo never restates a name.
+-- Email is deliberately absent: the seed matches a returning player on it, and changing
+-- it would quietly create a second player next September rather than reusing this one.
+-- name: UpdatePlayer :one
+UPDATE players
+SET first_name = COALESCE(sqlc.narg('first_name'), first_name),
+    last_name  = COALESCE(sqlc.narg('last_name'), last_name),
+    photo_path = COALESCE(sqlc.narg('photo_path'), photo_path)
+WHERE id = sqlc.arg('id') AND tenant_id = sqlc.arg('tenant_id')
+RETURNING *;

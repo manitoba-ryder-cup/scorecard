@@ -8,6 +8,7 @@ import (
 )
 
 type fakePlayerDB struct {
+	updated   *UpdatePlayerInput
 	created   *CreatePlayerInput
 	history   []PlayerTournamentHistory
 	byFormat  []FormatRecord
@@ -32,6 +33,11 @@ func (f *fakePlayerDB) PlayerStatsRows(ctx context.Context, playerID uuid.UUID) 
 		History:      f.history,
 	}, nil
 }
+func (f *fakePlayerDB) UpdatePlayer(_ context.Context, in UpdatePlayerInput) (*Player, error) {
+	f.updated = &in
+	return &Player{ID: in.ID}, nil
+}
+
 func (f *fakePlayerDB) CreatePlayer(ctx context.Context, in CreatePlayerInput) (*Player, error) {
 	f.created = &in
 	return &Player{ID: playerA, FirstName: in.FirstName, LastName: in.LastName, Email: in.Email, UserID: in.UserID}, nil

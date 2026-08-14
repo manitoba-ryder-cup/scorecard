@@ -15,6 +15,7 @@ type PlayerService interface {
 	ListPlayerTournaments(ctx context.Context, playerID uuid.UUID) ([]golf.PlayerTournamentHistory, error)
 	PlayerStats(ctx context.Context, playerID uuid.UUID) (*golf.PlayerStats, error)
 	CreatePlayer(ctx context.Context, in golf.CreatePlayerInput) (*golf.Player, error)
+	UpdatePlayer(ctx context.Context, in golf.UpdatePlayerInput) (*golf.Player, error)
 }
 
 type PlayersHandler struct {
@@ -54,6 +55,30 @@ func (h *PlayersHandler) CreatePlayer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondJSON(w, http.StatusCreated, toPlayerDTO(*player))
+}
+
+// PUT /v1/players/{id}
+// Updates a player's own attributes. Omitted fields keep their stored value.
+func (h *PlayersHandler) UpdatePlayer(w http.ResponseWriter, r *http.Request) {
+	playerID, ok := pathUUIDOr400(w, r, "id", "player")
+	if !ok {
+		return
+	}
+	req, ok := decodeAndValidate[sdk.UpdatePlayerRequest](w, r)
+	if !ok {
+		return
+	}
+	player, err := h.playerService.UpdatePlayer(r.Context(), golf.UpdatePlayerInput{
+		ID:        playerID,
+		FirstName: req.FirstName,
+		LastName:  req.LastName,
+		PhotoPath: req.PhotoPath,
+	})
+	if err != nil {
+		respondDomainError(r.Context(), w, "Failed to update player", err)
+		return
+	}
+	respondJSON(w, http.StatusOK, toPlayerDTO(*player))
 }
 
 // GET /v1/players/{id}
