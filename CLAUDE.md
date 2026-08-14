@@ -308,7 +308,10 @@ neither can be dropped without a client change.
 ## Development Guidelines
 
 - Keep comments minimal and focused on *why*. The code should speak for itself; do not
-  narrate what a function does.
+  narrate what a function does. One line where at all possible.
+- No `Co-Authored-By` trailer and no generated-with footer, in commits or PR descriptions.
+  The repo squash-merges with the PR body as the message, so anything in it lands in the
+  log — write PR descriptions as prose for that reason.
 - Not yet released — no backwards compatibility required, and existing migrations can be
   edited in place rather than adding new ones.
 - The web client (sibling `web/` repository) consumes the SDK's wire types. Changing a
