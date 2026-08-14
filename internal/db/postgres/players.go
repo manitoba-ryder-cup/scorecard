@@ -2,9 +2,9 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
-	"errors"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres/internal/sqlc"
