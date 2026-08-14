@@ -18,8 +18,10 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          # Minor only: patch releases are picked up automatically.
-          go-version: '1.26'
+          # Version from go.mod so the two cannot drift; check-latest because setup-go
+          # otherwise settles for whatever patch the runner image happens to ship.
+          go-version-file: go.mod
+          check-latest: true
           cache: true
 
       - name: Check formatting
@@ -51,8 +53,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          # Minor only: patch releases are picked up automatically.
-          go-version: '1.26'
+          go-version-file: go.mod
+          check-latest: true
           cache: true
 
       - name: Build binary
@@ -71,8 +73,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          # Minor only: patch releases are picked up automatically.
-          go-version: '1.26'
+          go-version-file: go.mod
+          check-latest: true
           cache: true
 
       - name: Run unit tests
@@ -106,8 +108,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          # Minor only: patch releases are picked up automatically.
-          go-version: '1.26'
+          go-version-file: go.mod
+          check-latest: true
           cache: true
 
       - name: Run govulncheck
@@ -125,8 +127,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          # Minor only: patch releases are picked up automatically.
-          go-version: '1.26'
+          go-version-file: go.mod
+          check-latest: true
           cache: true
 
       # sqlc runs via Docker (see the sqlc target); no local install needed.
@@ -188,8 +190,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          # Minor only: patch releases are picked up automatically.
-          go-version: '1.26'
+          go-version-file: go.mod
+          check-latest: true
           cache: true
 
       - name: Build binary
