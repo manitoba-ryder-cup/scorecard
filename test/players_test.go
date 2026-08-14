@@ -105,6 +105,63 @@ func TestUpdatePlayerPhoto(t *testing.T) {
 	}
 }
 
+// An address is contact detail, and people change them. Next year's setup file has to
+// change with it, since that is what matches a returning player.
+func TestUpdatePlayerEmail(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	ctx := context.Background()
+
+	old := "old-address@example.com"
+	created, err := client.CreatePlayer(ctx, sdk.CreatePlayerRequest{
+		FirstName: "Dan", LastName: "McInnes", Email: &old,
+	})
+	if err != nil {
+		t.Fatalf("create player: %v", err)
+	}
+
+	updated := "new-address@example.com"
+	if _, err := client.UpdatePlayer(ctx, created.ID, sdk.UpdatePlayerRequest{Email: &updated}); err != nil {
+		t.Fatalf("update email: %v", err)
+	}
+
+	// Email is write-only on reads, so a second player claiming the old address is what
+	// shows the change landed.
+	if _, err := client.CreatePlayer(ctx, sdk.CreatePlayerRequest{
+		FirstName: "Someone", LastName: "Else", Email: &old,
+	}); err != nil {
+		t.Fatalf("the old address should have been freed: %v", err)
+	}
+}
+
+// Two players cannot share an address, so taking one is a conflict rather than a fault.
+func TestUpdatePlayerToATakenEmailConflicts(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	ctx := context.Background()
+
+	taken := "taken@example.com"
+	if _, err := client.CreatePlayer(ctx, sdk.CreatePlayerRequest{
+		FirstName: "First", LastName: "Player", Email: &taken,
+	}); err != nil {
+		t.Fatalf("create first: %v", err)
+	}
+	second, err := client.CreatePlayer(ctx, sdk.CreatePlayerRequest{
+		FirstName: "Second", LastName: "Player", Email: strptrLocal("other@example.com"),
+	})
+	if err != nil {
+		t.Fatalf("create second: %v", err)
+	}
+
+	_, err = client.UpdatePlayer(ctx, second.ID, sdk.UpdatePlayerRequest{Email: &taken})
+	var apiErr *sdk.APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
+		t.Fatalf("want 409, got %v", err)
+	}
+}
+
+func strptrLocal(s string) *string { return &s }
+
 func TestUpdateNonexistentPlayerReturns404(t *testing.T) {
 	t.Parallel()
 	client := freshClient(t)

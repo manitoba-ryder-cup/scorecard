@@ -37,13 +37,12 @@ type PlayerService struct {
 	ResultDB resultDB
 }
 
-// UpdatePlayerInput changes a player's own attributes. A nil field keeps its stored
-// value. Email is not here: the seed matches a returning player on it, so changing it
-// would create a second player next September rather than reusing this one.
+// UpdatePlayerInput changes a player's own attributes. A nil field keeps its stored value.
 type UpdatePlayerInput struct {
 	ID        uuid.UUID
 	FirstName *string
 	LastName  *string
+	Email     *string
 	PhotoPath *string
 }
 

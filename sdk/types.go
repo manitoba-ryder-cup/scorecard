@@ -133,11 +133,13 @@ type CreatePlayerRequest struct {
 // UpdatePlayerRequest is the body for PUT /v1/players/{id}. An omitted field keeps its
 // stored value, and a body setting none is rejected rather than treated as a no-op.
 //
-// Email is not updatable: the seed matches a returning player on it, so changing it would
-// create a second player next September rather than reusing this one.
+// Changing an email means changing it in next year's setup file too, which matches a
+// returning player on it. Blanking one is refused for the same reason: it would orphan
+// them from every future seed.
 type UpdatePlayerRequest struct {
 	FirstName *string `json:"first_name,omitempty"`
 	LastName  *string `json:"last_name,omitempty"`
+	Email     *string `json:"email,omitempty"`
 	PhotoPath *string `json:"photo_path,omitempty"`
 }
 

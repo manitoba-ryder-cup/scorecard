@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"errors"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres/internal/sqlc"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 )
@@ -47,11 +49,15 @@ func (p *PlayersDB) UpdatePlayer(ctx context.Context, in golf.UpdatePlayerInput)
 			TenantID:  tenantID,
 			FirstName: in.FirstName,
 			LastName:  in.LastName,
+			Email:     in.Email,
 			PhotoPath: in.PhotoPath,
 		})
 		if err != nil {
-			// No row means no such player for this tenant -> ErrNotFound (404).
-			return nil, fmt.Errorf("updating player %s: %w", in.ID, mapReadErr(err))
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, fmt.Errorf("updating player %s: %w", in.ID, golf.ErrNotFound)
+			}
+			// A duplicate address is the caller's doing: two players cannot share one.
+			return nil, fmt.Errorf("updating player %s: %w", in.ID, mapWriteErr(err))
 		}
 		pl := toDomainPlayer(player)
 		return &pl, nil

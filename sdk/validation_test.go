@@ -273,7 +273,11 @@ func TestUpdatePlayerRequest_Validate(t *testing.T) {
 		{"name only", UpdatePlayerRequest{FirstName: strptr("Jon")}, false},
 		// Clearing a photo is how one is taken down.
 		{"photo cleared", UpdatePlayerRequest{PhotoPath: strptr("")}, false},
+		{"email only", UpdatePlayerRequest{Email: strptr("new@example.com")}, false},
 		{"nothing set", UpdatePlayerRequest{}, true},
+		// Blanking one would orphan the player from every future seed.
+		{"email blanked", UpdatePlayerRequest{Email: strptr("")}, true},
+		{"email malformed", UpdatePlayerRequest{Email: strptr("not-an-address")}, true},
 		// A name can be corrected but not removed.
 		{"first name blanked", UpdatePlayerRequest{FirstName: strptr("")}, true},
 		{"last name blanked", UpdatePlayerRequest{LastName: strptr("   ")}, true},

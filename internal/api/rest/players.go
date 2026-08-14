@@ -72,6 +72,7 @@ func (h *PlayersHandler) UpdatePlayer(w http.ResponseWriter, r *http.Request) {
 		ID:        playerID,
 		FirstName: req.FirstName,
 		LastName:  req.LastName,
+		Email:     req.Email,
 		PhotoPath: req.PhotoPath,
 	})
 	if err != nil {

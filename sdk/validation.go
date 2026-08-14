@@ -239,7 +239,7 @@ func (r CreateTeeSetRequest) Validate(ctx context.Context) error {
 }
 
 func (r UpdatePlayerRequest) Validate(ctx context.Context) error {
-	if r.FirstName == nil && r.LastName == nil && r.PhotoPath == nil {
+	if r.FirstName == nil && r.LastName == nil && r.Email == nil && r.PhotoPath == nil {
 		return fmt.Errorf("at least one field must be set")
 	}
 	// A name can be corrected but not removed; a photo can be cleared, which is how one
@@ -257,6 +257,14 @@ func (r UpdatePlayerRequest) Validate(ctx context.Context) error {
 			return err
 		}
 		if err := validateMaxLen(*r.LastName, "last_name", maxNameLen); err != nil {
+			return err
+		}
+	}
+	if r.Email != nil {
+		if err := validateRequired(*r.Email, "email"); err != nil {
+			return err
+		}
+		if err := validateEmail(*r.Email); err != nil {
 			return err
 		}
 	}
