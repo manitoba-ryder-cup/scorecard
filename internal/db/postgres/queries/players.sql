@@ -145,3 +145,13 @@ UNION ALL
     ORDER BY mr.lead DESC, mr.holes_remaining DESC
     LIMIT 1
 );
+
+-- A null argument leaves the column alone, so clearing a photo never restates a name.
+-- name: UpdatePlayer :one
+UPDATE players
+SET first_name = COALESCE(sqlc.narg('first_name'), first_name),
+    last_name  = COALESCE(sqlc.narg('last_name'), last_name),
+    email      = COALESCE(sqlc.narg('email'), email),
+    photo_path = COALESCE(sqlc.narg('photo_path'), photo_path)
+WHERE id = sqlc.arg('id') AND tenant_id = sqlc.arg('tenant_id')
+RETURNING *;

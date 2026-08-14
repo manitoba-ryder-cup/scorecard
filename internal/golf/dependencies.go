@@ -11,6 +11,7 @@ type playerDB interface {
 	GetPlayer(ctx context.Context, id uuid.UUID) (*Player, error)
 	ListPlayers(ctx context.Context) ([]Player, error)
 	CreatePlayer(ctx context.Context, in CreatePlayerInput) (*Player, error)
+	UpdatePlayer(ctx context.Context, in UpdatePlayerInput) (*Player, error)
 	// Result is left unset — the service derives it from the standings.
 	ListPlayerTournaments(ctx context.Context, playerID uuid.UUID) ([]PlayerTournamentHistory, error)
 	// One call rather than one per aggregate, so they share a transaction — see

@@ -37,6 +37,24 @@ type PlayerService struct {
 	ResultDB resultDB
 }
 
+// UpdatePlayerInput changes a player's own attributes. A nil field keeps its stored value.
+type UpdatePlayerInput struct {
+	ID        uuid.UUID
+	FirstName *string
+	LastName  *string
+	Email     *string
+	PhotoPath *string
+}
+
+// UpdatePlayer changes a player's attributes. ErrNotFound if there is no such player.
+func (s *PlayerService) UpdatePlayer(ctx context.Context, in UpdatePlayerInput) (*Player, error) {
+	player, err := s.PlayerDB.UpdatePlayer(ctx, in)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update player: %w", err)
+	}
+	return player, nil
+}
+
 // GetPlayer retrieves a player by ID
 func (s *PlayerService) GetPlayer(ctx context.Context, playerID uuid.UUID) (*Player, error) {
 	player, err := s.PlayerDB.GetPlayer(ctx, playerID)

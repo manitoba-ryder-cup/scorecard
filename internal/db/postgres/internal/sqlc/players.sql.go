@@ -442,3 +442,47 @@ func (q *Queries) PlayerRecords(ctx context.Context, arg PlayerRecordsParams) ([
 	}
 	return items, nil
 }
+
+const updatePlayer = `-- name: UpdatePlayer :one
+UPDATE players
+SET first_name = COALESCE($1, first_name),
+    last_name  = COALESCE($2, last_name),
+    email      = COALESCE($3, email),
+    photo_path = COALESCE($4, photo_path)
+WHERE id = $5 AND tenant_id = $6
+RETURNING id, tenant_id, user_id, email, first_name, last_name, photo_path, created_at, updated_at
+`
+
+type UpdatePlayerParams struct {
+	FirstName *string   `json:"first_name"`
+	LastName  *string   `json:"last_name"`
+	Email     *string   `json:"email"`
+	PhotoPath *string   `json:"photo_path"`
+	ID        uuid.UUID `json:"id"`
+	TenantID  uuid.UUID `json:"tenant_id"`
+}
+
+// A null argument leaves the column alone, so clearing a photo never restates a name.
+func (q *Queries) UpdatePlayer(ctx context.Context, arg UpdatePlayerParams) (Player, error) {
+	row := q.db.QueryRow(ctx, updatePlayer,
+		arg.FirstName,
+		arg.LastName,
+		arg.Email,
+		arg.PhotoPath,
+		arg.ID,
+		arg.TenantID,
+	)
+	var i Player
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.UserID,
+		&i.Email,
+		&i.FirstName,
+		&i.LastName,
+		&i.PhotoPath,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}

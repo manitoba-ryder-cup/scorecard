@@ -2,9 +2,11 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/manitoba-ryder-cup/scorecard/internal/db/postgres/internal/sqlc"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 )
@@ -33,6 +35,29 @@ func (p *PlayersDB) CreatePlayer(ctx context.Context, in golf.CreatePlayerInput)
 		})
 		if err != nil {
 			return nil, fmt.Errorf("creating player: %w", mapWriteErr(err))
+		}
+		pl := toDomainPlayer(player)
+		return &pl, nil
+	})
+}
+
+// UpdatePlayer writes the supplied attributes and leaves the rest alone.
+func (p *PlayersDB) UpdatePlayer(ctx context.Context, in golf.UpdatePlayerInput) (*golf.Player, error) {
+	return withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Player, error) {
+		player, err := q.UpdatePlayer(ctx, sqlc.UpdatePlayerParams{
+			ID:        in.ID,
+			TenantID:  tenantID,
+			FirstName: in.FirstName,
+			LastName:  in.LastName,
+			Email:     in.Email,
+			PhotoPath: in.PhotoPath,
+		})
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, fmt.Errorf("updating player %s: %w", in.ID, golf.ErrNotFound)
+			}
+			// A duplicate address is the caller's doing: two players cannot share one.
+			return nil, fmt.Errorf("updating player %s: %w", in.ID, mapWriteErr(err))
 		}
 		pl := toDomainPlayer(player)
 		return &pl, nil

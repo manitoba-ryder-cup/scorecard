@@ -80,6 +80,7 @@ func NewServer(config *Config) *Server {
 	// Player routes
 	public("GET", sdk.RouteV1Players, playersHandler.ListPlayers)
 	scoped("POST", sdk.RouteV1Players, sdk.ScopePlayersWrite, playersHandler.CreatePlayer)
+	scoped("PUT", sdk.RouteV1Player, sdk.ScopePlayersWrite, playersHandler.UpdatePlayer)
 	public("GET", sdk.RouteV1Player, playersHandler.GetPlayer)
 	public("GET", sdk.RouteV1PlayerTournaments, playersHandler.ListPlayerTournaments)
 	public("GET", sdk.RouteV1PlayerStats, playersHandler.GetPlayerStats)

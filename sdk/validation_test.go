@@ -262,3 +262,35 @@ func TestUpdateTournamentPlayerRequest_Validate(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdatePlayerRequest_Validate(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		req     UpdatePlayerRequest
+		wantErr bool
+	}{
+		{"photo only", UpdatePlayerRequest{PhotoPath: strptr("/img/x.webp")}, false},
+		{"name only", UpdatePlayerRequest{FirstName: strptr("Jon")}, false},
+		// Clearing a photo is how one is taken down.
+		{"photo cleared", UpdatePlayerRequest{PhotoPath: strptr("")}, false},
+		{"email only", UpdatePlayerRequest{Email: strptr("new@example.com")}, false},
+		{"nothing set", UpdatePlayerRequest{}, true},
+		// Blanking one would orphan the player from every future seed.
+		{"email blanked", UpdatePlayerRequest{Email: strptr("")}, true},
+		{"email malformed", UpdatePlayerRequest{Email: strptr("not-an-address")}, true},
+		// A name can be corrected but not removed.
+		{"first name blanked", UpdatePlayerRequest{FirstName: strptr("")}, true},
+		{"last name blanked", UpdatePlayerRequest{LastName: strptr("   ")}, true},
+		{"name too long", UpdatePlayerRequest{LastName: strptr(strings.Repeat("g", 200))}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.req.Validate(context.Background())
+			if tc.wantErr && err == nil {
+				t.Errorf("want an error, got nil")
+			}
+			if !tc.wantErr && err != nil {
+				t.Errorf("want no error, got %v", err)
+			}
+		})
+	}
+}

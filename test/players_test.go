@@ -62,6 +62,117 @@ func TestCreatePlayerAndReadBack(t *testing.T) {
 	}
 }
 
+// A photo is the player's, not a tournament's, so it is set and cleared here rather than
+// on a roster entry.
+func TestUpdatePlayerPhoto(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	ctx := context.Background()
+
+	created, err := client.CreatePlayer(ctx, sdk.CreatePlayerRequest{FirstName: "Nigel", LastName: "Milnes"})
+	if err != nil {
+		t.Fatalf("create player: %v", err)
+	}
+
+	photo := "/img/players/nigel.webp"
+	updated, err := client.UpdatePlayer(ctx, created.ID, sdk.UpdatePlayerRequest{PhotoPath: &photo})
+	if err != nil {
+		t.Fatalf("set photo: %v", err)
+	}
+	if updated.PhotoPath != photo {
+		t.Fatalf("want photo %q, got %q", photo, updated.PhotoPath)
+	}
+	// The name was not in the body and must not have been blanked by the write.
+	if updated.FirstName != "Nigel" || updated.LastName != "Milnes" {
+		t.Fatalf("an omitted field was overwritten: %+v", updated)
+	}
+
+	cleared := ""
+	after, err := client.UpdatePlayer(ctx, created.ID, sdk.UpdatePlayerRequest{PhotoPath: &cleared})
+	if err != nil {
+		t.Fatalf("clear photo: %v", err)
+	}
+	if after.PhotoPath != "" {
+		t.Errorf("want the photo cleared, got %q", after.PhotoPath)
+	}
+
+	got, err := client.GetPlayer(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("read back: %v", err)
+	}
+	if got.PhotoPath != "" {
+		t.Errorf("cleared photo did not persist: %q", got.PhotoPath)
+	}
+}
+
+// An address is contact detail, and people change them. Next year's setup file has to
+// change with it, since that is what matches a returning player.
+func TestUpdatePlayerEmail(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	ctx := context.Background()
+
+	old := "old-address@example.com"
+	created, err := client.CreatePlayer(ctx, sdk.CreatePlayerRequest{
+		FirstName: "Dan", LastName: "McInnes", Email: &old,
+	})
+	if err != nil {
+		t.Fatalf("create player: %v", err)
+	}
+
+	updated := "new-address@example.com"
+	if _, err := client.UpdatePlayer(ctx, created.ID, sdk.UpdatePlayerRequest{Email: &updated}); err != nil {
+		t.Fatalf("update email: %v", err)
+	}
+
+	// Email is write-only on reads, so a second player claiming the old address is what
+	// shows the change landed.
+	if _, err := client.CreatePlayer(ctx, sdk.CreatePlayerRequest{
+		FirstName: "Someone", LastName: "Else", Email: &old,
+	}); err != nil {
+		t.Fatalf("the old address should have been freed: %v", err)
+	}
+}
+
+// Two players cannot share an address, so taking one is a conflict rather than a fault.
+func TestUpdatePlayerToATakenEmailConflicts(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	ctx := context.Background()
+
+	taken := "taken@example.com"
+	if _, err := client.CreatePlayer(ctx, sdk.CreatePlayerRequest{
+		FirstName: "First", LastName: "Player", Email: &taken,
+	}); err != nil {
+		t.Fatalf("create first: %v", err)
+	}
+	second, err := client.CreatePlayer(ctx, sdk.CreatePlayerRequest{
+		FirstName: "Second", LastName: "Player", Email: strptrLocal("other@example.com"),
+	})
+	if err != nil {
+		t.Fatalf("create second: %v", err)
+	}
+
+	_, err = client.UpdatePlayer(ctx, second.ID, sdk.UpdatePlayerRequest{Email: &taken})
+	var apiErr *sdk.APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
+		t.Fatalf("want 409, got %v", err)
+	}
+}
+
+func strptrLocal(s string) *string { return &s }
+
+func TestUpdateNonexistentPlayerReturns404(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	name := "Ghost"
+	_, err := client.UpdatePlayer(context.Background(), uuid.New(), sdk.UpdatePlayerRequest{FirstName: &name})
+	var apiErr *sdk.APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+		t.Fatalf("want 404, got %v", err)
+	}
+}
+
 func TestCreatePlayerRosterOnly(t *testing.T) {
 	t.Parallel()
 	client := freshClient(t)
