@@ -18,8 +18,12 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          # Minor only: patch releases are picked up automatically.
+          # Minor only, so a patch release is picked up without editing this. check-latest
+          # because setup-go otherwise stops at whatever patch the runner image already
+          # ships, which trails a Go security release by days — that is how a stdlib CVE
+          # fixed in 1.26.6 kept the scan red on a runner holding 1.26.5.
           go-version: '1.26'
+          check-latest: true
           cache: true
 
       - name: Check formatting
@@ -51,8 +55,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          # Minor only: patch releases are picked up automatically.
           go-version: '1.26'
+          check-latest: true
           cache: true
 
       - name: Build binary
@@ -71,8 +75,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          # Minor only: patch releases are picked up automatically.
           go-version: '1.26'
+          check-latest: true
           cache: true
 
       - name: Run unit tests
@@ -106,8 +110,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          # Minor only: patch releases are picked up automatically.
           go-version: '1.26'
+          check-latest: true
           cache: true
 
       - name: Run govulncheck
@@ -125,8 +129,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          # Minor only: patch releases are picked up automatically.
           go-version: '1.26'
+          check-latest: true
           cache: true
 
       # sqlc runs via Docker (see the sqlc target); no local install needed.
@@ -188,8 +192,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          # Minor only: patch releases are picked up automatically.
           go-version: '1.26'
+          check-latest: true
           cache: true
 
       - name: Build binary
