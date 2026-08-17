@@ -36,7 +36,7 @@ func TestTournamentResultsReflectAClosedMatch(t *testing.T) {
 		t.Fatalf("want 1 result, got %d", len(results))
 	}
 	r := results[0]
-	if r.MatchID != fix.MatchID || r.FormatName != "Singles" || r.CourseName != "Test GC" {
+	if r.MatchID != fix.MatchID || r.FormatName != "Singles" || r.CourseName != fix.CourseName {
 		t.Fatalf("unexpected result identity: %+v", r)
 	}
 	if !r.Finished || r.WinnerTeamID == nil || *r.WinnerTeamID != fix.TeamRed {
@@ -210,7 +210,7 @@ func TestPlayerTournamentHistory(t *testing.T) {
 		t.Fatalf("want 1 entry, got %d", len(history))
 	}
 	h := history[0]
-	if h.TournamentID != fix.TournamentID || h.Name != "Test Cup" || h.Location != "Winnipeg" {
+	if h.TournamentID != fix.TournamentID || h.Name != fix.TournamentName || h.Location != "Winnipeg" {
 		t.Fatalf("unexpected tournament: %+v", h)
 	}
 	if h.Result != sdk.ResultWon {

@@ -11,15 +11,17 @@ import (
 // Fixture holds the IDs of a seeded singles match: two teams (Red/Blue), one player
 // per side, on an 18-hole course. Enough to exercise the score-entry loop end to end.
 type Fixture struct {
-	TenantID     uuid.UUID
-	TournamentID uuid.UUID
-	CourseID     uuid.UUID
-	TeeColorID   uuid.UUID
-	MatchID      uuid.UUID
-	TeamRed      uuid.UUID
-	TeamBlue     uuid.UUID
-	RedPlayer    uuid.UUID
-	BluePlayer   uuid.UUID
+	TenantID       uuid.UUID
+	TournamentID   uuid.UUID
+	TournamentName string
+	CourseID       uuid.UUID
+	CourseName     string
+	TeeColorID     uuid.UUID
+	MatchID        uuid.UUID
+	TeamRed        uuid.UUID
+	TeamBlue       uuid.UUID
+	RedPlayer      uuid.UUID
+	BluePlayer     uuid.UUID
 }
 
 // Connect opens a single pgx connection for seeding. The caller closes it.
@@ -44,16 +46,27 @@ func SeedPlayer(ctx context.Context, conn *pgx.Conn, tenantID uuid.UUID, first, 
 // explicitly on every row. Each call uses a new tenant, so fixtures never collide and
 // no inter-test cleanup is needed. The course is a flat par-4 18 (stroke indexes 1-18).
 func SeedSinglesMatch(ctx context.Context, conn *pgx.Conn) (*Fixture, error) {
-	f := &Fixture{TenantID: uuid.New()}
+	return SeedSinglesMatchFor(ctx, conn, uuid.New())
+}
+
+// SeedSinglesMatchFor seeds the same fixture under a tenant the caller picks. Tests that
+// must be read anonymously need PublicTenantID: an anonymous request resolves to the
+// public tenant, so a fixture in a private one is invisible to it.
+func SeedSinglesMatchFor(ctx context.Context, conn *pgx.Conn, tenantID uuid.UUID) (*Fixture, error) {
+	f := &Fixture{TenantID: tenantID}
 	t := f.TenantID
 
+	// Unique per fixture, not the plain 'White' this used to insert: a tenant may hold only
+	// one tee colour of a given name, and fixtures sharing the public tenant collide on it.
 	if err := conn.QueryRow(ctx,
-		`INSERT INTO tee_colors (tenant_id, color) VALUES ($1, 'White') RETURNING id`, t,
+		`INSERT INTO tee_colors (tenant_id, color) VALUES ($1, $2) RETURNING id`,
+		t, "White "+uuid.NewString()[:8],
 	).Scan(&f.TeeColorID); err != nil {
 		return nil, fmt.Errorf("seed tee_colors: %w", err)
 	}
+	f.CourseName = "Test GC " + uuid.NewString()[:8]
 	if err := conn.QueryRow(ctx,
-		`INSERT INTO courses (tenant_id, name) VALUES ($1, 'Test GC') RETURNING id`, t,
+		`INSERT INTO courses (tenant_id, name) VALUES ($1, $2) RETURNING id`, t, f.CourseName,
 	).Scan(&f.CourseID); err != nil {
 		return nil, fmt.Errorf("seed courses: %w", err)
 	}
@@ -85,9 +98,10 @@ func SeedSinglesMatch(ctx context.Context, conn *pgx.Conn) (*Fixture, error) {
 		return nil, fmt.Errorf("seed blue player: %w", err)
 	}
 
+	f.TournamentName = "Test Cup " + uuid.NewString()[:8]
 	if err := conn.QueryRow(ctx,
 		`INSERT INTO tournaments (tenant_id, name, start_date, end_date, location)
-		 VALUES ($1, 'Test Cup', current_date - 1, current_date + 1, 'Winnipeg') RETURNING id`, t,
+		 VALUES ($1, $2, current_date - 1, current_date + 1, 'Winnipeg') RETURNING id`, t, f.TournamentName,
 	).Scan(&f.TournamentID); err != nil {
 		return nil, fmt.Errorf("seed tournament: %w", err)
 	}
