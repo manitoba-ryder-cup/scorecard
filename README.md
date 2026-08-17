@@ -161,7 +161,7 @@ to the configured public tenant (401 if none is configured). Writes require the 
 
 | Method | Path | Scope |
 |---|---|---|
-| GET | `/healthz` | — (also exempt from the proxy-secret check) |
+| GET | `/health` | — (also exempt from the proxy-secret check) |
 
 ### Players
 

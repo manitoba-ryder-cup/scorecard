@@ -295,7 +295,7 @@ an ordinary SIGTERM exits zero.
 
 ## URL Structure
 
-The service serves `/v1/...` and `/healthz`. The public site reaches it through the edge at
+The service serves `/v1/...` and `/health`. The public site reaches it through the edge at
 `/api/scorecard/*`, which strips that prefix. Route constants live in `sdk/routes.go` and
 `internal/api/rest/server.go` registers every route from them — there are no path literals in
 the routing table, so a route change is a compile-time concern. Keep it that way.

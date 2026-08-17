@@ -2,7 +2,8 @@ package sdk
 
 // API route constants shared between the server and SDK clients.
 const (
-	RouteHealth = "/healthz"
+	// Not /healthz: Cloud Run answers that path itself and never forwards it to us.
+	RouteHealth = "/health"
 
 	// Players
 	RouteV1Players           = "/v1/players"

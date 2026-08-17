@@ -15,7 +15,7 @@ import (
 )
 
 // HealthChecker reports whether a dependency (the database) is reachable. Satisfied by
-// knowhere's generic *postgres.DB, so /healthz can verify readiness without this
+// knowhere's generic *postgres.DB, so /health can verify readiness without this
 // package importing the persistence layer.
 type HealthChecker interface {
 	Health(ctx context.Context) error
