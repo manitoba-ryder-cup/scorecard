@@ -39,3 +39,28 @@ func Raw(t *testing.T, method, path, body, accessToken string) (int, string) {
 	}
 	return resp.StatusCode, string(respBody)
 }
+
+// Headers sends a GET and returns the status with the response headers. Cache-Control is
+// a claim about the response that a decoded body cannot make, so assertions about it need
+// the header itself.
+func Headers(t *testing.T, path, accessToken string) (int, http.Header) {
+	t.Helper()
+
+	cfg := util.LoadConfig()
+	req, err := http.NewRequest(http.MethodGet, cfg.BaseURL+path, nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	if accessToken != "" {
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	_, _ = io.Copy(io.Discard, resp.Body)
+
+	return resp.StatusCode, resp.Header
+}
