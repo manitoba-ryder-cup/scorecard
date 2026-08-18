@@ -50,13 +50,17 @@ func respondJSON(writer http.ResponseWriter, status int, data any) {
 // (5xx) log at Error; client errors (4xx) log at Warn, so a bad request or a missing
 // resource doesn't pollute the error stream. Logging uses the *Context variants so the
 // request's tenant/actor/request-id (injected by identity.LogHandler) ride along.
+// serverFault is all a caller is told when the fault is ours. Handlers describe the
+// operation that failed — "Failed to list players" — which is worth having in the log and
+// misleading on the wire: it reads as a verdict on the request rather than a fault here.
+const serverFault = "Sorry, something went wrong. Please try again later."
+
 func respondError(ctx context.Context, writer http.ResponseWriter, status int, message string, err error) {
-	if err != nil {
-		if status >= http.StatusInternalServerError {
-			slog.ErrorContext(ctx, "API error", "message", message, "error", err, "status", status)
-		} else {
-			slog.WarnContext(ctx, "API client error", "message", message, "error", err, "status", status)
-		}
+	if status >= http.StatusInternalServerError {
+		slog.ErrorContext(ctx, "API error", "message", message, "error", err, "status", status)
+		message = serverFault
+	} else if err != nil {
+		slog.WarnContext(ctx, "API client error", "message", message, "error", err, "status", status)
 	}
 	respondJSON(writer, status, sdk.ErrorResponse{Error: message})
 }
