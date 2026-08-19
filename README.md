@@ -236,8 +236,9 @@ type covers a finished match and one still in progress. `/status` is the name to
 ```bash
 make build          # Production binary
 make dev            # Development binary
-make test           # Unit tests with the race detector
-make coverage-html  # HTML coverage report
+make unit           # Unit tests with the race detector
+make test           # unit + the integration suite against a real stack
+make coverage       # HTML coverage report
 make fmt            # Format
 make lint           # Lint (golangci-lint via Docker)
 make sqlc           # Regenerate database code
@@ -267,7 +268,7 @@ Every push to `main`/`master` and every pull request runs eight jobs:
 | Format | `gofmt`/`goimports` cleanliness |
 | Lint | `make lint` (golangci-lint) |
 | Build | `make dev`, then `./bin/scorecard version` actually runs |
-| Test | `make test`, then the integration suite against a real stack |
+| Test | `make unit`, then the integration suite against a real stack |
 | Security Scan | `govulncheck` |
 | Code Generation Validation | reruns `make sqlc` and fails if the tree is dirty |
 | Docker Build | the production image builds |
