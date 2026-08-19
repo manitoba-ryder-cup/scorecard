@@ -69,12 +69,18 @@ clean:
 	@rm -f coverage.out coverage.html
 
 # Format code
+# Every target that formats or checks formatting works on this set: everything but the
+# generated sqlc package.
+GO_FILES = $(shell find . -type f -name '*.go' -not -path './internal/db/postgres/internal/sqlc/*')
+
+# gci runs after goimports because goimports treats a blank line as deliberate grouping
+# and preserves it, so a stray one inside the stdlib block survives formatting. gci
+# enforces the two sections instead of respecting what it finds.
 fmt:
 	@echo "Formatting code..."
 	@go fmt ./...
-	@go run golang.org/x/tools/cmd/goimports@v0.38.0 -w $(shell \
-		find . -type f -name '*.go' \
-			-not -path './internal/db/postgres/internal/sqlc/*' )
+	@go run golang.org/x/tools/cmd/goimports@v0.38.0 -w $(GO_FILES)
+	@go run github.com/daixiang0/gci@v0.13.7 write --skip-generated -s standard -s default $(GO_FILES) >/dev/null
 
 # Lint code
 lint:
