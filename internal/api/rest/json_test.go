@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
@@ -77,5 +78,38 @@ func TestRespondError_KeepsClientFacingMessages(t *testing.T) {
 		if got := bodyOf(t, rec); got != message {
 			t.Errorf("status %d: got %q, want the message unchanged", status, got)
 		}
+	}
+}
+
+type unknownFieldReq struct {
+	Name string `json:"name"`
+}
+
+func (unknownFieldReq) Validate(context.Context) error { return nil }
+
+// A field the server does not know means the client believes it set something. Accepting
+// the request and ignoring half of it is the worse answer.
+func TestDecodeAndValidateRejectsUnknownFields(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/players", strings.NewReader(`{"name":"a","nmae":"typo"}`))
+
+	if _, ok := decodeAndValidate[unknownFieldReq](rec, req); ok {
+		t.Fatal("want a body with an unknown field refused")
+	}
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("want 400, got %d", rec.Code)
+	}
+}
+
+func TestDecodeAndValidateAcceptsAKnownBody(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/players", strings.NewReader(`{"name":"a"}`))
+
+	got, ok := decodeAndValidate[unknownFieldReq](rec, req)
+	if !ok {
+		t.Fatalf("want an ordinary body accepted, got %d", rec.Code)
+	}
+	if got.Name != "a" {
+		t.Errorf("decoded %+v", got)
 	}
 }

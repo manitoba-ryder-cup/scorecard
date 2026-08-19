@@ -26,7 +26,11 @@ type validatable interface {
 func decodeAndValidate[T validatable](w http.ResponseWriter, r *http.Request) (T, bool) {
 	var req T
 	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBody)
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	decoder := json.NewDecoder(r.Body)
+	// A field the server does not know is a client that thinks it set something. Saying so
+	// beats accepting the request and quietly ignoring half of it.
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil {
 		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
 		return req, false
 	}
