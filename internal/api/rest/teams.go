@@ -7,7 +7,7 @@ import (
 )
 
 // PUT /v1/teams/{id}/captain
-func (r *Router) SetCaptain(w http.ResponseWriter, req *http.Request) {
+func (r *Router) setCaptain(w http.ResponseWriter, req *http.Request) {
 	teamID, ok := pathUUIDOr400(w, req, "id", "team")
 	if !ok {
 		return
@@ -26,7 +26,7 @@ func (r *Router) SetCaptain(w http.ResponseWriter, req *http.Request) {
 
 // DELETE /v1/teams/{id}/captain
 // Unsets the team's captain (used to reassign); 404 if the team doesn't exist.
-func (r *Router) ClearCaptain(w http.ResponseWriter, req *http.Request) {
+func (r *Router) clearCaptain(w http.ResponseWriter, req *http.Request) {
 	teamID, ok := pathUUIDOr400(w, req, "id", "team")
 	if !ok {
 		return

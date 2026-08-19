@@ -10,7 +10,7 @@ import (
 
 // An unreachable database yields 503 rather than 500 so a load balancer routes around
 // this instance instead of treating the request as at fault.
-func (r *Router) HandleHealth(w http.ResponseWriter, req *http.Request) {
+func (r *Router) handleHealth(w http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 2*time.Second)
 	defer cancel()
 

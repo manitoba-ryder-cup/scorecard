@@ -27,7 +27,7 @@ type Config struct {
 	PublicTenantID string
 }
 
-// drainer is satisfied by *rest.Server.
+// drainer is satisfied by *http.Server.
 type drainer interface {
 	ListenAndServe() error
 	Shutdown(ctx context.Context) error

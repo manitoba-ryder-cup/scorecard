@@ -8,7 +8,7 @@ import (
 )
 
 // GET /v1/tournaments
-func (r *Router) ListTournaments(w http.ResponseWriter, req *http.Request) {
+func (r *Router) listTournaments(w http.ResponseWriter, req *http.Request) {
 	tournaments, err := r.TournamentService.ListTournaments(req.Context())
 	if err != nil {
 		respondDomainError(req.Context(), w, "Failed to list tournaments", err)
@@ -18,7 +18,7 @@ func (r *Router) ListTournaments(w http.ResponseWriter, req *http.Request) {
 }
 
 // POST /v1/tournaments
-func (r *Router) CreateTournament(w http.ResponseWriter, req *http.Request) {
+func (r *Router) createTournament(w http.ResponseWriter, req *http.Request) {
 	body, ok := decodeAndValidate[sdk.CreateTournamentRequest](w, req)
 	if !ok {
 		return
@@ -49,7 +49,7 @@ func (r *Router) CreateTournament(w http.ResponseWriter, req *http.Request) {
 }
 
 // GET /v1/tournaments/{id}
-func (r *Router) GetTournament(w http.ResponseWriter, req *http.Request) {
+func (r *Router) getTournament(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "tournament")
 	if !ok {
 		return
@@ -64,7 +64,7 @@ func (r *Router) GetTournament(w http.ResponseWriter, req *http.Request) {
 }
 
 // GET /v1/tournaments/{id}/teams
-func (r *Router) GetTournamentTeams(w http.ResponseWriter, req *http.Request) {
+func (r *Router) getTournamentTeams(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "tournament")
 	if !ok {
 		return
@@ -84,7 +84,7 @@ func (r *Router) GetTournamentTeams(w http.ResponseWriter, req *http.Request) {
 }
 
 // GET /v1/tournaments/{id}/winner
-func (r *Router) GetTournamentWinner(w http.ResponseWriter, req *http.Request) {
+func (r *Router) getTournamentWinner(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "tournament")
 	if !ok {
 		return
@@ -98,7 +98,7 @@ func (r *Router) GetTournamentWinner(w http.ResponseWriter, req *http.Request) {
 }
 
 // GET /v1/tournaments/{id}/status
-func (r *Router) GetTournamentStatus(w http.ResponseWriter, req *http.Request) {
+func (r *Router) getTournamentStatus(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "tournament")
 	if !ok {
 		return

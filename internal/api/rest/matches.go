@@ -9,7 +9,7 @@ import (
 )
 
 // GET /v1/tournaments/{id}/matches
-func (r *Router) ListMatches(w http.ResponseWriter, req *http.Request) {
+func (r *Router) listMatches(w http.ResponseWriter, req *http.Request) {
 	tournamentID, ok := pathUUIDOr400(w, req, "id", "tournament")
 	if !ok {
 		return
@@ -23,7 +23,7 @@ func (r *Router) ListMatches(w http.ResponseWriter, req *http.Request) {
 }
 
 // POST /v1/tournaments/{id}/matches
-func (r *Router) CreateMatch(w http.ResponseWriter, req *http.Request) {
+func (r *Router) createMatch(w http.ResponseWriter, req *http.Request) {
 	tournamentID, ok := pathUUIDOr400(w, req, "id", "tournament")
 	if !ok {
 		return
@@ -50,7 +50,7 @@ func (r *Router) CreateMatch(w http.ResponseWriter, req *http.Request) {
 }
 
 // PUT /v1/matches/{id}
-func (r *Router) UpdateMatch(w http.ResponseWriter, req *http.Request) {
+func (r *Router) updateMatch(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "match")
 	if !ok {
 		return
@@ -92,7 +92,7 @@ func toMatchDTO(m golf.Match) sdk.Match {
 }
 
 // GET /v1/tournaments/{id}/results
-func (r *Router) ListResults(w http.ResponseWriter, req *http.Request) {
+func (r *Router) listResults(w http.ResponseWriter, req *http.Request) {
 	tournamentID, ok := pathUUIDOr400(w, req, "id", "tournament")
 	if !ok {
 		return
@@ -128,7 +128,7 @@ func allFinished(results []golf.MatchResult) bool {
 }
 
 // GET /v1/matches/{id}/holes
-func (r *Router) GetMatchHoles(w http.ResponseWriter, req *http.Request) {
+func (r *Router) getMatchHoles(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "match")
 	if !ok {
 		return
@@ -142,7 +142,7 @@ func (r *Router) GetMatchHoles(w http.ResponseWriter, req *http.Request) {
 }
 
 // GET /v1/matches/{id}/participants
-func (r *Router) ListParticipants(w http.ResponseWriter, req *http.Request) {
+func (r *Router) listParticipants(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "match")
 	if !ok {
 		return
@@ -156,7 +156,7 @@ func (r *Router) ListParticipants(w http.ResponseWriter, req *http.Request) {
 }
 
 // POST /v1/matches/{id}/participants
-func (r *Router) AddParticipant(w http.ResponseWriter, req *http.Request) {
+func (r *Router) addParticipant(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "match")
 	if !ok {
 		return
@@ -175,7 +175,7 @@ func (r *Router) AddParticipant(w http.ResponseWriter, req *http.Request) {
 
 // DELETE /v1/matches/{id}/participants/{playerId}
 // Removes a player from the match; 404 if they weren't in it.
-func (r *Router) RemoveParticipant(w http.ResponseWriter, req *http.Request) {
+func (r *Router) removeParticipant(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "match")
 	if !ok {
 		return
@@ -202,7 +202,7 @@ func toMatchParticipantDTO(p golf.MatchParticipant) sdk.MatchParticipant {
 
 // GET /v1/matches/{id}/scores
 // Returns the hole-by-hole match-play state.
-func (r *Router) GetMatchScores(w http.ResponseWriter, req *http.Request) {
+func (r *Router) getMatchScores(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "match")
 	if !ok {
 		return
@@ -218,7 +218,7 @@ func (r *Router) GetMatchScores(w http.ResponseWriter, req *http.Request) {
 // POST /v1/matches/{id}/scores
 // Records a hole's scores as a unit and recomputes the match's materialized result, which
 // it returns so the client sees the hole's effect on the match without a second read.
-func (r *Router) SubmitScore(w http.ResponseWriter, req *http.Request) {
+func (r *Router) submitScore(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "match")
 	if !ok {
 		return
@@ -245,7 +245,7 @@ func (r *Router) SubmitScore(w http.ResponseWriter, req *http.Request) {
 // GET /v1/matches/{id}/status
 // Both report the match's outcome, in the same shape a score write returns — the winner
 // and "is it over" are two questions about one state, so they get one answer.
-func (r *Router) GetMatchStatus(w http.ResponseWriter, req *http.Request) {
+func (r *Router) getMatchStatus(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "match")
 	if !ok {
 		return
