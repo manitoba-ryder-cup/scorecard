@@ -11,10 +11,9 @@ import (
 	"github.com/travisbale/knowhere/jwt"
 )
 
-// HealthChecker reports whether a dependency (the database) is reachable. Satisfied by
-// knowhere's generic *postgres.DB, so /health can verify readiness without this
-// package importing the persistence layer.
-type HealthChecker interface {
+// An interface so the health check can verify readiness without this package importing
+// the persistence layer. Satisfied by knowhere's generic *postgres.DB.
+type database interface {
 	Health(ctx context.Context) error
 }
 
@@ -22,9 +21,7 @@ type HealthChecker interface {
 // types: the API layer is a translation layer over the domain and has no reason to
 // abstract it.
 type Router struct {
-	// DB answers the health check. An interface so /health can verify readiness without
-	// this package importing the persistence layer.
-	DB               HealthChecker
+	DB               database
 	JWTValidator     *jwt.Validator
 	TrustedProxyMode bool // Trust X-Forwarded-For headers from reverse proxy
 	// ProxySecret, when set, requires a matching X-Proxy-Secret header on every request
@@ -68,7 +65,7 @@ func (r *Router) Handler() http.Handler {
 func (r *Router) registerRoutes(mux *http.ServeMux) {
 
 	// Health check (public, no auth, no tenant) — verifies DB readiness.
-	mux.HandleFunc("GET "+sdk.RouteHealth, HandleHealth(r.DB))
+	mux.HandleFunc("GET "+sdk.RouteHealth, r.HandleHealth)
 
 	// Match formats are global seeded reference data — truly public, no tenant needed.
 	mux.HandleFunc("GET "+sdk.RouteV1MatchFormats, cacheableRead(r.ListMatchFormats))
