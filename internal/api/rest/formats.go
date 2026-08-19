@@ -9,10 +9,10 @@ import (
 
 // GET /v1/match-formats
 // Lists the global, code-defined match formats. No tenant involved (global data).
-func (rt *Router) ListMatchFormats(w http.ResponseWriter, r *http.Request) {
-	formats, err := rt.FormatService.ListFormats(r.Context())
+func (r *Router) ListMatchFormats(w http.ResponseWriter, req *http.Request) {
+	formats, err := r.FormatService.ListFormats(req.Context())
 	if err != nil {
-		respondError(r.Context(), w, http.StatusInternalServerError, "Failed to list match formats", err)
+		respondError(req.Context(), w, http.StatusInternalServerError, "Failed to list match formats", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, mapSlice(formats, toMatchFormatDTO))

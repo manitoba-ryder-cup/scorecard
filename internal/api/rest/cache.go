@@ -33,12 +33,12 @@ const (
 // would outlive the condition that caused it, and browsers honour Cache-Control on error
 // responses just as readily as on successful ones.
 func cacheableRead(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, req *http.Request) {
 		next(&cacheWriter{
 			ResponseWriter: w,
-			anonymous:      r.Header.Get("Authorization") == "",
+			anonymous:      req.Header.Get("Authorization") == "",
 			maxAge:         defaultMaxAge,
-		}, r)
+		}, req)
 	}
 }
 

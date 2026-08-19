@@ -23,22 +23,22 @@ type validatable interface {
 // decodeAndValidate reads a size-limited JSON body into a T and validates its shape,
 // writing a 400 and returning ok=false on any failure. It collapses the identical
 // decode -> validate -> respond preamble every write handler shared.
-func decodeAndValidate[T validatable](w http.ResponseWriter, r *http.Request) (T, bool) {
-	var req T
-	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBody)
-	decoder := json.NewDecoder(r.Body)
+func decodeAndValidate[T validatable](w http.ResponseWriter, req *http.Request) (T, bool) {
+	var body T
+	req.Body = http.MaxBytesReader(w, req.Body, maxRequestBody)
+	decoder := json.NewDecoder(req.Body)
 	// A field the server does not know is a client that thinks it set something. Saying so
 	// beats accepting the request and quietly ignoring half of it.
 	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&req); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid request body", err)
-		return req, false
+	if err := decoder.Decode(&body); err != nil {
+		respondError(req.Context(), w, http.StatusBadRequest, "Invalid request body", err)
+		return body, false
 	}
-	if err := req.Validate(r.Context()); err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, err.Error(), nil)
-		return req, false
+	if err := body.Validate(req.Context()); err != nil {
+		respondError(req.Context(), w, http.StatusBadRequest, err.Error(), nil)
+		return body, false
 	}
-	return req, true
+	return body, true
 }
 
 // respondJSON sends a JSON response

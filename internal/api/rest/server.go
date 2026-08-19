@@ -62,7 +62,7 @@ type Server struct {
 func NewServer(config *Config) *Server {
 	jwtMiddleware := jwt.NewHTTPMiddleware(config.JWTValidator)
 
-	rt := &Router{
+	r := &Router{
 		PlayerService:     config.PlayerService,
 		MatchService:      config.MatchService,
 		TournamentService: config.TournamentService,
@@ -78,7 +78,7 @@ func NewServer(config *Config) *Server {
 	mux.HandleFunc("GET "+sdk.RouteHealth, HandleHealth(config.DB))
 
 	// Match formats are global seeded reference data — truly public, no tenant needed.
-	mux.HandleFunc("GET "+sdk.RouteV1MatchFormats, cacheableRead(rt.ListMatchFormats))
+	mux.HandleFunc("GET "+sdk.RouteV1MatchFormats, cacheableRead(r.ListMatchFormats))
 
 	// public registers a read route with optional authentication: a token's tenant is
 	// used when present, else the configured public tenant (401 if neither). Anonymous
@@ -92,57 +92,57 @@ func NewServer(config *Config) *Server {
 	}
 
 	// Player routes
-	public("GET", sdk.RouteV1Players, rt.ListPlayers)
-	scoped("POST", sdk.RouteV1Players, sdk.ScopePlayersWrite, rt.CreatePlayer)
-	scoped("PUT", sdk.RouteV1Player, sdk.ScopePlayersWrite, rt.UpdatePlayer)
-	public("GET", sdk.RouteV1Player, rt.GetPlayer)
-	public("GET", sdk.RouteV1PlayerTournaments, rt.ListPlayerTournaments)
-	public("GET", sdk.RouteV1PlayerStats, rt.GetPlayerStats)
+	public("GET", sdk.RouteV1Players, r.ListPlayers)
+	scoped("POST", sdk.RouteV1Players, sdk.ScopePlayersWrite, r.CreatePlayer)
+	scoped("PUT", sdk.RouteV1Player, sdk.ScopePlayersWrite, r.UpdatePlayer)
+	public("GET", sdk.RouteV1Player, r.GetPlayer)
+	public("GET", sdk.RouteV1PlayerTournaments, r.ListPlayerTournaments)
+	public("GET", sdk.RouteV1PlayerStats, r.GetPlayerStats)
 
 	// Course reference-data routes
-	public("GET", sdk.RouteV1TeeColors, rt.ListTeeColors)
-	scoped("POST", sdk.RouteV1TeeColors, sdk.ScopeCoursesWrite, rt.CreateTeeColor)
-	public("GET", sdk.RouteV1Courses, rt.ListCourses)
-	scoped("POST", sdk.RouteV1Courses, sdk.ScopeCoursesWrite, rt.CreateCourse)
-	public("GET", sdk.RouteV1Course, rt.GetCourse)
-	public("GET", sdk.RouteV1CourseTees, rt.ListCourseTeeSets)
-	scoped("POST", sdk.RouteV1CourseTees, sdk.ScopeCoursesWrite, rt.AddTeeSet)
+	public("GET", sdk.RouteV1TeeColors, r.ListTeeColors)
+	scoped("POST", sdk.RouteV1TeeColors, sdk.ScopeCoursesWrite, r.CreateTeeColor)
+	public("GET", sdk.RouteV1Courses, r.ListCourses)
+	scoped("POST", sdk.RouteV1Courses, sdk.ScopeCoursesWrite, r.CreateCourse)
+	public("GET", sdk.RouteV1Course, r.GetCourse)
+	public("GET", sdk.RouteV1CourseTees, r.ListCourseTeeSets)
+	scoped("POST", sdk.RouteV1CourseTees, sdk.ScopeCoursesWrite, r.AddTeeSet)
 
 	// Match routes
-	public("GET", sdk.RouteV1MatchParticipants, rt.ListParticipants)
-	scoped("POST", sdk.RouteV1MatchParticipants, sdk.ScopeTournamentsWrite, rt.AddParticipant)
-	scoped("DELETE", sdk.RouteV1MatchParticipant, sdk.ScopeTournamentsWrite, rt.RemoveParticipant)
-	public("GET", sdk.RouteV1MatchScores, rt.GetMatchScores)
-	public("GET", sdk.RouteV1MatchHoles, rt.GetMatchHoles)
-	scoped("POST", sdk.RouteV1MatchScores, sdk.ScopeScoresWrite, rt.SubmitScore)
-	public("GET", sdk.RouteV1MatchWinner, rt.GetMatchStatus)
-	public("GET", sdk.RouteV1MatchStatus, rt.GetMatchStatus)
+	public("GET", sdk.RouteV1MatchParticipants, r.ListParticipants)
+	scoped("POST", sdk.RouteV1MatchParticipants, sdk.ScopeTournamentsWrite, r.AddParticipant)
+	scoped("DELETE", sdk.RouteV1MatchParticipant, sdk.ScopeTournamentsWrite, r.RemoveParticipant)
+	public("GET", sdk.RouteV1MatchScores, r.GetMatchScores)
+	public("GET", sdk.RouteV1MatchHoles, r.GetMatchHoles)
+	scoped("POST", sdk.RouteV1MatchScores, sdk.ScopeScoresWrite, r.SubmitScore)
+	public("GET", sdk.RouteV1MatchWinner, r.GetMatchStatus)
+	public("GET", sdk.RouteV1MatchStatus, r.GetMatchStatus)
 
 	// Tournament routes
-	public("GET", sdk.RouteV1Tournaments, rt.ListTournaments)
-	scoped("POST", sdk.RouteV1Tournaments, sdk.ScopeTournamentsWrite, rt.CreateTournament)
-	public("GET", sdk.RouteV1Tournament, rt.GetTournament)
-	public("GET", sdk.RouteV1TournamentTeams, rt.GetTournamentTeams)
-	public("GET", sdk.RouteV1TournamentResults, rt.ListResults)
+	public("GET", sdk.RouteV1Tournaments, r.ListTournaments)
+	scoped("POST", sdk.RouteV1Tournaments, sdk.ScopeTournamentsWrite, r.CreateTournament)
+	public("GET", sdk.RouteV1Tournament, r.GetTournament)
+	public("GET", sdk.RouteV1TournamentTeams, r.GetTournamentTeams)
+	public("GET", sdk.RouteV1TournamentResults, r.ListResults)
 
 	// Match setup routes (matches live under a tournament)
-	public("GET", sdk.RouteV1TournamentMatches, rt.ListMatches)
-	scoped("POST", sdk.RouteV1TournamentMatches, sdk.ScopeTournamentsWrite, rt.CreateMatch)
-	scoped("PUT", sdk.RouteV1Match, sdk.ScopeTournamentsWrite, rt.UpdateMatch)
+	public("GET", sdk.RouteV1TournamentMatches, r.ListMatches)
+	scoped("POST", sdk.RouteV1TournamentMatches, sdk.ScopeTournamentsWrite, r.CreateMatch)
+	scoped("PUT", sdk.RouteV1Match, sdk.ScopeTournamentsWrite, r.UpdateMatch)
 
 	// Tournament roster routes
-	public("GET", sdk.RouteV1TournamentPlayers, rt.ListTournamentPlayers)
-	scoped("POST", sdk.RouteV1TournamentPlayers, sdk.ScopeTournamentsWrite, rt.EnterPlayer)
-	scoped("PUT", sdk.RouteV1TournamentPlayer, sdk.ScopeTournamentsWrite, rt.UpdateTournamentPlayer)
-	public("GET", sdk.RouteV1TournamentWinner, rt.GetTournamentWinner)
-	public("GET", sdk.RouteV1TournamentStatus, rt.GetTournamentStatus)
+	public("GET", sdk.RouteV1TournamentPlayers, r.ListTournamentPlayers)
+	scoped("POST", sdk.RouteV1TournamentPlayers, sdk.ScopeTournamentsWrite, r.EnterPlayer)
+	scoped("PUT", sdk.RouteV1TournamentPlayer, sdk.ScopeTournamentsWrite, r.UpdateTournamentPlayer)
+	public("GET", sdk.RouteV1TournamentWinner, r.GetTournamentWinner)
+	public("GET", sdk.RouteV1TournamentStatus, r.GetTournamentStatus)
 
 	// Team draft routes
-	public("GET", sdk.RouteV1TeamMembers, rt.ListTeamMembers)
-	scoped("POST", sdk.RouteV1TeamMembers, sdk.ScopeTournamentsWrite, rt.DraftPlayer)
-	scoped("DELETE", sdk.RouteV1TeamMember, sdk.ScopeTournamentsWrite, rt.UndraftPlayer)
-	scoped("PUT", sdk.RouteV1TeamCaptain, sdk.ScopeTournamentsWrite, rt.SetCaptain)
-	scoped("DELETE", sdk.RouteV1TeamCaptain, sdk.ScopeTournamentsWrite, rt.ClearCaptain)
+	public("GET", sdk.RouteV1TeamMembers, r.ListTeamMembers)
+	scoped("POST", sdk.RouteV1TeamMembers, sdk.ScopeTournamentsWrite, r.DraftPlayer)
+	scoped("DELETE", sdk.RouteV1TeamMember, sdk.ScopeTournamentsWrite, r.UndraftPlayer)
+	scoped("PUT", sdk.RouteV1TeamCaptain, sdk.ScopeTournamentsWrite, r.SetCaptain)
+	scoped("DELETE", sdk.RouteV1TeamCaptain, sdk.ScopeTournamentsWrite, r.ClearCaptain)
 
 	// Global middleware chain. Assembled inner-to-outer, so recoverMiddleware is
 	// outermost (wraps everything) and RequestID runs before ClientIP/UserAgent.
@@ -172,32 +172,32 @@ func NewServer(config *Config) *Server {
 // can read a single-tenant site; if no public tenant is configured, it is 401 (a
 // multi-tenant deployment requires login even to read).
 func optionalAuth(m *jwt.HTTPMiddleware, publicTenantID *uuid.UUID, next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "" {
-			m.Authenticate(next)(w, r)
+	return func(w http.ResponseWriter, req *http.Request) {
+		if req.Header.Get("Authorization") != "" {
+			m.Authenticate(next)(w, req)
 			return
 		}
 		if publicTenantID == nil {
-			respondError(r.Context(), w, http.StatusUnauthorized, "authentication required", nil)
+			respondError(req.Context(), w, http.StatusUnauthorized, "authentication required", nil)
 			return
 		}
-		ctx := identity.WithTenant(r.Context(), *publicTenantID)
-		next(w, r.WithContext(ctx))
+		ctx := identity.WithTenant(req.Context(), *publicTenantID)
+		next(w, req.WithContext(ctx))
 	}
 }
 
 // recoverMiddleware turns a panic in a downstream handler into a 500 instead of
 // crashing the server. knowhere provides no recoverer; this mirrors heimdall.
 func recoverMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
 				// Log with a stack so a recovered panic leaves a diagnosable trail.
-				slog.ErrorContext(r.Context(), "panic recovered", "error", err, "stack", string(debug.Stack()))
+				slog.ErrorContext(req.Context(), "panic recovered", "error", err, "stack", string(debug.Stack()))
 				w.WriteHeader(http.StatusInternalServerError)
 			}
 		}()
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(w, req)
 	})
 }
 
