@@ -1,40 +1,24 @@
 package rest
 
 import (
-	"context"
 	"net/http"
 
-	"github.com/google/uuid"
-	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
-type TeamService interface {
-	SetCaptain(ctx context.Context, teamID, captainID uuid.UUID) (*golf.Team, error)
-	ClearCaptain(ctx context.Context, teamID uuid.UUID) error
-}
-
-type TeamsHandler struct {
-	teamService TeamService
-}
-
-func NewTeamsHandler(teamService TeamService) *TeamsHandler {
-	return &TeamsHandler{teamService: teamService}
-}
-
 // PUT /v1/teams/{id}/captain
-func (h *TeamsHandler) SetCaptain(w http.ResponseWriter, r *http.Request) {
-	teamID, ok := pathUUIDOr400(w, r, "id", "team")
+func (r *Router) SetCaptain(w http.ResponseWriter, req *http.Request) {
+	teamID, ok := pathUUIDOr400(w, req, "id", "team")
 	if !ok {
 		return
 	}
-	req, ok := decodeAndValidate[sdk.SetTeamCaptainRequest](w, r)
+	body, ok := decodeAndValidate[sdk.SetTeamCaptainRequest](w, req)
 	if !ok {
 		return
 	}
 	// Unknown team -> 404, unknown player -> 400 (FK), both via respondDomainError.
-	if _, err := h.teamService.SetCaptain(r.Context(), teamID, req.CaptainID); err != nil {
-		respondDomainError(r.Context(), w, "Failed to set team captain", err)
+	if _, err := r.TeamService.SetCaptain(req.Context(), teamID, body.CaptainID); err != nil {
+		respondDomainError(req.Context(), w, "Failed to set team captain", err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -42,13 +26,13 @@ func (h *TeamsHandler) SetCaptain(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /v1/teams/{id}/captain
 // Unsets the team's captain (used to reassign); 404 if the team doesn't exist.
-func (h *TeamsHandler) ClearCaptain(w http.ResponseWriter, r *http.Request) {
-	teamID, ok := pathUUIDOr400(w, r, "id", "team")
+func (r *Router) ClearCaptain(w http.ResponseWriter, req *http.Request) {
+	teamID, ok := pathUUIDOr400(w, req, "id", "team")
 	if !ok {
 		return
 	}
-	if err := h.teamService.ClearCaptain(r.Context(), teamID); err != nil {
-		respondDomainError(r.Context(), w, "Failed to clear team captain", err)
+	if err := r.TeamService.ClearCaptain(req.Context(), teamID); err != nil {
+		respondDomainError(req.Context(), w, "Failed to clear team captain", err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

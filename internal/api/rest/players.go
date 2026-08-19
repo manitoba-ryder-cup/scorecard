@@ -1,57 +1,38 @@
 package rest
 
 import (
-	"context"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
-type PlayerService interface {
-	GetPlayer(ctx context.Context, playerID uuid.UUID) (*golf.Player, error)
-	ListPlayers(ctx context.Context) ([]golf.Player, error)
-	ListPlayerTournaments(ctx context.Context, playerID uuid.UUID) ([]golf.PlayerTournamentHistory, error)
-	PlayerStats(ctx context.Context, playerID uuid.UUID) (*golf.PlayerStats, error)
-	CreatePlayer(ctx context.Context, in golf.CreatePlayerInput) (*golf.Player, error)
-	UpdatePlayer(ctx context.Context, in golf.UpdatePlayerInput) (*golf.Player, error)
-}
-
-type PlayersHandler struct {
-	playerService PlayerService
-}
-
-func NewPlayersHandler(playerService PlayerService) *PlayersHandler {
-	return &PlayersHandler{playerService: playerService}
-}
-
 // GET /v1/players
-func (h *PlayersHandler) ListPlayers(w http.ResponseWriter, r *http.Request) {
-	players, err := h.playerService.ListPlayers(r.Context())
+func (r *Router) ListPlayers(w http.ResponseWriter, req *http.Request) {
+	players, err := r.PlayerService.ListPlayers(req.Context())
 	if err != nil {
-		respondDomainError(r.Context(), w, "Failed to list players", err)
+		respondDomainError(req.Context(), w, "Failed to list players", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, mapSlice(players, toPlayerProfileDTO))
 }
 
 // POST /v1/players
-func (h *PlayersHandler) CreatePlayer(w http.ResponseWriter, r *http.Request) {
+func (r *Router) CreatePlayer(w http.ResponseWriter, req *http.Request) {
 	// The SDK client validates before sending; this guards non-SDK callers. Domain
 	// invariants are enforced separately below.
-	req, ok := decodeAndValidate[sdk.CreatePlayerRequest](w, r)
+	body, ok := decodeAndValidate[sdk.CreatePlayerRequest](w, req)
 	if !ok {
 		return
 	}
-	player, err := h.playerService.CreatePlayer(r.Context(), golf.CreatePlayerInput{
-		FirstName: req.FirstName,
-		LastName:  req.LastName,
-		Email:     req.Email,
-		UserID:    req.UserID,
+	player, err := r.PlayerService.CreatePlayer(req.Context(), golf.CreatePlayerInput{
+		FirstName: body.FirstName,
+		LastName:  body.LastName,
+		Email:     body.Email,
+		UserID:    body.UserID,
 	})
 	if err != nil {
-		respondDomainError(r.Context(), w, "Failed to create player", err)
+		respondDomainError(req.Context(), w, "Failed to create player", err)
 		return
 	}
 	respondJSON(w, http.StatusCreated, toPlayerDTO(*player))
@@ -59,67 +40,67 @@ func (h *PlayersHandler) CreatePlayer(w http.ResponseWriter, r *http.Request) {
 
 // PUT /v1/players/{id}
 // Updates a player's own attributes. Omitted fields keep their stored value.
-func (h *PlayersHandler) UpdatePlayer(w http.ResponseWriter, r *http.Request) {
-	playerID, ok := pathUUIDOr400(w, r, "id", "player")
+func (r *Router) UpdatePlayer(w http.ResponseWriter, req *http.Request) {
+	playerID, ok := pathUUIDOr400(w, req, "id", "player")
 	if !ok {
 		return
 	}
-	req, ok := decodeAndValidate[sdk.UpdatePlayerRequest](w, r)
+	body, ok := decodeAndValidate[sdk.UpdatePlayerRequest](w, req)
 	if !ok {
 		return
 	}
-	player, err := h.playerService.UpdatePlayer(r.Context(), golf.UpdatePlayerInput{
+	player, err := r.PlayerService.UpdatePlayer(req.Context(), golf.UpdatePlayerInput{
 		ID:        playerID,
-		FirstName: req.FirstName,
-		LastName:  req.LastName,
-		Email:     req.Email,
-		PhotoPath: req.PhotoPath,
+		FirstName: body.FirstName,
+		LastName:  body.LastName,
+		Email:     body.Email,
+		PhotoPath: body.PhotoPath,
 	})
 	if err != nil {
-		respondDomainError(r.Context(), w, "Failed to update player", err)
+		respondDomainError(req.Context(), w, "Failed to update player", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toPlayerDTO(*player))
 }
 
 // GET /v1/players/{id}
-func (h *PlayersHandler) GetPlayer(w http.ResponseWriter, r *http.Request) {
-	id, ok := pathUUIDOr400(w, r, "id", "player")
+func (r *Router) GetPlayer(w http.ResponseWriter, req *http.Request) {
+	id, ok := pathUUIDOr400(w, req, "id", "player")
 	if !ok {
 		return
 	}
-	player, err := h.playerService.GetPlayer(r.Context(), id)
+	player, err := r.PlayerService.GetPlayer(req.Context(), id)
 	if err != nil {
 		// ErrNotFound -> 404; a real DB failure -> 500 (not masked as "not found").
-		respondDomainError(r.Context(), w, "Failed to get player", err)
+		respondDomainError(req.Context(), w, "Failed to get player", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toPlayerProfileDTO(*player))
 }
 
 // GET /v1/players/{id}/stats
-func (h *PlayersHandler) GetPlayerStats(w http.ResponseWriter, r *http.Request) {
-	id, ok := pathUUIDOr400(w, r, "id", "player")
+func (r *Router) GetPlayerStats(w http.ResponseWriter, req *http.Request) {
+	id, ok := pathUUIDOr400(w, req, "id", "player")
 	if !ok {
 		return
 	}
-	stats, err := h.playerService.PlayerStats(r.Context(), id)
+	stats, err := r.PlayerService.PlayerStats(req.Context(), id)
 	if err != nil {
-		respondDomainError(r.Context(), w, "Failed to load player stats", err)
+		respondDomainError(req.Context(), w, "Failed to load player stats", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toPlayerStatsDTO(*stats))
 }
 
 // GET /v1/players/{id}/tournaments
-func (h *PlayersHandler) ListPlayerTournaments(w http.ResponseWriter, r *http.Request) {
-	id, ok := pathUUIDOr400(w, r, "id", "player")
+func (r *Router) ListPlayerTournaments(w http.ResponseWriter, req *http.Request) {
+	id, ok := pathUUIDOr400(w, req, "id", "player")
 	if !ok {
 		return
 	}
-	history, err := h.playerService.ListPlayerTournaments(r.Context(), id)
+	history, err := r.PlayerService.ListPlayerTournaments(req.Context(), id)
 	if err != nil {
-		respondDomainError(r.Context(), w, "Failed to list player tournaments", err)
+		respondDomainError(req.Context(), w, "Failed to list player tournaments", err)
 		return
 	}
 	respondJSON(w, http.StatusOK, mapSlice(history, toPlayerTournamentHistoryDTO))

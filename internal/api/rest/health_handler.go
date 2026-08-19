@@ -12,8 +12,8 @@ import (
 // readiness with a short timeout. A DB that can't be reached yields 503 so a load
 // balancer can route around an unready instance.
 func HandleHealth(db HealthChecker) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	return func(w http.ResponseWriter, req *http.Request) {
+		ctx, cancel := context.WithTimeout(req.Context(), 2*time.Second)
 		defer cancel()
 		if err := db.Health(ctx); err != nil {
 			respondError(ctx, w, http.StatusServiceUnavailable, "database unavailable", err)

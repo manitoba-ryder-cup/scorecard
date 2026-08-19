@@ -3,6 +3,8 @@ package app
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/api/rest"
@@ -79,13 +81,12 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 	services := NewServices(db)
 
 	// Create HTTP server
-	httpServer := rest.NewServer(&rest.Config{
-		Address:           config.HTTPAddress,
+	router := &rest.Router{
+		DB:                db,
 		JWTValidator:      jwtValidator,
 		TrustedProxyMode:  config.TrustedProxyMode,
 		ProxySecret:       config.ProxySecret,
 		PublicTenantID:    publicTenantID,
-		DB:                db,
 		PlayerService:     services.Player,
 		MatchService:      services.Match,
 		TournamentService: services.Tournament,
@@ -93,7 +94,8 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 		FormatService:     services.Format,
 		RosterService:     services.Roster,
 		TeamService:       services.Team,
-	})
+	}
+	httpServer := newHTTPServer(config.HTTPAddress, router.Handler())
 
 	return &Server{
 		httpServer: httpServer,
@@ -113,4 +115,16 @@ func (s *Server) Start() error {
 func (s *Server) Shutdown(ctx context.Context) error {
 	defer s.db.Close()
 	return s.httpServer.Shutdown(ctx)
+}
+
+// newHTTPServer bounds how long one connection can occupy the server: without these a
+// slow reader or an idle keep-alive holds its slot indefinitely.
+func newHTTPServer(addr string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
 }

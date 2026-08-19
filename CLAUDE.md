@@ -96,12 +96,12 @@ cmd/scorecard/           # CLI entry point (urfave/cli)
   └── config.go
 
 internal/app/            # Server lifecycle and dependency wiring
-  ├── server.go          # Coordinates HTTP + DB; shutdown ordering
+  ├── server.go          # Builds the http.Server; shutdown ordering
   ├── services.go        # Builds repositories and domain services
   └── seed.go            # Tournament seeding logic
 
 internal/api/rest/       # HTTP layer (stdlib http.ServeMux, method-prefixed patterns)
-  ├── server.go          # Routes, middleware chain, optional auth
+  ├── router.go          # Router, its Handler, the middleware chain, optional auth
   ├── dto.go             # Domain -> SDK DTO mapping
   ├── json.go            # Response and error helpers
   ├── players.go, tournaments.go, matches.go, courses.go,
@@ -274,6 +274,10 @@ an ordinary SIGTERM exits zero.
 
 - Table-driven tests for domain logic; the scoring engine is pure and needs no fakes
 - Domain services take repository interfaces (`dependencies.go`), faked in `*_test.go`
+- The API layer holds the domain services concretely and is not unit-tested through fakes:
+  it translates, and everything it does is visible from outside, so the integration suite
+  is where its correctness is established. What stays in `rest` are tests needing no
+  domain at all — status mapping, cache tiers, decode policy, DTO shape
 - Integration tests drive the real stack through the SDK client; `test/_util/request` sends
   raw HTTP so negative tests can prove the server validates independently of the SDK
 - Each integration test uses a fresh random tenant, so no inter-test cleanup is needed
@@ -297,8 +301,9 @@ an ordinary SIGTERM exits zero.
 
 The service serves `/v1/...` and `/health`. The public site reaches it through the edge at
 `/api/scorecard/*`, which strips that prefix. Route constants live in `sdk/routes.go` and
-`internal/api/rest/server.go` registers every route from them — there are no path literals in
-the routing table, so a route change is a compile-time concern. Keep it that way.
+`internal/api/rest/router.go` registers every route from them — there are no path
+literals in the routing table, so a route change is a compile-time concern. Keep it that
+way.
 
 A match's `/winner` and `/status` are deliberately the same handler. They started as two
 endpoints and were collapsed when a match got one outcome shape covering both a finished match

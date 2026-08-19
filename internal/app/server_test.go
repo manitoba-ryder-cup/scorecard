@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"net/http"
 	"slices"
 	"testing"
 )
@@ -59,5 +60,21 @@ func TestShutdownClosesTheDatabaseEvenIfDrainingFails(t *testing.T) {
 	}
 	if !slices.Contains(calls, "db") {
 		t.Errorf("shutdown order = %v, want the database closed despite the drain failing", calls)
+	}
+}
+
+// Without a write or idle deadline a slow or idle client holds its connection open
+// indefinitely, so a handful of them can exhaust the server.
+func TestHTTPServerBoundsConnections(t *testing.T) {
+	server := newHTTPServer(":5000", http.NotFoundHandler())
+
+	if server.ReadHeaderTimeout == 0 {
+		t.Error("ReadHeaderTimeout is unset")
+	}
+	if server.WriteTimeout == 0 {
+		t.Error("WriteTimeout is unset; a slow reader can hold a connection indefinitely")
+	}
+	if server.IdleTimeout == 0 {
+		t.Error("IdleTimeout is unset; keep-alive connections are never reaped")
 	}
 }

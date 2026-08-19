@@ -239,10 +239,10 @@ func parseDate(s string) (time.Time, error) {
 // pathUUIDOr400 parses a UUID path parameter, writing a 400 and returning ok=false when
 // it is malformed. resource names the thing in the message ("tournament" -> "Invalid
 // tournament ID").
-func pathUUIDOr400(w http.ResponseWriter, r *http.Request, name, resource string) (uuid.UUID, bool) {
-	id, err := uuid.Parse(r.PathValue(name))
+func pathUUIDOr400(w http.ResponseWriter, req *http.Request, name, resource string) (uuid.UUID, bool) {
+	id, err := uuid.Parse(req.PathValue(name))
 	if err != nil {
-		respondError(r.Context(), w, http.StatusBadRequest, "Invalid "+resource+" ID", err)
+		respondError(req.Context(), w, http.StatusBadRequest, "Invalid "+resource+" ID", err)
 		return uuid.Nil, false
 	}
 	return id, true
