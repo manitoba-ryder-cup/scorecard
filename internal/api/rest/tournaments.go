@@ -1,35 +1,15 @@
 package rest
 
 import (
-	"context"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
-type TournamentService interface {
-	GetTournament(ctx context.Context, tournamentID uuid.UUID) (*golf.Tournament, error)
-	ListTournaments(ctx context.Context) ([]golf.Tournament, error)
-	CreateTournament(ctx context.Context, in golf.CreateTournamentInput) (*golf.Tournament, error)
-	GetOutcome(ctx context.Context, tournamentID uuid.UUID) (golf.TournamentOutcome, error)
-	// The bool reports whether the cup is finished, which decides how long the response
-	// may be cached — see cache.go.
-	GetTeamsData(ctx context.Context, tournamentID uuid.UUID) ([]golf.TeamData, bool, error)
-}
-
-type TournamentsHandler struct {
-	tournamentService TournamentService
-}
-
-func NewTournamentsHandler(tournamentService TournamentService) *TournamentsHandler {
-	return &TournamentsHandler{tournamentService: tournamentService}
-}
-
 // GET /v1/tournaments
-func (h *TournamentsHandler) ListTournaments(w http.ResponseWriter, r *http.Request) {
-	tournaments, err := h.tournamentService.ListTournaments(r.Context())
+func (rt *Router) ListTournaments(w http.ResponseWriter, r *http.Request) {
+	tournaments, err := rt.TournamentService.ListTournaments(r.Context())
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to list tournaments", err)
 		return
@@ -38,7 +18,7 @@ func (h *TournamentsHandler) ListTournaments(w http.ResponseWriter, r *http.Requ
 }
 
 // POST /v1/tournaments
-func (h *TournamentsHandler) CreateTournament(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) CreateTournament(w http.ResponseWriter, r *http.Request) {
 	req, ok := decodeAndValidate[sdk.CreateTournamentRequest](w, r)
 	if !ok {
 		return
@@ -55,7 +35,7 @@ func (h *TournamentsHandler) CreateTournament(w http.ResponseWriter, r *http.Req
 		respondError(r.Context(), w, http.StatusBadRequest, "Invalid end_date (want YYYY-MM-DD)", err)
 		return
 	}
-	tournament, err := h.tournamentService.CreateTournament(r.Context(), golf.CreateTournamentInput{
+	tournament, err := rt.TournamentService.CreateTournament(r.Context(), golf.CreateTournamentInput{
 		Name:      req.Name,
 		StartDate: start,
 		EndDate:   end,
@@ -69,12 +49,12 @@ func (h *TournamentsHandler) CreateTournament(w http.ResponseWriter, r *http.Req
 }
 
 // GET /v1/tournaments/{id}
-func (h *TournamentsHandler) GetTournament(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) GetTournament(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathUUIDOr400(w, r, "id", "tournament")
 	if !ok {
 		return
 	}
-	tournament, err := h.tournamentService.GetTournament(r.Context(), id)
+	tournament, err := rt.TournamentService.GetTournament(r.Context(), id)
 	if err != nil {
 		// ErrNotFound -> 404; a real DB failure -> 500 (not masked as "not found").
 		respondDomainError(r.Context(), w, "Failed to get tournament", err)
@@ -84,12 +64,12 @@ func (h *TournamentsHandler) GetTournament(w http.ResponseWriter, r *http.Reques
 }
 
 // GET /v1/tournaments/{id}/teams
-func (h *TournamentsHandler) GetTournamentTeams(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) GetTournamentTeams(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathUUIDOr400(w, r, "id", "tournament")
 	if !ok {
 		return
 	}
-	teams, finished, err := h.tournamentService.GetTeamsData(r.Context(), id)
+	teams, finished, err := rt.TournamentService.GetTeamsData(r.Context(), id)
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to get teams data", err)
 		return
@@ -104,12 +84,12 @@ func (h *TournamentsHandler) GetTournamentTeams(w http.ResponseWriter, r *http.R
 }
 
 // GET /v1/tournaments/{id}/winner
-func (h *TournamentsHandler) GetTournamentWinner(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) GetTournamentWinner(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathUUIDOr400(w, r, "id", "tournament")
 	if !ok {
 		return
 	}
-	outcome, err := h.tournamentService.GetOutcome(r.Context(), id)
+	outcome, err := rt.TournamentService.GetOutcome(r.Context(), id)
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to get tournament winner", err)
 		return
@@ -118,12 +98,12 @@ func (h *TournamentsHandler) GetTournamentWinner(w http.ResponseWriter, r *http.
 }
 
 // GET /v1/tournaments/{id}/status
-func (h *TournamentsHandler) GetTournamentStatus(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) GetTournamentStatus(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathUUIDOr400(w, r, "id", "tournament")
 	if !ok {
 		return
 	}
-	outcome, err := h.tournamentService.GetOutcome(r.Context(), id)
+	outcome, err := rt.TournamentService.GetOutcome(r.Context(), id)
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to check tournament status", err)
 		return

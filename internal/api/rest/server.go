@@ -43,6 +43,18 @@ type Config struct {
 	TeamService       *golf.TeamService
 }
 
+// Router carries the domain services the handlers reach. They are the concrete types:
+// the API layer is a translation layer over the domain and has no reason to abstract it.
+type Router struct {
+	PlayerService     *golf.PlayerService
+	MatchService      *golf.MatchService
+	TournamentService *golf.TournamentService
+	CourseService     *golf.CourseService
+	FormatService     *golf.FormatService
+	RosterService     *golf.RosterService
+	TeamService       *golf.TeamService
+}
+
 type Server struct {
 	*http.Server
 }
@@ -50,13 +62,15 @@ type Server struct {
 func NewServer(config *Config) *Server {
 	jwtMiddleware := jwt.NewHTTPMiddleware(config.JWTValidator)
 
-	playersHandler := NewPlayersHandler(config.PlayerService)
-	matchesHandler := NewMatchesHandler(config.MatchService)
-	tournamentsHandler := NewTournamentsHandler(config.TournamentService)
-	coursesHandler := NewCoursesHandler(config.CourseService)
-	formatsHandler := NewFormatsHandler(config.FormatService)
-	rosterHandler := NewRosterHandler(config.RosterService)
-	teamsHandler := NewTeamsHandler(config.TeamService)
+	rt := &Router{
+		PlayerService:     config.PlayerService,
+		MatchService:      config.MatchService,
+		TournamentService: config.TournamentService,
+		CourseService:     config.CourseService,
+		FormatService:     config.FormatService,
+		RosterService:     config.RosterService,
+		TeamService:       config.TeamService,
+	}
 
 	mux := http.NewServeMux()
 
@@ -64,7 +78,7 @@ func NewServer(config *Config) *Server {
 	mux.HandleFunc("GET "+sdk.RouteHealth, HandleHealth(config.DB))
 
 	// Match formats are global seeded reference data — truly public, no tenant needed.
-	mux.HandleFunc("GET "+sdk.RouteV1MatchFormats, cacheableRead(formatsHandler.ListMatchFormats))
+	mux.HandleFunc("GET "+sdk.RouteV1MatchFormats, cacheableRead(rt.ListMatchFormats))
 
 	// public registers a read route with optional authentication: a token's tenant is
 	// used when present, else the configured public tenant (401 if neither). Anonymous
@@ -78,57 +92,57 @@ func NewServer(config *Config) *Server {
 	}
 
 	// Player routes
-	public("GET", sdk.RouteV1Players, playersHandler.ListPlayers)
-	scoped("POST", sdk.RouteV1Players, sdk.ScopePlayersWrite, playersHandler.CreatePlayer)
-	scoped("PUT", sdk.RouteV1Player, sdk.ScopePlayersWrite, playersHandler.UpdatePlayer)
-	public("GET", sdk.RouteV1Player, playersHandler.GetPlayer)
-	public("GET", sdk.RouteV1PlayerTournaments, playersHandler.ListPlayerTournaments)
-	public("GET", sdk.RouteV1PlayerStats, playersHandler.GetPlayerStats)
+	public("GET", sdk.RouteV1Players, rt.ListPlayers)
+	scoped("POST", sdk.RouteV1Players, sdk.ScopePlayersWrite, rt.CreatePlayer)
+	scoped("PUT", sdk.RouteV1Player, sdk.ScopePlayersWrite, rt.UpdatePlayer)
+	public("GET", sdk.RouteV1Player, rt.GetPlayer)
+	public("GET", sdk.RouteV1PlayerTournaments, rt.ListPlayerTournaments)
+	public("GET", sdk.RouteV1PlayerStats, rt.GetPlayerStats)
 
 	// Course reference-data routes
-	public("GET", sdk.RouteV1TeeColors, coursesHandler.ListTeeColors)
-	scoped("POST", sdk.RouteV1TeeColors, sdk.ScopeCoursesWrite, coursesHandler.CreateTeeColor)
-	public("GET", sdk.RouteV1Courses, coursesHandler.ListCourses)
-	scoped("POST", sdk.RouteV1Courses, sdk.ScopeCoursesWrite, coursesHandler.CreateCourse)
-	public("GET", sdk.RouteV1Course, coursesHandler.GetCourse)
-	public("GET", sdk.RouteV1CourseTees, coursesHandler.ListCourseTeeSets)
-	scoped("POST", sdk.RouteV1CourseTees, sdk.ScopeCoursesWrite, coursesHandler.AddTeeSet)
+	public("GET", sdk.RouteV1TeeColors, rt.ListTeeColors)
+	scoped("POST", sdk.RouteV1TeeColors, sdk.ScopeCoursesWrite, rt.CreateTeeColor)
+	public("GET", sdk.RouteV1Courses, rt.ListCourses)
+	scoped("POST", sdk.RouteV1Courses, sdk.ScopeCoursesWrite, rt.CreateCourse)
+	public("GET", sdk.RouteV1Course, rt.GetCourse)
+	public("GET", sdk.RouteV1CourseTees, rt.ListCourseTeeSets)
+	scoped("POST", sdk.RouteV1CourseTees, sdk.ScopeCoursesWrite, rt.AddTeeSet)
 
 	// Match routes
-	public("GET", sdk.RouteV1MatchParticipants, matchesHandler.ListParticipants)
-	scoped("POST", sdk.RouteV1MatchParticipants, sdk.ScopeTournamentsWrite, matchesHandler.AddParticipant)
-	scoped("DELETE", sdk.RouteV1MatchParticipant, sdk.ScopeTournamentsWrite, matchesHandler.RemoveParticipant)
-	public("GET", sdk.RouteV1MatchScores, matchesHandler.GetMatchScores)
-	public("GET", sdk.RouteV1MatchHoles, matchesHandler.GetMatchHoles)
-	scoped("POST", sdk.RouteV1MatchScores, sdk.ScopeScoresWrite, matchesHandler.SubmitScore)
-	public("GET", sdk.RouteV1MatchWinner, matchesHandler.GetMatchStatus)
-	public("GET", sdk.RouteV1MatchStatus, matchesHandler.GetMatchStatus)
+	public("GET", sdk.RouteV1MatchParticipants, rt.ListParticipants)
+	scoped("POST", sdk.RouteV1MatchParticipants, sdk.ScopeTournamentsWrite, rt.AddParticipant)
+	scoped("DELETE", sdk.RouteV1MatchParticipant, sdk.ScopeTournamentsWrite, rt.RemoveParticipant)
+	public("GET", sdk.RouteV1MatchScores, rt.GetMatchScores)
+	public("GET", sdk.RouteV1MatchHoles, rt.GetMatchHoles)
+	scoped("POST", sdk.RouteV1MatchScores, sdk.ScopeScoresWrite, rt.SubmitScore)
+	public("GET", sdk.RouteV1MatchWinner, rt.GetMatchStatus)
+	public("GET", sdk.RouteV1MatchStatus, rt.GetMatchStatus)
 
 	// Tournament routes
-	public("GET", sdk.RouteV1Tournaments, tournamentsHandler.ListTournaments)
-	scoped("POST", sdk.RouteV1Tournaments, sdk.ScopeTournamentsWrite, tournamentsHandler.CreateTournament)
-	public("GET", sdk.RouteV1Tournament, tournamentsHandler.GetTournament)
-	public("GET", sdk.RouteV1TournamentTeams, tournamentsHandler.GetTournamentTeams)
-	public("GET", sdk.RouteV1TournamentResults, matchesHandler.ListResults)
+	public("GET", sdk.RouteV1Tournaments, rt.ListTournaments)
+	scoped("POST", sdk.RouteV1Tournaments, sdk.ScopeTournamentsWrite, rt.CreateTournament)
+	public("GET", sdk.RouteV1Tournament, rt.GetTournament)
+	public("GET", sdk.RouteV1TournamentTeams, rt.GetTournamentTeams)
+	public("GET", sdk.RouteV1TournamentResults, rt.ListResults)
 
 	// Match setup routes (matches live under a tournament)
-	public("GET", sdk.RouteV1TournamentMatches, matchesHandler.ListMatches)
-	scoped("POST", sdk.RouteV1TournamentMatches, sdk.ScopeTournamentsWrite, matchesHandler.CreateMatch)
-	scoped("PUT", sdk.RouteV1Match, sdk.ScopeTournamentsWrite, matchesHandler.UpdateMatch)
+	public("GET", sdk.RouteV1TournamentMatches, rt.ListMatches)
+	scoped("POST", sdk.RouteV1TournamentMatches, sdk.ScopeTournamentsWrite, rt.CreateMatch)
+	scoped("PUT", sdk.RouteV1Match, sdk.ScopeTournamentsWrite, rt.UpdateMatch)
 
 	// Tournament roster routes
-	public("GET", sdk.RouteV1TournamentPlayers, rosterHandler.ListPlayers)
-	scoped("POST", sdk.RouteV1TournamentPlayers, sdk.ScopeTournamentsWrite, rosterHandler.EnterPlayer)
-	scoped("PUT", sdk.RouteV1TournamentPlayer, sdk.ScopeTournamentsWrite, rosterHandler.UpdatePlayer)
-	public("GET", sdk.RouteV1TournamentWinner, tournamentsHandler.GetTournamentWinner)
-	public("GET", sdk.RouteV1TournamentStatus, tournamentsHandler.GetTournamentStatus)
+	public("GET", sdk.RouteV1TournamentPlayers, rt.ListTournamentPlayers)
+	scoped("POST", sdk.RouteV1TournamentPlayers, sdk.ScopeTournamentsWrite, rt.EnterPlayer)
+	scoped("PUT", sdk.RouteV1TournamentPlayer, sdk.ScopeTournamentsWrite, rt.UpdateTournamentPlayer)
+	public("GET", sdk.RouteV1TournamentWinner, rt.GetTournamentWinner)
+	public("GET", sdk.RouteV1TournamentStatus, rt.GetTournamentStatus)
 
 	// Team draft routes
-	public("GET", sdk.RouteV1TeamMembers, rosterHandler.ListTeamMembers)
-	scoped("POST", sdk.RouteV1TeamMembers, sdk.ScopeTournamentsWrite, rosterHandler.DraftPlayer)
-	scoped("DELETE", sdk.RouteV1TeamMember, sdk.ScopeTournamentsWrite, rosterHandler.UndraftPlayer)
-	scoped("PUT", sdk.RouteV1TeamCaptain, sdk.ScopeTournamentsWrite, teamsHandler.SetCaptain)
-	scoped("DELETE", sdk.RouteV1TeamCaptain, sdk.ScopeTournamentsWrite, teamsHandler.ClearCaptain)
+	public("GET", sdk.RouteV1TeamMembers, rt.ListTeamMembers)
+	scoped("POST", sdk.RouteV1TeamMembers, sdk.ScopeTournamentsWrite, rt.DraftPlayer)
+	scoped("DELETE", sdk.RouteV1TeamMember, sdk.ScopeTournamentsWrite, rt.UndraftPlayer)
+	scoped("PUT", sdk.RouteV1TeamCaptain, sdk.ScopeTournamentsWrite, rt.SetCaptain)
+	scoped("DELETE", sdk.RouteV1TeamCaptain, sdk.ScopeTournamentsWrite, rt.ClearCaptain)
 
 	// Global middleware chain. Assembled inner-to-outer, so recoverMiddleware is
 	// outermost (wraps everything) and RequestID runs before ClientIP/UserAgent.

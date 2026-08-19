@@ -185,6 +185,38 @@ func TestUpdateMatchLeavesUnmentionedFieldsAlone(t *testing.T) {
 	}
 }
 
+// A false a caller actually sent is not the same as one it left out: with a *bool the
+// first must be applied and the second must not. The case above covers the omission.
+func TestUpdateMatchAppliesAnExplicitFalse(t *testing.T) {
+	t.Parallel()
+	client := freshClient(t)
+	ctx := context.Background()
+	courseID, teeColorID, formatID := playableCourse(t, client)
+
+	tour, err := client.CreateTournament(ctx, sdk.CreateTournamentRequest{
+		Name: "Explicit False Cup", StartDate: "2026-08-01", EndDate: "2026-08-03", Location: "Winnipeg",
+	})
+	if err != nil {
+		t.Fatalf("create tournament: %v", err)
+	}
+	match, err := client.CreateMatch(ctx, tour.ID, sdk.CreateMatchRequest{
+		CourseID: courseID, TeeColorID: teeColorID, MatchFormatID: formatID,
+		TeeTime: "2026-08-01T08:00:00Z", Handicapped: true,
+	})
+	if err != nil {
+		t.Fatalf("create match: %v", err)
+	}
+
+	off := false
+	updated, err := client.UpdateMatch(ctx, match.ID, sdk.UpdateMatchRequest{Handicapped: &off})
+	if err != nil {
+		t.Fatalf("update match: %v", err)
+	}
+	if updated.Handicapped {
+		t.Error("handicapped was sent as false, so it should no longer be set")
+	}
+}
+
 func TestUpdateMatchUnknownMatchIsNotFound(t *testing.T) {
 	t.Parallel()
 	client := freshClient(t)

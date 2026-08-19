@@ -1,44 +1,20 @@
 package rest
 
 import (
-	"context"
 	"net/http"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
-type MatchService interface {
-	MatchStatus(ctx context.Context, matchID uuid.UUID) (golf.StoredResult, error)
-	CalculateMatchScores(ctx context.Context, matchID uuid.UUID) ([]golf.HoleResult, error)
-	SubmitHoleScores(ctx context.Context, matchID uuid.UUID, hole int32, entries []golf.ScoreEntry) (golf.StoredResult, error)
-	CreateMatch(ctx context.Context, in golf.CreateMatchInput) (*golf.Match, error)
-	UpdateMatch(ctx context.Context, in golf.UpdateMatchInput) (*golf.Match, error)
-	ListMatches(ctx context.Context, tournamentID uuid.UUID) ([]golf.Match, error)
-	ListMatchHoles(ctx context.Context, matchID uuid.UUID) ([]golf.Hole, error)
-	ListResults(ctx context.Context, tournamentID uuid.UUID) ([]golf.MatchResult, error)
-	AddParticipant(ctx context.Context, matchID, playerID, teamID uuid.UUID) (*golf.MatchParticipant, error)
-	RemoveParticipant(ctx context.Context, matchID, playerID uuid.UUID) error
-	ListParticipants(ctx context.Context, matchID uuid.UUID) ([]golf.MatchParticipant, error)
-}
-
-type MatchesHandler struct {
-	matchService MatchService
-}
-
-func NewMatchesHandler(matchService MatchService) *MatchesHandler {
-	return &MatchesHandler{matchService: matchService}
-}
-
 // GET /v1/tournaments/{id}/matches
-func (h *MatchesHandler) ListMatches(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) ListMatches(w http.ResponseWriter, r *http.Request) {
 	tournamentID, ok := pathUUIDOr400(w, r, "id", "tournament")
 	if !ok {
 		return
 	}
-	matches, err := h.matchService.ListMatches(r.Context(), tournamentID)
+	matches, err := rt.MatchService.ListMatches(r.Context(), tournamentID)
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to list matches", err)
 		return
@@ -47,7 +23,7 @@ func (h *MatchesHandler) ListMatches(w http.ResponseWriter, r *http.Request) {
 }
 
 // POST /v1/tournaments/{id}/matches
-func (h *MatchesHandler) CreateMatch(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) CreateMatch(w http.ResponseWriter, r *http.Request) {
 	tournamentID, ok := pathUUIDOr400(w, r, "id", "tournament")
 	if !ok {
 		return
@@ -58,7 +34,7 @@ func (h *MatchesHandler) CreateMatch(w http.ResponseWriter, r *http.Request) {
 	}
 	// Validate already confirmed it parses.
 	teeTime, _ := time.Parse(time.RFC3339, req.TeeTime)
-	match, err := h.matchService.CreateMatch(r.Context(), golf.CreateMatchInput{
+	match, err := rt.MatchService.CreateMatch(r.Context(), golf.CreateMatchInput{
 		TournamentID:  tournamentID,
 		CourseID:      req.CourseID,
 		TeeColorID:    req.TeeColorID,
@@ -74,7 +50,7 @@ func (h *MatchesHandler) CreateMatch(w http.ResponseWriter, r *http.Request) {
 }
 
 // PUT /v1/matches/{id}
-func (h *MatchesHandler) UpdateMatch(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) UpdateMatch(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathUUIDOr400(w, r, "id", "match")
 	if !ok {
 		return
@@ -95,7 +71,7 @@ func (h *MatchesHandler) UpdateMatch(w http.ResponseWriter, r *http.Request) {
 		teeTime, _ := time.Parse(time.RFC3339, *req.TeeTime)
 		in.TeeTime = &teeTime
 	}
-	match, err := h.matchService.UpdateMatch(r.Context(), in)
+	match, err := rt.MatchService.UpdateMatch(r.Context(), in)
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to update match", err)
 		return
@@ -116,12 +92,12 @@ func toMatchDTO(m golf.Match) sdk.Match {
 }
 
 // GET /v1/tournaments/{id}/results
-func (h *MatchesHandler) ListResults(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) ListResults(w http.ResponseWriter, r *http.Request) {
 	tournamentID, ok := pathUUIDOr400(w, r, "id", "tournament")
 	if !ok {
 		return
 	}
-	results, err := h.matchService.ListResults(r.Context(), tournamentID)
+	results, err := rt.MatchService.ListResults(r.Context(), tournamentID)
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to list results", err)
 		return
@@ -152,12 +128,12 @@ func allFinished(results []golf.MatchResult) bool {
 }
 
 // GET /v1/matches/{id}/holes
-func (h *MatchesHandler) GetMatchHoles(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) GetMatchHoles(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathUUIDOr400(w, r, "id", "match")
 	if !ok {
 		return
 	}
-	holes, err := h.matchService.ListMatchHoles(r.Context(), id)
+	holes, err := rt.MatchService.ListMatchHoles(r.Context(), id)
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to list match holes", err)
 		return
@@ -166,12 +142,12 @@ func (h *MatchesHandler) GetMatchHoles(w http.ResponseWriter, r *http.Request) {
 }
 
 // GET /v1/matches/{id}/participants
-func (h *MatchesHandler) ListParticipants(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) ListParticipants(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathUUIDOr400(w, r, "id", "match")
 	if !ok {
 		return
 	}
-	participants, err := h.matchService.ListParticipants(r.Context(), id)
+	participants, err := rt.MatchService.ListParticipants(r.Context(), id)
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to list participants", err)
 		return
@@ -180,7 +156,7 @@ func (h *MatchesHandler) ListParticipants(w http.ResponseWriter, r *http.Request
 }
 
 // POST /v1/matches/{id}/participants
-func (h *MatchesHandler) AddParticipant(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) AddParticipant(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathUUIDOr400(w, r, "id", "match")
 	if !ok {
 		return
@@ -189,7 +165,7 @@ func (h *MatchesHandler) AddParticipant(w http.ResponseWriter, r *http.Request) 
 	if !ok {
 		return
 	}
-	participant, err := h.matchService.AddParticipant(r.Context(), id, req.PlayerID, req.TeamID)
+	participant, err := rt.MatchService.AddParticipant(r.Context(), id, req.PlayerID, req.TeamID)
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to add participant", err)
 		return
@@ -199,7 +175,7 @@ func (h *MatchesHandler) AddParticipant(w http.ResponseWriter, r *http.Request) 
 
 // DELETE /v1/matches/{id}/participants/{playerId}
 // Removes a player from the match; 404 if they weren't in it.
-func (h *MatchesHandler) RemoveParticipant(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) RemoveParticipant(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathUUIDOr400(w, r, "id", "match")
 	if !ok {
 		return
@@ -208,7 +184,7 @@ func (h *MatchesHandler) RemoveParticipant(w http.ResponseWriter, r *http.Reques
 	if !ok {
 		return
 	}
-	if err := h.matchService.RemoveParticipant(r.Context(), id, playerID); err != nil {
+	if err := rt.MatchService.RemoveParticipant(r.Context(), id, playerID); err != nil {
 		respondDomainError(r.Context(), w, "Failed to remove participant", err)
 		return
 	}
@@ -226,12 +202,12 @@ func toMatchParticipantDTO(p golf.MatchParticipant) sdk.MatchParticipant {
 
 // GET /v1/matches/{id}/scores
 // Returns the hole-by-hole match-play state.
-func (h *MatchesHandler) GetMatchScores(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) GetMatchScores(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathUUIDOr400(w, r, "id", "match")
 	if !ok {
 		return
 	}
-	scores, err := h.matchService.CalculateMatchScores(r.Context(), id)
+	scores, err := rt.MatchService.CalculateMatchScores(r.Context(), id)
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to calculate match scores", err)
 		return
@@ -242,7 +218,7 @@ func (h *MatchesHandler) GetMatchScores(w http.ResponseWriter, r *http.Request) 
 // POST /v1/matches/{id}/scores
 // Records a hole's scores as a unit and recomputes the match's materialized result, which
 // it returns so the client sees the hole's effect on the match without a second read.
-func (h *MatchesHandler) SubmitScore(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) SubmitScore(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathUUIDOr400(w, r, "id", "match")
 	if !ok {
 		return
@@ -257,7 +233,7 @@ func (h *MatchesHandler) SubmitScore(w http.ResponseWriter, r *http.Request) {
 	// Shape is validated above; the domain still enforces its invariants — team not in
 	// the match -> 400, scoring past a finished match -> 409 — while a real failure
 	// (DB, etc.) -> 500.
-	result, err := h.matchService.SubmitHoleScores(r.Context(), id, req.HoleNumber, entries)
+	result, err := rt.MatchService.SubmitHoleScores(r.Context(), id, req.HoleNumber, entries)
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to submit score", err)
 		return
@@ -269,12 +245,12 @@ func (h *MatchesHandler) SubmitScore(w http.ResponseWriter, r *http.Request) {
 // GET /v1/matches/{id}/status
 // Both report the match's outcome, in the same shape a score write returns — the winner
 // and "is it over" are two questions about one state, so they get one answer.
-func (h *MatchesHandler) GetMatchStatus(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) GetMatchStatus(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathUUIDOr400(w, r, "id", "match")
 	if !ok {
 		return
 	}
-	status, err := h.matchService.MatchStatus(r.Context(), id)
+	status, err := rt.MatchService.MatchStatus(r.Context(), id)
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to get match status", err)
 		return

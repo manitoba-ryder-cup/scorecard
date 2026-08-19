@@ -1,35 +1,15 @@
 package rest
 
 import (
-	"context"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
-type CourseService interface {
-	CreateTeeColor(ctx context.Context, in golf.CreateTeeColorInput) (*golf.TeeColor, error)
-	ListTeeColors(ctx context.Context) ([]golf.TeeColor, error)
-	CreateCourse(ctx context.Context, in golf.CreateCourseInput) (*golf.Course, error)
-	GetCourse(ctx context.Context, id uuid.UUID) (*golf.Course, error)
-	ListCourses(ctx context.Context) ([]golf.Course, error)
-	CreateTeeSet(ctx context.Context, in golf.CreateTeeSetInput) (*golf.TeeSetWithHoles, error)
-	ListCourseTeeSets(ctx context.Context, courseID uuid.UUID) ([]golf.CourseTeeSet, error)
-}
-
-type CoursesHandler struct {
-	courseService CourseService
-}
-
-func NewCoursesHandler(courseService CourseService) *CoursesHandler {
-	return &CoursesHandler{courseService: courseService}
-}
-
 // GET /v1/tee-colors
-func (h *CoursesHandler) ListTeeColors(w http.ResponseWriter, r *http.Request) {
-	teeColors, err := h.courseService.ListTeeColors(r.Context())
+func (rt *Router) ListTeeColors(w http.ResponseWriter, r *http.Request) {
+	teeColors, err := rt.CourseService.ListTeeColors(r.Context())
 	if err != nil {
 		respondError(r.Context(), w, http.StatusInternalServerError, "Failed to list tee colors", err)
 		return
@@ -38,12 +18,12 @@ func (h *CoursesHandler) ListTeeColors(w http.ResponseWriter, r *http.Request) {
 }
 
 // POST /v1/tee-colors
-func (h *CoursesHandler) CreateTeeColor(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) CreateTeeColor(w http.ResponseWriter, r *http.Request) {
 	req, ok := decodeAndValidate[sdk.CreateTeeColorRequest](w, r)
 	if !ok {
 		return
 	}
-	teeColor, err := h.courseService.CreateTeeColor(r.Context(), golf.CreateTeeColorInput{Color: req.Color})
+	teeColor, err := rt.CourseService.CreateTeeColor(r.Context(), golf.CreateTeeColorInput{Color: req.Color})
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to create tee color", err)
 		return
@@ -52,8 +32,8 @@ func (h *CoursesHandler) CreateTeeColor(w http.ResponseWriter, r *http.Request) 
 }
 
 // GET /v1/courses
-func (h *CoursesHandler) ListCourses(w http.ResponseWriter, r *http.Request) {
-	courses, err := h.courseService.ListCourses(r.Context())
+func (rt *Router) ListCourses(w http.ResponseWriter, r *http.Request) {
+	courses, err := rt.CourseService.ListCourses(r.Context())
 	if err != nil {
 		respondError(r.Context(), w, http.StatusInternalServerError, "Failed to list courses", err)
 		return
@@ -62,12 +42,12 @@ func (h *CoursesHandler) ListCourses(w http.ResponseWriter, r *http.Request) {
 }
 
 // GET /v1/courses/{id}
-func (h *CoursesHandler) GetCourse(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) GetCourse(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathUUIDOr400(w, r, "id", "course")
 	if !ok {
 		return
 	}
-	course, err := h.courseService.GetCourse(r.Context(), id)
+	course, err := rt.CourseService.GetCourse(r.Context(), id)
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to get course", err)
 		return
@@ -76,7 +56,7 @@ func (h *CoursesHandler) GetCourse(w http.ResponseWriter, r *http.Request) {
 }
 
 // POST /v1/courses/{id}/tees
-func (h *CoursesHandler) AddTeeSet(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) AddTeeSet(w http.ResponseWriter, r *http.Request) {
 	courseID, ok := pathUUIDOr400(w, r, "id", "course")
 	if !ok {
 		return
@@ -89,7 +69,7 @@ func (h *CoursesHandler) AddTeeSet(w http.ResponseWriter, r *http.Request) {
 	for i, h := range req.Holes {
 		holes[i] = golf.HoleInput{Number: h.Number, Par: h.Par, Hdcp: h.Hdcp, Yards: h.Yards}
 	}
-	teeSet, err := h.courseService.CreateTeeSet(r.Context(), golf.CreateTeeSetInput{
+	teeSet, err := rt.CourseService.CreateTeeSet(r.Context(), golf.CreateTeeSetInput{
 		CourseID:   courseID,
 		TeeColorID: req.TeeColorID,
 		Slope:      req.Slope,
@@ -105,12 +85,12 @@ func (h *CoursesHandler) AddTeeSet(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/courses/{id}/tees
 // Lists a course's configured tee sets (with colour names) for match setup.
-func (h *CoursesHandler) ListCourseTeeSets(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) ListCourseTeeSets(w http.ResponseWriter, r *http.Request) {
 	courseID, ok := pathUUIDOr400(w, r, "id", "course")
 	if !ok {
 		return
 	}
-	teeSets, err := h.courseService.ListCourseTeeSets(r.Context(), courseID)
+	teeSets, err := rt.CourseService.ListCourseTeeSets(r.Context(), courseID)
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to list course tee sets", err)
 		return
@@ -119,7 +99,7 @@ func (h *CoursesHandler) ListCourseTeeSets(w http.ResponseWriter, r *http.Reques
 }
 
 // POST /v1/courses
-func (h *CoursesHandler) CreateCourse(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) CreateCourse(w http.ResponseWriter, r *http.Request) {
 	req, ok := decodeAndValidate[sdk.CreateCourseRequest](w, r)
 	if !ok {
 		return
@@ -128,7 +108,7 @@ func (h *CoursesHandler) CreateCourse(w http.ResponseWriter, r *http.Request) {
 	if timeZone == "" {
 		timeZone = sdk.DefaultTimeZone
 	}
-	course, err := h.courseService.CreateCourse(r.Context(), golf.CreateCourseInput{Name: req.Name, TimeZone: timeZone})
+	course, err := rt.CourseService.CreateCourse(r.Context(), golf.CreateCourseInput{Name: req.Name, TimeZone: timeZone})
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to create course", err)
 		return

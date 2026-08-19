@@ -1,38 +1,19 @@
 package rest
 
 import (
-	"context"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
-type RosterService interface {
-	EnterPlayer(ctx context.Context, in golf.EnterPlayerInput) (*golf.TournamentPlayer, error)
-	UpdatePlayer(ctx context.Context, in golf.UpdateRosterEntryInput) (*golf.TournamentPlayer, error)
-	ListPlayers(ctx context.Context, tournamentID uuid.UUID) ([]golf.TournamentPlayer, error)
-	DraftPlayer(ctx context.Context, teamID, playerID uuid.UUID) (*golf.TeamMember, error)
-	UndraftPlayer(ctx context.Context, teamID, playerID uuid.UUID) error
-	ListTeamMembers(ctx context.Context, teamID uuid.UUID) ([]golf.TournamentPlayer, error)
-}
-
-type RosterHandler struct {
-	rosterService RosterService
-}
-
-func NewRosterHandler(rosterService RosterService) *RosterHandler {
-	return &RosterHandler{rosterService: rosterService}
-}
-
 // GET /v1/tournaments/{id}/players
-func (h *RosterHandler) ListPlayers(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) ListTournamentPlayers(w http.ResponseWriter, r *http.Request) {
 	tournamentID, ok := pathUUIDOr400(w, r, "id", "tournament")
 	if !ok {
 		return
 	}
-	players, err := h.rosterService.ListPlayers(r.Context(), tournamentID)
+	players, err := rt.RosterService.ListPlayers(r.Context(), tournamentID)
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to list tournament players", err)
 		return
@@ -41,7 +22,7 @@ func (h *RosterHandler) ListPlayers(w http.ResponseWriter, r *http.Request) {
 }
 
 // POST /v1/tournaments/{id}/players
-func (h *RosterHandler) EnterPlayer(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) EnterPlayer(w http.ResponseWriter, r *http.Request) {
 	tournamentID, ok := pathUUIDOr400(w, r, "id", "tournament")
 	if !ok {
 		return
@@ -50,7 +31,7 @@ func (h *RosterHandler) EnterPlayer(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	entry, err := h.rosterService.EnterPlayer(r.Context(), golf.EnterPlayerInput{
+	entry, err := rt.RosterService.EnterPlayer(r.Context(), golf.EnterPlayerInput{
 		TournamentID: tournamentID,
 		PlayerID:     req.PlayerID,
 		Tier:         req.Tier,
@@ -65,7 +46,7 @@ func (h *RosterHandler) EnterPlayer(w http.ResponseWriter, r *http.Request) {
 }
 
 // PUT /v1/tournaments/{id}/players/{playerId}
-func (h *RosterHandler) UpdatePlayer(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) UpdateTournamentPlayer(w http.ResponseWriter, r *http.Request) {
 	tournamentID, ok := pathUUIDOr400(w, r, "id", "tournament")
 	if !ok {
 		return
@@ -78,7 +59,7 @@ func (h *RosterHandler) UpdatePlayer(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	entry, err := h.rosterService.UpdatePlayer(r.Context(), golf.UpdateRosterEntryInput{
+	entry, err := rt.RosterService.UpdatePlayer(r.Context(), golf.UpdateRosterEntryInput{
 		TournamentID: tournamentID,
 		PlayerID:     playerID,
 		Tier:         req.Tier,
@@ -94,7 +75,7 @@ func (h *RosterHandler) UpdatePlayer(w http.ResponseWriter, r *http.Request) {
 
 // POST /v1/teams/{id}/members
 // Drafts an entered player onto the team (the tournament is the team's).
-func (h *RosterHandler) DraftPlayer(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) DraftPlayer(w http.ResponseWriter, r *http.Request) {
 	teamID, ok := pathUUIDOr400(w, r, "id", "team")
 	if !ok {
 		return
@@ -103,7 +84,7 @@ func (h *RosterHandler) DraftPlayer(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	member, err := h.rosterService.DraftPlayer(r.Context(), teamID, req.PlayerID)
+	member, err := rt.RosterService.DraftPlayer(r.Context(), teamID, req.PlayerID)
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to draft player", err)
 		return
@@ -113,7 +94,7 @@ func (h *RosterHandler) DraftPlayer(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /v1/teams/{id}/members/{playerId}
 // Undrafts a player from the team; 404 if they weren't on it.
-func (h *RosterHandler) UndraftPlayer(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) UndraftPlayer(w http.ResponseWriter, r *http.Request) {
 	teamID, ok := pathUUIDOr400(w, r, "id", "team")
 	if !ok {
 		return
@@ -122,7 +103,7 @@ func (h *RosterHandler) UndraftPlayer(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := h.rosterService.UndraftPlayer(r.Context(), teamID, playerID); err != nil {
+	if err := rt.RosterService.UndraftPlayer(r.Context(), teamID, playerID); err != nil {
 		respondDomainError(r.Context(), w, "Failed to undraft player", err)
 		return
 	}
@@ -130,12 +111,12 @@ func (h *RosterHandler) UndraftPlayer(w http.ResponseWriter, r *http.Request) {
 }
 
 // GET /v1/teams/{id}/members
-func (h *RosterHandler) ListTeamMembers(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) ListTeamMembers(w http.ResponseWriter, r *http.Request) {
 	teamID, ok := pathUUIDOr400(w, r, "id", "team")
 	if !ok {
 		return
 	}
-	members, err := h.rosterService.ListTeamMembers(r.Context(), teamID)
+	members, err := rt.RosterService.ListTeamMembers(r.Context(), teamID)
 	if err != nil {
 		respondDomainError(r.Context(), w, "Failed to list team members", err)
 		return
