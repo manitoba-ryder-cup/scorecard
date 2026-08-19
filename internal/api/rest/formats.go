@@ -9,7 +9,7 @@ import (
 
 // GET /v1/match-formats
 // Lists the global, code-defined match formats. No tenant involved (global data).
-func (r *Router) ListMatchFormats(w http.ResponseWriter, req *http.Request) {
+func (r *Router) listMatchFormats(w http.ResponseWriter, req *http.Request) {
 	formats, err := r.FormatService.ListFormats(req.Context())
 	if err != nil {
 		respondError(req.Context(), w, http.StatusInternalServerError, "Failed to list match formats", err)

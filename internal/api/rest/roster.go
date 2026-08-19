@@ -8,7 +8,7 @@ import (
 )
 
 // GET /v1/tournaments/{id}/players
-func (r *Router) ListTournamentPlayers(w http.ResponseWriter, req *http.Request) {
+func (r *Router) listTournamentPlayers(w http.ResponseWriter, req *http.Request) {
 	tournamentID, ok := pathUUIDOr400(w, req, "id", "tournament")
 	if !ok {
 		return
@@ -22,7 +22,7 @@ func (r *Router) ListTournamentPlayers(w http.ResponseWriter, req *http.Request)
 }
 
 // POST /v1/tournaments/{id}/players
-func (r *Router) EnterPlayer(w http.ResponseWriter, req *http.Request) {
+func (r *Router) enterPlayer(w http.ResponseWriter, req *http.Request) {
 	tournamentID, ok := pathUUIDOr400(w, req, "id", "tournament")
 	if !ok {
 		return
@@ -46,7 +46,7 @@ func (r *Router) EnterPlayer(w http.ResponseWriter, req *http.Request) {
 }
 
 // PUT /v1/tournaments/{id}/players/{playerId}
-func (r *Router) UpdateTournamentPlayer(w http.ResponseWriter, req *http.Request) {
+func (r *Router) updateTournamentPlayer(w http.ResponseWriter, req *http.Request) {
 	tournamentID, ok := pathUUIDOr400(w, req, "id", "tournament")
 	if !ok {
 		return
@@ -75,7 +75,7 @@ func (r *Router) UpdateTournamentPlayer(w http.ResponseWriter, req *http.Request
 
 // POST /v1/teams/{id}/members
 // Drafts an entered player onto the team (the tournament is the team's).
-func (r *Router) DraftPlayer(w http.ResponseWriter, req *http.Request) {
+func (r *Router) draftPlayer(w http.ResponseWriter, req *http.Request) {
 	teamID, ok := pathUUIDOr400(w, req, "id", "team")
 	if !ok {
 		return
@@ -94,7 +94,7 @@ func (r *Router) DraftPlayer(w http.ResponseWriter, req *http.Request) {
 
 // DELETE /v1/teams/{id}/members/{playerId}
 // Undrafts a player from the team; 404 if they weren't on it.
-func (r *Router) UndraftPlayer(w http.ResponseWriter, req *http.Request) {
+func (r *Router) undraftPlayer(w http.ResponseWriter, req *http.Request) {
 	teamID, ok := pathUUIDOr400(w, req, "id", "team")
 	if !ok {
 		return
@@ -111,7 +111,7 @@ func (r *Router) UndraftPlayer(w http.ResponseWriter, req *http.Request) {
 }
 
 // GET /v1/teams/{id}/members
-func (r *Router) ListTeamMembers(w http.ResponseWriter, req *http.Request) {
+func (r *Router) listTeamMembers(w http.ResponseWriter, req *http.Request) {
 	teamID, ok := pathUUIDOr400(w, req, "id", "team")
 	if !ok {
 		return

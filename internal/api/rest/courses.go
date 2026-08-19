@@ -8,7 +8,7 @@ import (
 )
 
 // GET /v1/tee-colors
-func (r *Router) ListTeeColors(w http.ResponseWriter, req *http.Request) {
+func (r *Router) listTeeColors(w http.ResponseWriter, req *http.Request) {
 	teeColors, err := r.CourseService.ListTeeColors(req.Context())
 	if err != nil {
 		respondError(req.Context(), w, http.StatusInternalServerError, "Failed to list tee colors", err)
@@ -18,7 +18,7 @@ func (r *Router) ListTeeColors(w http.ResponseWriter, req *http.Request) {
 }
 
 // POST /v1/tee-colors
-func (r *Router) CreateTeeColor(w http.ResponseWriter, req *http.Request) {
+func (r *Router) createTeeColor(w http.ResponseWriter, req *http.Request) {
 	body, ok := decodeAndValidate[sdk.CreateTeeColorRequest](w, req)
 	if !ok {
 		return
@@ -32,7 +32,7 @@ func (r *Router) CreateTeeColor(w http.ResponseWriter, req *http.Request) {
 }
 
 // GET /v1/courses
-func (r *Router) ListCourses(w http.ResponseWriter, req *http.Request) {
+func (r *Router) listCourses(w http.ResponseWriter, req *http.Request) {
 	courses, err := r.CourseService.ListCourses(req.Context())
 	if err != nil {
 		respondError(req.Context(), w, http.StatusInternalServerError, "Failed to list courses", err)
@@ -42,7 +42,7 @@ func (r *Router) ListCourses(w http.ResponseWriter, req *http.Request) {
 }
 
 // GET /v1/courses/{id}
-func (r *Router) GetCourse(w http.ResponseWriter, req *http.Request) {
+func (r *Router) getCourse(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "course")
 	if !ok {
 		return
@@ -56,7 +56,7 @@ func (r *Router) GetCourse(w http.ResponseWriter, req *http.Request) {
 }
 
 // POST /v1/courses/{id}/tees
-func (r *Router) AddTeeSet(w http.ResponseWriter, req *http.Request) {
+func (r *Router) addTeeSet(w http.ResponseWriter, req *http.Request) {
 	courseID, ok := pathUUIDOr400(w, req, "id", "course")
 	if !ok {
 		return
@@ -85,7 +85,7 @@ func (r *Router) AddTeeSet(w http.ResponseWriter, req *http.Request) {
 
 // GET /v1/courses/{id}/tees
 // Lists a course's configured tee sets (with colour names) for match setup.
-func (r *Router) ListCourseTeeSets(w http.ResponseWriter, req *http.Request) {
+func (r *Router) listCourseTeeSets(w http.ResponseWriter, req *http.Request) {
 	courseID, ok := pathUUIDOr400(w, req, "id", "course")
 	if !ok {
 		return
@@ -99,7 +99,7 @@ func (r *Router) ListCourseTeeSets(w http.ResponseWriter, req *http.Request) {
 }
 
 // POST /v1/courses
-func (r *Router) CreateCourse(w http.ResponseWriter, req *http.Request) {
+func (r *Router) createCourse(w http.ResponseWriter, req *http.Request) {
 	body, ok := decodeAndValidate[sdk.CreateCourseRequest](w, req)
 	if !ok {
 		return
