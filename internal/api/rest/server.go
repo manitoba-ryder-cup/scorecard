@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
@@ -21,8 +20,13 @@ type HealthChecker interface {
 	Health(ctx context.Context) error
 }
 
-type Config struct {
-	Address          string
+// Router carries everything the handlers reach. The domain services are the concrete
+// types: the API layer is a translation layer over the domain and has no reason to
+// abstract it.
+type Router struct {
+	// DB answers the health check. An interface so /health can verify readiness without
+	// this package importing the persistence layer.
+	DB               HealthChecker
 	JWTValidator     *jwt.Validator
 	TrustedProxyMode bool // Trust X-Forwarded-For headers from reverse proxy
 	// ProxySecret, when set, requires a matching X-Proxy-Secret header on every request
@@ -33,7 +37,6 @@ type Config struct {
 	// (e.g. manitobarydercup.com): reads without a token resolve to this tenant. Nil
 	// on a multi-tenant deployment, where every request must carry a token.
 	PublicTenantID    *uuid.UUID
-	DB                HealthChecker
 	PlayerService     *golf.PlayerService
 	MatchService      *golf.MatchService
 	TournamentService *golf.TournamentService
@@ -43,39 +46,15 @@ type Config struct {
 	TeamService       *golf.TeamService
 }
 
-// Router carries the domain services the handlers reach. They are the concrete types:
-// the API layer is a translation layer over the domain and has no reason to abstract it.
-type Router struct {
-	PlayerService     *golf.PlayerService
-	MatchService      *golf.MatchService
-	TournamentService *golf.TournamentService
-	CourseService     *golf.CourseService
-	FormatService     *golf.FormatService
-	RosterService     *golf.RosterService
-	TeamService       *golf.TeamService
-}
-
-type Server struct {
-	*http.Server
-}
-
-func NewServer(config *Config) *Server {
-	jwtMiddleware := jwt.NewHTTPMiddleware(config.JWTValidator)
-
-	r := &Router{
-		PlayerService:     config.PlayerService,
-		MatchService:      config.MatchService,
-		TournamentService: config.TournamentService,
-		CourseService:     config.CourseService,
-		FormatService:     config.FormatService,
-		RosterService:     config.RosterService,
-		TeamService:       config.TeamService,
-	}
+// Handler assembles the routes and the middleware chain around them. The caller building
+// the server calls it once.
+func (r *Router) Handler() http.Handler {
+	jwtMiddleware := jwt.NewHTTPMiddleware(r.JWTValidator)
 
 	mux := http.NewServeMux()
 
 	// Health check (public, no auth, no tenant) — verifies DB readiness.
-	mux.HandleFunc("GET "+sdk.RouteHealth, HandleHealth(config.DB))
+	mux.HandleFunc("GET "+sdk.RouteHealth, HandleHealth(r.DB))
 
 	// Match formats are global seeded reference data — truly public, no tenant needed.
 	mux.HandleFunc("GET "+sdk.RouteV1MatchFormats, cacheableRead(r.ListMatchFormats))
@@ -84,7 +63,7 @@ func NewServer(config *Config) *Server {
 	// used when present, else the configured public tenant (401 if neither). Anonymous
 	// successes are marked edge-cacheable on the way out — see cacheableRead.
 	public := func(method, route string, handler http.HandlerFunc) {
-		mux.HandleFunc(method+" "+route, cacheableRead(optionalAuth(jwtMiddleware, config.PublicTenantID, handler)))
+		mux.HandleFunc(method+" "+route, cacheableRead(optionalAuth(jwtMiddleware, r.PublicTenantID, handler)))
 	}
 	// scoped registers a write route that requires a valid token carrying `scope`.
 	scoped := func(method, route, scope string, handler http.HandlerFunc) {
@@ -148,22 +127,12 @@ func NewServer(config *Config) *Server {
 	// outermost (wraps everything) and RequestID runs before ClientIP/UserAgent.
 	var handler http.Handler = mux
 	handler = identity.UserAgent(handler)
-	handler = identity.ClientIP(config.TrustedProxyMode)(handler)
+	handler = identity.ClientIP(r.TrustedProxyMode)(handler)
 	handler = identity.RequestID(handler)
-	handler = identity.RequireProxySecret(config.ProxySecret, sdk.RouteHealth)(handler)
+	handler = identity.RequireProxySecret(r.ProxySecret, sdk.RouteHealth)(handler)
 	handler = recoverMiddleware(handler)
 
-	return &Server{
-		&http.Server{
-			Addr:              config.Address,
-			Handler:           handler,
-			ReadHeaderTimeout: 5 * time.Second,
-			// Bound how long one connection can occupy the server: without these a slow
-			// reader or an idle keep-alive holds its slot indefinitely.
-			WriteTimeout: 30 * time.Second,
-			IdleTimeout:  120 * time.Second,
-		},
-	}
+	return handler
 }
 
 // optionalAuth guards a public read route. With an Authorization header it delegates
@@ -199,9 +168,4 @@ func recoverMiddleware(next http.Handler) http.Handler {
 		}()
 		next.ServeHTTP(w, req)
 	})
-}
-
-// Shutdown gracefully shuts down the HTTP server
-func (s *Server) Shutdown(ctx context.Context) error {
-	return s.Server.Shutdown(ctx)
 }
