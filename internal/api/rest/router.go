@@ -2,9 +2,7 @@ package rest
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
-	"runtime/debug"
 
 	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
@@ -44,14 +42,30 @@ type Router struct {
 	FormatService     *golf.FormatService
 	RosterService     *golf.RosterService
 	TeamService       *golf.TeamService
+
+	jwtMiddleware *jwt.HTTPMiddleware
 }
 
 // Handler assembles the routes and the middleware chain around them. The caller building
 // the server calls it once.
 func (r *Router) Handler() http.Handler {
-	jwtMiddleware := jwt.NewHTTPMiddleware(r.JWTValidator)
+	r.jwtMiddleware = jwt.NewHTTPMiddleware(r.JWTValidator)
 
 	mux := http.NewServeMux()
+	r.registerRoutes(mux)
+
+	var handler http.Handler = mux
+	handler = identity.UserAgent(handler)
+	handler = identity.ClientIP(r.TrustedProxyMode)(handler)
+	handler = identity.RequestID(handler)
+	handler = identity.RequireProxySecret(r.ProxySecret, sdk.RouteHealth)(handler)
+	handler = recoverMiddleware(handler)
+
+	return handler
+}
+
+// registerRoutes configures every route with its authentication and caching wrapper.
+func (r *Router) registerRoutes(mux *http.ServeMux) {
 
 	// Health check (public, no auth, no tenant) — verifies DB readiness.
 	mux.HandleFunc("GET "+sdk.RouteHealth, HandleHealth(r.DB))
@@ -63,11 +77,11 @@ func (r *Router) Handler() http.Handler {
 	// used when present, else the configured public tenant (401 if neither). Anonymous
 	// successes are marked edge-cacheable on the way out — see cacheableRead.
 	public := func(method, route string, handler http.HandlerFunc) {
-		mux.HandleFunc(method+" "+route, cacheableRead(optionalAuth(jwtMiddleware, r.PublicTenantID, handler)))
+		mux.HandleFunc(method+" "+route, cacheableRead(optionalAuth(r.jwtMiddleware, r.PublicTenantID, handler)))
 	}
 	// scoped registers a write route that requires a valid token carrying `scope`.
 	scoped := func(method, route, scope string, handler http.HandlerFunc) {
-		mux.HandleFunc(method+" "+route, jwtMiddleware.RequireScope(jwt.Scope(scope), handler))
+		mux.HandleFunc(method+" "+route, r.jwtMiddleware.RequireScope(jwt.Scope(scope), handler))
 	}
 
 	// Player routes
@@ -125,47 +139,4 @@ func (r *Router) Handler() http.Handler {
 
 	// Global middleware chain. Assembled inner-to-outer, so recoverMiddleware is
 	// outermost (wraps everything) and RequestID runs before ClientIP/UserAgent.
-	var handler http.Handler = mux
-	handler = identity.UserAgent(handler)
-	handler = identity.ClientIP(r.TrustedProxyMode)(handler)
-	handler = identity.RequestID(handler)
-	handler = identity.RequireProxySecret(r.ProxySecret, sdk.RouteHealth)(handler)
-	handler = recoverMiddleware(handler)
-
-	return handler
-}
-
-// optionalAuth guards a public read route. With an Authorization header it delegates
-// to full JWT authentication (tenant + actor from the token; 401 on a bad token).
-// Without one, it falls back to the configured public tenant so anonymous spectators
-// can read a single-tenant site; if no public tenant is configured, it is 401 (a
-// multi-tenant deployment requires login even to read).
-func optionalAuth(m *jwt.HTTPMiddleware, publicTenantID *uuid.UUID, next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		if req.Header.Get("Authorization") != "" {
-			m.Authenticate(next)(w, req)
-			return
-		}
-		if publicTenantID == nil {
-			respondError(req.Context(), w, http.StatusUnauthorized, "authentication required", nil)
-			return
-		}
-		ctx := identity.WithTenant(req.Context(), *publicTenantID)
-		next(w, req.WithContext(ctx))
-	}
-}
-
-// recoverMiddleware turns a panic in a downstream handler into a 500 instead of
-// crashing the server. knowhere provides no recoverer; this mirrors heimdall.
-func recoverMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		defer func() {
-			if err := recover(); err != nil {
-				// Log with a stack so a recovered panic leaves a diagnosable trail.
-				slog.ErrorContext(req.Context(), "panic recovered", "error", err, "stack", string(debug.Stack()))
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-		}()
-		next.ServeHTTP(w, req)
-	})
 }
