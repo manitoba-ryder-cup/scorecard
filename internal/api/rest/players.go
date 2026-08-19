@@ -8,7 +8,7 @@ import (
 )
 
 // GET /v1/players
-func (r *Router) ListPlayers(w http.ResponseWriter, req *http.Request) {
+func (r *Router) listPlayers(w http.ResponseWriter, req *http.Request) {
 	players, err := r.PlayerService.ListPlayers(req.Context())
 	if err != nil {
 		respondDomainError(req.Context(), w, "Failed to list players", err)
@@ -18,7 +18,7 @@ func (r *Router) ListPlayers(w http.ResponseWriter, req *http.Request) {
 }
 
 // POST /v1/players
-func (r *Router) CreatePlayer(w http.ResponseWriter, req *http.Request) {
+func (r *Router) createPlayer(w http.ResponseWriter, req *http.Request) {
 	// The SDK client validates before sending; this guards non-SDK callers. Domain
 	// invariants are enforced separately below.
 	body, ok := decodeAndValidate[sdk.CreatePlayerRequest](w, req)
@@ -40,7 +40,7 @@ func (r *Router) CreatePlayer(w http.ResponseWriter, req *http.Request) {
 
 // PUT /v1/players/{id}
 // Updates a player's own attributes. Omitted fields keep their stored value.
-func (r *Router) UpdatePlayer(w http.ResponseWriter, req *http.Request) {
+func (r *Router) updatePlayer(w http.ResponseWriter, req *http.Request) {
 	playerID, ok := pathUUIDOr400(w, req, "id", "player")
 	if !ok {
 		return
@@ -64,7 +64,7 @@ func (r *Router) UpdatePlayer(w http.ResponseWriter, req *http.Request) {
 }
 
 // GET /v1/players/{id}
-func (r *Router) GetPlayer(w http.ResponseWriter, req *http.Request) {
+func (r *Router) getPlayer(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "player")
 	if !ok {
 		return
@@ -79,7 +79,7 @@ func (r *Router) GetPlayer(w http.ResponseWriter, req *http.Request) {
 }
 
 // GET /v1/players/{id}/stats
-func (r *Router) GetPlayerStats(w http.ResponseWriter, req *http.Request) {
+func (r *Router) getPlayerStats(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "player")
 	if !ok {
 		return
@@ -93,7 +93,7 @@ func (r *Router) GetPlayerStats(w http.ResponseWriter, req *http.Request) {
 }
 
 // GET /v1/players/{id}/tournaments
-func (r *Router) ListPlayerTournaments(w http.ResponseWriter, req *http.Request) {
+func (r *Router) listPlayerTournaments(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "player")
 	if !ok {
 		return
