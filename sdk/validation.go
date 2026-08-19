@@ -1,14 +1,13 @@
 package sdk
 
 import (
-	// Embedded so an IANA name validates the same wherever the SDK runs.
-	_ "time/tzdata"
-
 	"context"
 	"fmt"
 	"regexp"
 	"strings"
 	"time"
+	// Embedded so an IANA name validates the same wherever the SDK runs.
+	_ "time/tzdata"
 
 	"github.com/google/uuid"
 )

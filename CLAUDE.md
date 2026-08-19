@@ -23,13 +23,14 @@ This is a port of the Python/Flask application in the sibling `scorecardpy/` rep
 
 ### Testing and Quality
 
-- `make test` — unit tests with the race detector (excludes `./test`, which needs infrastructure)
+- `make unit` — unit tests with the race detector (excludes `./test`, which needs infrastructure)
 - `make test-setup` — build and start postgres + scorecard test infrastructure
 - `make integration` — run `./test/...` (needs `make test-setup` first)
+- `make test` — test-setup + unit + integration
 - `make test-teardown` — stop the test stack and drop its volumes
 - `make lint` — golangci-lint via Docker
-- `make fmt` — gofmt + goimports
-- `make coverage-html` — HTML coverage report
+- `make fmt` — gofmt, goimports, then gci to enforce import grouping
+- `make coverage` — HTML coverage report
 - `make help` — list every target
 
 Run `make fmt` before `make build` to resolve imports.
