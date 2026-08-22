@@ -143,15 +143,32 @@ func TestAMatchClearedOutsideTheWindowIsRecoverable(t *testing.T) {
 
 	now := time.Now().Format(time.RFC3339)
 	if _, err := client.UpdateMatch(ctx, fix.MatchID, sdk.UpdateMatchRequest{TeeTime: &now}); err != nil {
-		t.Fatalf("move the tee time back: %v", err)
+		t.Fatalf("open the window: %v", err)
 	}
 	playHole(t, client, fix, 1, 5, 4)
+
+	// And put the schedule back. Tee time is published on the match and derives its
+	// scoring window, so a match left on the time it was re-entered at is misscheduled for
+	// good. UpdateMatch has no window of its own, so this is allowed after the fact.
+	if _, err := client.UpdateMatch(ctx, fix.MatchID, sdk.UpdateMatchRequest{TeeTime: &lastYear}); err != nil {
+		t.Fatalf("restore the tee time: %v", err)
+	}
 
 	results, err := client.GetTournamentResults(ctx, fix.TournamentID)
 	if err != nil {
 		t.Fatalf("get results: %v", err)
 	}
-	if r := results[0]; r.LeaderTeamID == nil || *r.LeaderTeamID != fix.TeamBlue {
+	r := results[0]
+	if r.LeaderTeamID == nil || *r.LeaderTeamID != fix.TeamBlue {
 		t.Errorf("want the re-entered card to stand with Blue ahead, got %+v", r)
+	}
+	// Compared as instants: tee times are served as UTC, whatever offset they went in as.
+	got, err := time.Parse(time.RFC3339, r.TeeTime)
+	if err != nil {
+		t.Fatalf("parse tee time %q: %v", r.TeeTime, err)
+	}
+	want, _ := time.Parse(time.RFC3339, lastYear)
+	if !got.Equal(want) {
+		t.Errorf("tee time = %s, want the schedule restored to %s", got, want)
 	}
 }

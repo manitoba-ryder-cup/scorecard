@@ -267,11 +267,6 @@ func (s *MatchService) ListMatchHoles(ctx context.Context, matchID uuid.UUID) ([
 }
 
 // ResetMatch clears a match's scores and stored result, leaving its lineup.
-//
-// Not gated on the scoring window, unlike a score write, so that a match from a past cup
-// can be cleared at all. That makes it one-way past the window: re-entering a card needs
-// the window open, which means moving the tee time first. The match is loaded first
-// because rows affected cannot tell an unknown match from an unscored one.
 func (s *MatchService) ResetMatch(ctx context.Context, matchID uuid.UUID) error {
 	if _, err := s.MatchDB.GetMatch(ctx, matchID); err != nil {
 		return fmt.Errorf("failed to get match: %w", err)

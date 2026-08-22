@@ -243,10 +243,12 @@ started.
 
 Two things a reset does not undo. It ignores the scoring window but score entry does not,
 so clearing a match played yesterday leaves it uneditable until its tee time moves — the
-same `PUT /v1/matches/{id}` a group that went out late needs. And resetting a *settled* cup
-strands the edge: `/tournaments/{id}`, `/teams` and `/results` were all served
-`max-age=86400` while it was finished, so anonymous spectators keep the old standing until
-that expires or the cache is purged by hand. The service has no purge hook.
+same `PUT /v1/matches/{id}` a group that went out late needs, and it has to be moved back
+afterwards or the match is permanently misscheduled. And resetting a *settled* cup strands
+the edge: `/tournaments/{id}`, `/teams` and `/results` hold the old standing for up to
+`settledMaxAge` while `/v1/tournaments` reports the new phase within the minute, so the two
+disagree until that expires. The service has no purge hook, which is why that tier is an
+hour rather than a day.
 
 **Do not split these steps, and keep the lock before the first read.** A single transaction
 is not enough on its own: under READ COMMITTED two concurrent submissions can each recompute

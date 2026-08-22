@@ -86,8 +86,6 @@ func (s *ScoresDB) SaveScoresAndRecompute(
 	})
 }
 
-// The lock comes first, as in SaveScoresAndRecompute: a submission that read the scores
-// before this deleted them would otherwise write a result recomputed from rows that are gone.
 func (s *ScoresDB) ResetMatch(ctx context.Context, matchID uuid.UUID) error {
 	return withTenantExec(ctx, s.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
 		if _, err := q.LockMatchForScoring(ctx, sqlc.LockMatchForScoringParams{
