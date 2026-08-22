@@ -13,9 +13,6 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/test/_util/request"
 )
 
-// A scorer corrects a hole by entering it again; there is no way to unsay one, and there
-// should not be. An admin unwinding a match is the other case, and these cover it.
-
 func TestResetReturnsAPlayedMatchToNeverPlayed(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)
@@ -43,8 +40,7 @@ func TestResetReturnsAPlayedMatchToNeverPlayed(t *testing.T) {
 		t.Errorf("want an unplayed match, got %+v", r)
 	}
 
-	// The stored result is deleted rather than zeroed, so the cup can fall back to
-	// upcoming — a row left behind would mark the match started and pin the cup live.
+	// A result row left behind would mark the match started and pin the cup live.
 	tour, err := client.GetTournament(ctx, fix.TournamentID)
 	if err != nil {
 		t.Fatalf("get tournament: %v", err)
@@ -54,7 +50,6 @@ func TestResetReturnsAPlayedMatchToNeverPlayed(t *testing.T) {
 	}
 }
 
-// The lineup is what makes a reset worth having over rebuilding the match.
 func TestResetLeavesTheLineupInPlace(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)
@@ -74,8 +69,6 @@ func TestResetLeavesTheLineupInPlace(t *testing.T) {
 	}
 }
 
-// Nothing to clear is not an error. Rows affected cannot tell a match that was never
-// scored from one that does not exist, which is why the handler asks the match instead.
 func TestResetIsIdempotent(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)
@@ -98,9 +91,6 @@ func TestResetUnknownMatchIsNotFound(t *testing.T) {
 	}
 }
 
-// The case the feature exists for: a mistake found after the scoring window has shut. The
-// match is scored while it is open, then moved into the past — which score entry refuses
-// from that point on, and a reset must not.
 func TestResetWorksAfterTheScoringWindowHasShut(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)
@@ -111,7 +101,7 @@ func TestResetWorksAfterTheScoringWindowHasShut(t *testing.T) {
 	if _, err := client.UpdateMatch(ctx, fix.MatchID, sdk.UpdateMatchRequest{TeeTime: &lastYear}); err != nil {
 		t.Fatalf("move the tee time: %v", err)
 	}
-	// Proves the window really is shut, so the reset below is not passing by accident.
+	// Without this the reset below would pass whether or not the window is enforced.
 	if _, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
 		HoleNumber: 11,
 		Scores: []sdk.ScoreEntry{

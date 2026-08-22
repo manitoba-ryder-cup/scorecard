@@ -197,9 +197,7 @@ func (r *Router) getMatchScores(w http.ResponseWriter, req *http.Request) {
 // POST /v1/matches/{id}/scores
 // Records a hole's scores as a unit and recomputes the match's materialized result, which
 // DELETE /v1/matches/{id}/scores
-// Clears every score on a match and its stored result, leaving the lineup in place. 404 if
-// the match doesn't exist; a match with nothing to clear is a 204 like any other, so a
-// repeated reset is harmless.
+// A match with nothing to clear is a 204, not a 404, so a repeated reset is harmless.
 func (r *Router) resetMatch(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "match")
 	if !ok {

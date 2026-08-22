@@ -628,9 +628,6 @@ func TestListResults_NoLeaderWhenAllSquare(t *testing.T) {
 	}
 }
 
-// A reset is not a score, so it deliberately does not consult the scoring window. The
-// window shuts twelve hours after a tee time, and unwinding a mistake found the next
-// morning — or clearing a demo cup from a past year — is most of what this is for.
 func TestResetMatch_WorksLongAfterTheWindowHasShut(t *testing.T) {
 	m, p := twoTeamMatch()
 	sdb := &fakeScoreDB{}
@@ -645,8 +642,6 @@ func TestResetMatch_WorksLongAfterTheWindowHasShut(t *testing.T) {
 	}
 }
 
-// The match is loaded first so an unknown id is a clean 404. Rows affected cannot say it:
-// a match with no scores deletes nothing and is a legitimate no-op.
 func TestResetMatch_UnknownMatchIsNotFound(t *testing.T) {
 	m, p := twoTeamMatch()
 	m.getErr = ErrNotFound

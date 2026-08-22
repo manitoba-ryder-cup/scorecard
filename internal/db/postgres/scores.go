@@ -86,11 +86,8 @@ func (s *ScoresDB) SaveScoresAndRecompute(
 	})
 }
 
-// ResetMatch clears a match's scores and its materialized result, returning it to
-// never-played. Both go in one transaction behind the same lock the write path takes, in
-// the same order: a submission that read the scores before a reset deleted them would
-// otherwise write a result recomputed from rows that no longer exist — the orphaned result
-// row this exists to clear.
+// The lock comes first, as in SaveScoresAndRecompute: a submission that read the scores
+// before this deleted them would otherwise write a result recomputed from rows that are gone.
 func (s *ScoresDB) ResetMatch(ctx context.Context, matchID uuid.UUID) error {
 	return withTenantExec(ctx, s.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
 		if _, err := q.LockMatchForScoring(ctx, sqlc.LockMatchForScoringParams{

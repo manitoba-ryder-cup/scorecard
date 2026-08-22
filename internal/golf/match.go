@@ -266,14 +266,11 @@ func (s *MatchService) ListMatchHoles(ctx context.Context, matchID uuid.UUID) ([
 	return holes, nil
 }
 
-// ResetMatch clears every score on a match and its stored result, returning it to
-// never-played. The lineup is left alone, so a match can be re-entered without being
-// rebuilt.
+// ResetMatch clears a match's scores and stored result, leaving its lineup.
 //
-// Deliberately not gated on the scoring window, unlike a score write: the window shuts
-// twelve hours after a tee time, and a mistake found the next morning is exactly what this
-// is for. The match is loaded first so an unknown id is a clean 404 — rows affected cannot
-// tell that apart from a match that simply had no scores.
+// Not gated on the scoring window, unlike a score write: the window shuts twelve hours
+// after a tee time, and a mistake found the next morning is what this is for. The match is
+// loaded first because rows affected cannot tell an unknown match from an unscored one.
 func (s *MatchService) ResetMatch(ctx context.Context, matchID uuid.UUID) error {
 	if _, err := s.MatchDB.GetMatch(ctx, matchID); err != nil {
 		return fmt.Errorf("failed to get match: %w", err)

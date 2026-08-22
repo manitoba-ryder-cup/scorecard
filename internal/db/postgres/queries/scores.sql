@@ -34,8 +34,6 @@ JOIN matches m ON m.id = s.match_id AND m.tenant_id = s.tenant_id
 WHERE m.tournament_id = @tournament_id AND s.tenant_id = @tenant_id
 ORDER BY s.match_id, s.hole_number;
 
--- Clears a match's scores. Paired with DeleteMatchResult in one transaction: the two
--- together are what returns a match to never-played.
 -- name: DeleteScoresByMatch :execrows
 DELETE FROM scores
 WHERE match_id = @match_id AND tenant_id = @tenant_id;
