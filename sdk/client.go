@@ -248,6 +248,12 @@ func (c *Client) SubmitScore(ctx context.Context, matchID uuid.UUID, req ScoreSu
 	return out, c.do(ctx, http.MethodPost, pathID(RouteV1MatchScores, matchID), req, &out)
 }
 
+// ResetMatchScores clears every score on a match and its stored result, returning it to
+// never-played. The lineup stays. A 204 (no body) is success; 404 if the match is unknown.
+func (c *Client) ResetMatchScores(ctx context.Context, matchID uuid.UUID) error {
+	return c.do(ctx, http.MethodDelete, pathID(RouteV1MatchScores, matchID), nil, nil)
+}
+
 func (c *Client) GetMatchScores(ctx context.Context, matchID uuid.UUID) ([]HoleStatus, error) {
 	var out []HoleStatus
 	return out, c.do(ctx, http.MethodGet, pathID(RouteV1MatchScores, matchID), nil, &out)

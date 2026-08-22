@@ -11,6 +11,26 @@ import (
 	"github.com/google/uuid"
 )
 
+const deleteScoresByMatch = `-- name: DeleteScoresByMatch :execrows
+DELETE FROM scores
+WHERE match_id = $1 AND tenant_id = $2
+`
+
+type DeleteScoresByMatchParams struct {
+	MatchID  uuid.UUID `json:"match_id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+}
+
+// Clears a match's scores. Paired with DeleteMatchResult in one transaction: the two
+// together are what returns a match to never-played.
+func (q *Queries) DeleteScoresByMatch(ctx context.Context, arg DeleteScoresByMatchParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteScoresByMatch, arg.MatchID, arg.TenantID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const listScoresByMatch = `-- name: ListScoresByMatch :many
 SELECT s.id, s.match_id, s.team_id, s.player_id, s.course_id, s.tee_color_id, s.hole_number, s.tenant_id, s.strokes, s.created_at, s.updated_at FROM scores s
 WHERE s.match_id = $1 AND s.tenant_id = $2
