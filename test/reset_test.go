@@ -123,3 +123,35 @@ func TestResetWorksAfterTheScoringWindowHasShut(t *testing.T) {
 		t.Errorf("want no scores left, got %d holes", len(scores))
 	}
 }
+
+// Reset does not consult the scoring window and score entry does, so clearing a match
+// played yesterday leaves it unrecoverable until the tee time moves. That is the documented
+// way back — the same PUT a group that went out late needs — and this walks it.
+func TestAMatchClearedOutsideTheWindowIsRecoverable(t *testing.T) {
+	t.Parallel()
+	client, fix := authedClient(t)
+	ctx := context.Background()
+	closeOutRedWin(t, client, fix)
+
+	lastYear := time.Now().AddDate(-1, 0, 0).Format(time.RFC3339)
+	if _, err := client.UpdateMatch(ctx, fix.MatchID, sdk.UpdateMatchRequest{TeeTime: &lastYear}); err != nil {
+		t.Fatalf("move the tee time out of the window: %v", err)
+	}
+	if err := client.ResetMatchScores(ctx, fix.MatchID); err != nil {
+		t.Fatalf("reset: %v", err)
+	}
+
+	now := time.Now().Format(time.RFC3339)
+	if _, err := client.UpdateMatch(ctx, fix.MatchID, sdk.UpdateMatchRequest{TeeTime: &now}); err != nil {
+		t.Fatalf("move the tee time back: %v", err)
+	}
+	playHole(t, client, fix, 1, 5, 4)
+
+	results, err := client.GetTournamentResults(ctx, fix.TournamentID)
+	if err != nil {
+		t.Fatalf("get results: %v", err)
+	}
+	if r := results[0]; r.LeaderTeamID == nil || *r.LeaderTeamID != fix.TeamBlue {
+		t.Errorf("want the re-entered card to stand with Blue ahead, got %+v", r)
+	}
+}

@@ -196,20 +196,6 @@ func (r *Router) getMatchScores(w http.ResponseWriter, req *http.Request) {
 
 // POST /v1/matches/{id}/scores
 // Records a hole's scores as a unit and recomputes the match's materialized result, which
-// DELETE /v1/matches/{id}/scores
-// A match with nothing to clear is a 204, not a 404, so a repeated reset is harmless.
-func (r *Router) resetMatch(w http.ResponseWriter, req *http.Request) {
-	id, ok := pathUUIDOr400(w, req, "id", "match")
-	if !ok {
-		return
-	}
-	if err := r.MatchService.ResetMatch(req.Context(), id); err != nil {
-		respondDomainError(req.Context(), w, "Failed to reset match", err)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
 // it returns so the client sees the hole's effect on the match without a second read.
 func (r *Router) submitScore(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "match")
@@ -232,6 +218,20 @@ func (r *Router) submitScore(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	respondJSON(w, http.StatusOK, toMatchStatusDTO(result))
+}
+
+// DELETE /v1/matches/{id}/scores
+// A match with nothing to clear is a 204, not a 404, so a repeated reset is harmless.
+func (r *Router) resetMatch(w http.ResponseWriter, req *http.Request) {
+	id, ok := pathUUIDOr400(w, req, "id", "match")
+	if !ok {
+		return
+	}
+	if err := r.MatchService.ResetMatch(req.Context(), id); err != nil {
+		respondDomainError(req.Context(), w, "Failed to reset match", err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // GET /v1/matches/{id}/winner

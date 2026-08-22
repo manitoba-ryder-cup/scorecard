@@ -241,6 +241,13 @@ scores, runs the domain's `guard`, writes, re-reads, and upserts the `recompute`
 reason. The result row is deleted rather than zeroed — its existence is what marks a match
 started.
 
+Two things a reset does not undo. It ignores the scoring window but score entry does not,
+so clearing a match played yesterday leaves it uneditable until its tee time moves — the
+same `PUT /v1/matches/{id}` a group that went out late needs. And resetting a *settled* cup
+strands the edge: `/tournaments/{id}`, `/teams` and `/results` were all served
+`max-age=86400` while it was finished, so anonymous spectators keep the old standing until
+that expires or the cache is purged by hand. The service has no purge hook.
+
 **Do not split these steps, and keep the lock before the first read.** A single transaction
 is not enough on its own: under READ COMMITTED two concurrent submissions can each recompute
 from a snapshot missing the other's score, and the later write reverts the result to a
