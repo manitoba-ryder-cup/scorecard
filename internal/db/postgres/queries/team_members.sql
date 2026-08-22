@@ -21,3 +21,14 @@ WHERE team_id = $1 AND player_id = $2 AND tenant_id = $3;
 -- name: ListTeamMemberships :many
 SELECT player_id, tournament_id, team_id FROM team_members
 WHERE tenant_id = $1;
+
+-- Whether undrafting this player would take scores with it. Joined on the match rather
+-- than the participant row, so a one-ball format counts too: those scores carry no player
+-- and so are invisible to the foreign key that guards the per-player case.
+-- name: PlayerHasScoredMatches :one
+SELECT EXISTS (
+    SELECT 1
+    FROM match_participants mp
+    JOIN scores s ON s.match_id = mp.match_id AND s.tenant_id = mp.tenant_id
+    WHERE mp.team_id = @team_id AND mp.player_id = @player_id AND mp.tenant_id = @tenant_id
+)::boolean;

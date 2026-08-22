@@ -2,6 +2,7 @@ package golf
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -92,5 +93,64 @@ func TestUpdatePlayer_LeavesAnOmittedTierAlone(t *testing.T) {
 	}
 	if db.updated[0].Hdcp != nil {
 		t.Errorf("hdcp = %v, want nil so the stored one survives", *db.updated[0].Hdcp)
+	}
+}
+
+// Only the captain clear that follows an undraft is exercised here.
+type fakeTeamDB struct{}
+
+func (f *fakeTeamDB) GetTeam(ctx context.Context, id uuid.UUID) (*Team, error) { return nil, nil }
+func (f *fakeTeamDB) ListTeamsByTournament(ctx context.Context, tournamentID uuid.UUID) ([]TeamWithCaptain, error) {
+	return nil, nil
+}
+func (f *fakeTeamDB) SetTeamCaptain(ctx context.Context, teamID, captainID uuid.UUID) (*Team, error) {
+	return nil, nil
+}
+func (f *fakeTeamDB) ClearCaptainForPlayer(ctx context.Context, teamID, playerID uuid.UUID) error {
+	return nil
+}
+func (f *fakeTeamDB) ClearCaptain(ctx context.Context, teamID uuid.UUID) error { return nil }
+
+type fakeTeamMemberDB struct {
+	scored    bool
+	undrafted []uuid.UUID
+}
+
+func (f *fakeTeamMemberDB) CreateTeamMember(ctx context.Context, teamID, playerID, tournamentID uuid.UUID) (*TeamMember, error) {
+	return nil, nil
+}
+func (f *fakeTeamMemberDB) DeleteTeamMember(ctx context.Context, teamID, playerID uuid.UUID) error {
+	f.undrafted = append(f.undrafted, playerID)
+	return nil
+}
+func (f *fakeTeamMemberDB) PlayerHasScoredMatches(ctx context.Context, teamID, playerID uuid.UUID) (bool, error) {
+	return f.scored, nil
+}
+
+// Undrafting cascades through the player's lineups into their scores, so a played match
+// would lose the card behind its stored result.
+func TestUndraftPlayer_RefusedOnceTheyHaveBeenScored(t *testing.T) {
+	db := &fakeTeamMemberDB{scored: true}
+	svc := &RosterService{TeamMemberDB: db}
+
+	err := svc.UndraftPlayer(context.Background(), teamA, playerA)
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("want ErrConflict, got %v", err)
+	}
+	if len(db.undrafted) != 0 {
+		t.Errorf("nothing should have been undrafted, got %v", db.undrafted)
+	}
+}
+
+// Being in a lineup is not being played: a draft is edited right up to the first tee.
+func TestUndraftPlayer_AllowedBeforeTheyHaveBeenScored(t *testing.T) {
+	db := &fakeTeamMemberDB{}
+	svc := &RosterService{TeamMemberDB: db, TeamDB: &fakeTeamDB{}}
+
+	if err := svc.UndraftPlayer(context.Background(), teamA, playerA); err != nil {
+		t.Fatalf("UndraftPlayer: %v", err)
+	}
+	if len(db.undrafted) != 1 || db.undrafted[0] != playerA {
+		t.Errorf("undrafted = %v, want the player", db.undrafted)
 	}
 }

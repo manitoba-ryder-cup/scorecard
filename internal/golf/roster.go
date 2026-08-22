@@ -113,7 +113,17 @@ func (s *RosterService) DraftPlayer(ctx context.Context, teamID, playerID uuid.U
 // UndraftPlayer removes a player from a team. ErrNotFound if they weren't on it. The
 // team_members -> match_participants cascade also pulls them from any of that team's
 // matches, so an undrafted player never lingers in a lineup.
+//
+// That cascade is why this refuses once they have played: it would reach their scores too,
+// and leave the stored result describing a match those scores no longer back.
 func (s *RosterService) UndraftPlayer(ctx context.Context, teamID, playerID uuid.UUID) error {
+	scored, err := s.TeamMemberDB.PlayerHasScoredMatches(ctx, teamID, playerID)
+	if err != nil {
+		return fmt.Errorf("failed to check for scored matches: %w", err)
+	}
+	if scored {
+		return fmt.Errorf("%w: player %s has been scored in a match; reset it before undrafting them", ErrConflict, playerID)
+	}
 	if err := s.TeamMemberDB.DeleteTeamMember(ctx, teamID, playerID); err != nil {
 		return fmt.Errorf("failed to undraft player: %w", err)
 	}

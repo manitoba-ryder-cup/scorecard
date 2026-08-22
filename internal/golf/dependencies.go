@@ -81,6 +81,8 @@ type teamMemberDB interface {
 	CreateTeamMember(ctx context.Context, teamID, playerID, tournamentID uuid.UUID) (*TeamMember, error)
 	// DeleteTeamMember undrafts a player; ErrNotFound if they weren't on the team.
 	DeleteTeamMember(ctx context.Context, teamID, playerID uuid.UUID) error
+	// PlayerHasScoredMatches reports whether undrafting them would take scores with it.
+	PlayerHasScoredMatches(ctx context.Context, teamID, playerID uuid.UUID) (bool, error)
 }
 
 // tournamentPlayerDB interface defines database operations for tournament entries

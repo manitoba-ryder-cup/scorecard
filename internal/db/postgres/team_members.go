@@ -38,6 +38,20 @@ func (t *TeamMembersDB) CreateTeamMember(ctx context.Context, teamID, playerID, 
 }
 
 // DeleteTeamMember undrafts a player from a team. ErrNotFound if they weren't a member.
+func (t *TeamMembersDB) PlayerHasScoredMatches(ctx context.Context, teamID, playerID uuid.UUID) (bool, error) {
+	return withTenant(ctx, t.db, func(q *sqlc.Queries, tenantID uuid.UUID) (bool, error) {
+		scored, err := q.PlayerHasScoredMatches(ctx, sqlc.PlayerHasScoredMatchesParams{
+			TeamID:   teamID,
+			PlayerID: playerID,
+			TenantID: tenantID,
+		})
+		if err != nil {
+			return false, fmt.Errorf("checking scored matches for player %s: %w", playerID, err)
+		}
+		return scored, nil
+	})
+}
+
 func (t *TeamMembersDB) DeleteTeamMember(ctx context.Context, teamID, playerID uuid.UUID) error {
 	rows, err := withTenant(ctx, t.db, func(q *sqlc.Queries, tenantID uuid.UUID) (int64, error) {
 		return q.DeleteTeamMember(ctx, sqlc.DeleteTeamMemberParams{

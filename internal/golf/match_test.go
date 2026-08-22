@@ -489,21 +489,9 @@ func TestHoleWinner(t *testing.T) {
 	}
 }
 
-func TestRemoveParticipant_DelegatesToDB(t *testing.T) {
-	p := &fakeParticipantDB{}
-	svc := &MatchService{ParticipantDB: p}
-
-	if err := svc.RemoveParticipant(context.Background(), matchID, playerA); err != nil {
-		t.Fatalf("RemoveParticipant: %v", err)
-	}
-	if len(p.deleted) != 1 || p.deleted[0] != playerA {
-		t.Fatalf("want delete for player %v, got %v", playerA, p.deleted)
-	}
-}
-
 func TestRemoveParticipant_PropagatesNotFound(t *testing.T) {
 	p := &fakeParticipantDB{deleteErr: ErrNotFound}
-	svc := &MatchService{ParticipantDB: p}
+	svc := &MatchService{ParticipantDB: p, ScoreDB: &fakeScoreDB{}}
 
 	err := svc.RemoveParticipant(context.Background(), matchID, playerA)
 	if !errors.Is(err, ErrNotFound) {
@@ -654,5 +642,47 @@ func TestResetMatch_UnknownMatchIsNotFound(t *testing.T) {
 	}
 	if len(sdb.resetFor) != 0 {
 		t.Errorf("nothing should have been cleared, got %v", sdb.resetFor)
+	}
+}
+
+// The lineup is what a played match's scores are attributed to, so changing it after the
+// fact rewrites holes already recorded — and for a per-player format the scores cascade
+// away entirely, leaving the stored result describing a match with one side.
+func TestRemoveParticipant_RefusedOnceTheMatchHasScores(t *testing.T) {
+	tests := []struct {
+		name   string
+		scores []Score
+	}{
+		{"per-player", []Score{{MatchID: matchID, TeamID: teamA, PlayerID: &playerA, HoleNumber: 1, Strokes: 4}}},
+		// The one the foreign key cannot catch: a team score carries no player, so it
+		// does not reference the participant row and nothing stops the delete below it.
+		{"one-ball", []Score{{MatchID: matchID, TeamID: teamA, HoleNumber: 1, Strokes: 4}}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			m, p := twoTeamMatch()
+			svc := matchService(m, p, &fakeScoreDB{scores: tc.scores})
+
+			err := svc.RemoveParticipant(context.Background(), matchID, playerA)
+			if !errors.Is(err, ErrConflict) {
+				t.Fatalf("want ErrConflict, got %v", err)
+			}
+			if len(p.deleted) != 0 {
+				t.Errorf("nothing should have been removed, got %v", p.deleted)
+			}
+		})
+	}
+}
+
+func TestRemoveParticipant_AllowedWhileTheMatchIsUnscored(t *testing.T) {
+	m, p := twoTeamMatch()
+	svc := matchService(m, p, &fakeScoreDB{})
+
+	if err := svc.RemoveParticipant(context.Background(), matchID, playerA); err != nil {
+		t.Fatalf("RemoveParticipant: %v", err)
+	}
+	if len(p.deleted) != 1 || p.deleted[0] != playerA {
+		t.Errorf("removed = %v, want the player", p.deleted)
 	}
 }

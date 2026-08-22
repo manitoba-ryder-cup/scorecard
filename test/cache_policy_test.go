@@ -131,23 +131,3 @@ func TestAuthenticatedReadsAreNeverCacheable(t *testing.T) {
 		}
 	}
 }
-
-// The two endpoints derive the cup's phase from different rows, and this is where that
-// showed: /results reads live scores while /teams and the record read match_results.
-// Removing a participant cascades their scores away but leaves the materialized result
-// behind, so the two disagreed about the same cup at the same instant.
-func TestPhaseAgreesAcrossReadsAfterAParticipantIsRemoved(t *testing.T) {
-	t.Parallel()
-	client, fix := publicFixture(t)
-	closeOutRedWin(t, client, fix)
-
-	if err := client.RemoveParticipant(context.Background(), fix.MatchID, fix.RedPlayer); err != nil {
-		t.Fatalf("remove participant: %v", err)
-	}
-
-	results := strings.Replace(sdk.RouteV1TournamentResults, "{id}", fix.TournamentID.String(), 1)
-	record := strings.Replace(sdk.RouteV1Tournament, "{id}", fix.TournamentID.String(), 1)
-	if got, want := cacheControl(t, results, ""), cacheControl(t, record, ""); got != want {
-		t.Errorf("one cup, two phases: /results %q, the record %q", got, want)
-	}
-}
