@@ -269,8 +269,12 @@ func (s *MatchService) ListMatchHoles(ctx context.Context, matchID uuid.UUID) ([
 // ListResults builds every match's outcome for a tournament: the display names, the
 // two sides, and the per-hole/closed-out scoring state. Participants and scores are
 // fetched tournament-wide and grouped by match, so the whole view is a fixed number of
-// queries regardless of match count. It also reports where the cup stands, which the
-// scores already answer — see GetTeamsData for why the caller wants it.
+// queries regardless of match count. It also reports where the cup stands — see
+// GetTeamsData for why the caller wants it.
+//
+// The phase comes from the stored results rather than the scores already in hand, because
+// the other endpoints that publish it read those, and the two can disagree: removing a
+// participant cascades their scores away and leaves match_results behind.
 func (s *MatchService) ListResults(ctx context.Context, tournamentID uuid.UUID) ([]MatchResult, sdk.TournamentPhase, error) {
 	matches, err := s.MatchDB.ListMatchDetailsByTournament(ctx, tournamentID)
 	if err != nil {
@@ -284,6 +288,10 @@ func (s *MatchService) ListResults(ctx context.Context, tournamentID uuid.UUID) 
 	if err != nil {
 		return nil, sdk.PhaseUpcoming, fmt.Errorf("failed to list scores: %w", err)
 	}
+	outcomes, err := s.ResultDB.ListMatchOutcomes(ctx, tournamentID)
+	if err != nil {
+		return nil, sdk.PhaseUpcoming, fmt.Errorf("failed to list match outcomes: %w", err)
+	}
 
 	sidesByMatch := groupSides(participants)
 	scoresByMatch := map[uuid.UUID][]Score{}
@@ -292,10 +300,8 @@ func (s *MatchService) ListResults(ctx context.Context, tournamentID uuid.UUID) 
 	}
 
 	results := make([]MatchResult, len(matches))
-	outcomes := make([]MatchOutcome, len(matches))
 	for i, m := range matches {
 		results[i] = buildMatchResult(m, sidesByMatch[m.ID], scoresByMatch[m.ID])
-		outcomes[i] = MatchOutcome{Started: len(scoresByMatch[m.ID]) > 0, Finished: results[i].Finished}
 	}
 	return results, ComputePhase(outcomes), nil
 }

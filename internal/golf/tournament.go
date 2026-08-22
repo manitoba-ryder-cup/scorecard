@@ -70,13 +70,8 @@ func teamIDs(teams []TeamWithCaptain) []uuid.UUID {
 }
 
 // GetTeamsData builds each team's summary (color, captain, points) for a tournament, and
-// reports where the cup stands.
-//
-// The phase is a by-product, not extra work: the outcomes it is computed from are the same
-// ones the points come from. It is here because this endpoint serves three audiences whose
-// only difference is the cup's phase — a spectator polling a live leaderboard every twenty
-// seconds, the History page fanning out across eighteen cups that will never change again,
-// and, for the months in between, a landing page whose points are all zero.
+// reports where the cup stands. The phase is a by-product, not extra work: it comes from
+// the same outcomes the points do.
 func (s *TournamentService) GetTeamsData(ctx context.Context, tournamentID uuid.UUID) ([]TeamData, sdk.TournamentPhase, error) {
 	teams, err := s.TeamService.ListTeamsByTournament(ctx, tournamentID)
 	if err != nil {

@@ -536,32 +536,25 @@ func TestListResults_ReportsTheLeaderOfAnUnfinishedMatch(t *testing.T) {
 	}
 }
 
-// The phase the caller caches on. A single one-sided score is enough to be live: the
-// match has a scorer working it even though no hole has completed yet, so nothing here can
-// be handed out stale.
-func TestListResults_ReportsThePhase(t *testing.T) {
+// The phase the caller caches on, and where it comes from. Taken from the stored results
+// rather than the scores this method already holds: /teams and the tournament record read
+// those, and a match whose participant was removed keeps its result row while its scores
+// cascade away — so deriving it here twice let one cup report two phases at once.
+func TestListResults_TakesThePhaseFromTheStoredResults(t *testing.T) {
 	tests := []struct {
-		name   string
-		scores []Score
-		want   sdk.TournamentPhase
+		name     string
+		outcomes []MatchOutcome
+		want     sdk.TournamentPhase
 	}{
-		{"scheduled, nothing scored", nil, sdk.PhaseUpcoming},
-		{"one side has entered a hole", []Score{
-			{MatchID: matchID, TeamID: teamA, HoleNumber: 1, Strokes: 4},
-		}, sdk.PhaseLive},
-		{"closed out", closingScores(), sdk.PhaseFinished},
+		{"scheduled, nothing scored", []MatchOutcome{{}}, sdk.PhaseUpcoming},
+		{"scored but undecided", []MatchOutcome{{Started: true}}, sdk.PhaseLive},
+		{"closed out", []MatchOutcome{{Started: true, Finished: true}}, sdk.PhaseFinished},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			m := &fakeMatchDB{details: []MatchDetail{{
-				Match: Match{ID: matchID, TournamentID: tournamentID, CourseID: courseID, TeeColorID: teeColorID},
-			}}}
-			p := &fakeParticipantDB{withPlayers: []MatchParticipantPlayer{
-				{MatchID: matchID, TeamID: teamA, PlayerID: playerA},
-				{MatchID: matchID, TeamID: teamB, PlayerID: playerB},
-			}}
-			svc := matchService(m, p, &fakeScoreDB{scores: tc.scores})
+			svc := matchService(matchFixture())
+			svc.ResultDB = &fakeResultDB{outcomes: tc.outcomes}
 
 			_, phase, err := svc.ListResults(context.Background(), tournamentID)
 			if err != nil {
@@ -574,16 +567,34 @@ func TestListResults_ReportsThePhase(t *testing.T) {
 	}
 }
 
-// Team A takes the first ten holes, which closes the match out 10 & 8.
-func closingScores() []Score {
-	var scores []Score
-	for h := int32(1); h <= 10; h++ {
-		scores = append(scores,
-			Score{MatchID: matchID, TeamID: teamA, HoleNumber: h, Strokes: 4},
-			Score{MatchID: matchID, TeamID: teamB, HoleNumber: h, Strokes: 5},
-		)
+// The disagreement itself: scores that read as a match still being played, against a
+// stored result that closed out. The stored result decides, because it is what every
+// other endpoint publishing the phase reads.
+func TestListResults_PhaseFollowsTheStoredResultNotTheScores(t *testing.T) {
+	m, p, sdb := matchFixture()
+	sdb.scores = []Score{{MatchID: matchID, TeamID: teamA, HoleNumber: 1, Strokes: 4}}
+	svc := matchService(m, p, sdb)
+	svc.ResultDB = &fakeResultDB{outcomes: []MatchOutcome{{Started: true, Finished: true}}}
+
+	_, phase, err := svc.ListResults(context.Background(), tournamentID)
+	if err != nil {
+		t.Fatalf("ListResults: %v", err)
 	}
-	return scores
+	if phase != sdk.PhaseFinished {
+		t.Errorf("phase = %v, want finished", phase)
+	}
+}
+
+// matchFixture is one singles match with both sides and no scores.
+func matchFixture() (*fakeMatchDB, *fakeParticipantDB, *fakeScoreDB) {
+	return &fakeMatchDB{details: []MatchDetail{{
+			Match: Match{ID: matchID, TournamentID: tournamentID, CourseID: courseID, TeeColorID: teeColorID},
+		}}},
+		&fakeParticipantDB{withPlayers: []MatchParticipantPlayer{
+			{MatchID: matchID, TeamID: teamA, PlayerID: playerA},
+			{MatchID: matchID, TeamID: teamB, PlayerID: playerB},
+		}},
+		&fakeScoreDB{}
 }
 
 // A halved hole leaves nobody ahead.

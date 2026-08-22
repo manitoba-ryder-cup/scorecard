@@ -64,7 +64,6 @@ func TestLiveTournamentReadsAreNotCached(t *testing.T) {
 	for _, path := range []string{
 		strings.Replace(sdk.RouteV1TournamentResults, "{id}", fix.TournamentID.String(), 1),
 		strings.Replace(sdk.RouteV1TournamentTeams, "{id}", fix.TournamentID.String(), 1),
-		// The record itself carries the phase, so it is tiered with them.
 		strings.Replace(sdk.RouteV1Tournament, "{id}", fix.TournamentID.String(), 1),
 	} {
 		if got := cacheControl(t, path, ""); got != "no-store" {
@@ -81,7 +80,6 @@ func TestSettledTournamentReadsAreCachedForADay(t *testing.T) {
 	for _, path := range []string{
 		strings.Replace(sdk.RouteV1TournamentResults, "{id}", fix.TournamentID.String(), 1),
 		strings.Replace(sdk.RouteV1TournamentTeams, "{id}", fix.TournamentID.String(), 1),
-		// The record itself carries the phase, so it is tiered with them.
 		strings.Replace(sdk.RouteV1Tournament, "{id}", fix.TournamentID.String(), 1),
 	} {
 		if got := cacheControl(t, path, ""); got != "public, max-age=86400" {
@@ -99,10 +97,6 @@ func TestOrdinaryReadsTakeTheDefaultTier(t *testing.T) {
 	}
 }
 
-// The state a cup is in for the months between its schedule being set and its first tee
-// time. These two used to take the live tier throughout, because the only question asked
-// was whether the cup had finished — so the landing page's twenty-second poll reached the
-// origin all year to be told the standing was still nil-nil.
 func TestScheduledButUnplayedReadsTakeTheDefaultTier(t *testing.T) {
 	t.Parallel()
 	_, fix := publicFixture(t)
@@ -110,7 +104,6 @@ func TestScheduledButUnplayedReadsTakeTheDefaultTier(t *testing.T) {
 	for _, path := range []string{
 		strings.Replace(sdk.RouteV1TournamentResults, "{id}", fix.TournamentID.String(), 1),
 		strings.Replace(sdk.RouteV1TournamentTeams, "{id}", fix.TournamentID.String(), 1),
-		// The record itself carries the phase, so it is tiered with them.
 		strings.Replace(sdk.RouteV1Tournament, "{id}", fix.TournamentID.String(), 1),
 	} {
 		if got := cacheControl(t, path, ""); got != "public, max-age=60" {
@@ -136,5 +129,25 @@ func TestAuthenticatedReadsAreNeverCacheable(t *testing.T) {
 		if got := cacheControl(t, path, token); got != "no-store" {
 			t.Errorf("%s with a token: want no-store, got %q", path, got)
 		}
+	}
+}
+
+// The two endpoints derive the cup's phase from different rows, and this is where that
+// showed: /results reads live scores while /teams and the record read match_results.
+// Removing a participant cascades their scores away but leaves the materialized result
+// behind, so the two disagreed about the same cup at the same instant.
+func TestPhaseAgreesAcrossReadsAfterAParticipantIsRemoved(t *testing.T) {
+	t.Parallel()
+	client, fix := publicFixture(t)
+	closeOutRedWin(t, client, fix)
+
+	if err := client.RemoveParticipant(context.Background(), fix.MatchID, fix.RedPlayer); err != nil {
+		t.Fatalf("remove participant: %v", err)
+	}
+
+	results := strings.Replace(sdk.RouteV1TournamentResults, "{id}", fix.TournamentID.String(), 1)
+	record := strings.Replace(sdk.RouteV1Tournament, "{id}", fix.TournamentID.String(), 1)
+	if got, want := cacheControl(t, results, ""), cacheControl(t, record, ""); got != want {
+		t.Errorf("one cup, two phases: /results %q, the record %q", got, want)
 	}
 }

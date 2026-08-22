@@ -84,8 +84,6 @@ func TestComputePhase(t *testing.T) {
 		{"every match final", []MatchOutcome{won(teamA), halved()}, sdk.PhaseFinished},
 		{"a match under way", []MatchOutcome{inProgress(), unplayed()}, sdk.PhaseLive},
 		{"one still out after the rest are in", []MatchOutcome{won(teamA), unplayed()}, sdk.PhaseLive},
-		// The months between the schedule being set and the first tee time. Nothing is
-		// moving, so this must not read as live.
 		{"scheduled but unscored", []MatchOutcome{unplayed(), unplayed()}, sdk.PhaseUpcoming},
 		{"no matches", nil, sdk.PhaseUpcoming},
 	}

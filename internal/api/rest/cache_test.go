@@ -63,9 +63,6 @@ func TestCacheableRead_ImplicitOK(t *testing.T) {
 	}
 }
 
-// A finished cup can never change again, so it is worth caching properly. This is what
-// makes the History page — eighteen requests, one per cup — cheap for every visitor
-// rather than only for one who reloads within the minute.
 // phaseHandler is a handler whose only behaviour is the cache tier its cup's phase earns.
 func phaseHandler(phase sdk.TournamentPhase) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -74,6 +71,9 @@ func phaseHandler(phase sdk.TournamentPhase) http.HandlerFunc {
 	}
 }
 
+// A finished cup can never change again, so it is worth caching properly. This is what
+// makes the History page — eighteen requests, one per cup — cheap for every visitor rather
+// than only for one who reloads within the minute.
 func TestCacheableRead_SettledIsCachedForADay(t *testing.T) {
 	settled := phaseHandler(sdk.PhaseFinished)
 	if got := cacheControlFor(t, settled, false); got != "public, max-age=86400" {
@@ -110,9 +110,6 @@ func TestSetMaxAge_NoopOffACacheableRoute(t *testing.T) {
 	}
 }
 
-// A cup sits here for the months between its roster being entered and its first tee time,
-// and its landing page polls every twenty seconds throughout. Nothing is being scored, so
-// it takes the ordinary minute rather than the live tier.
 func TestCacheableRead_UpcomingTakesTheDefaultTier(t *testing.T) {
 	upcoming := phaseHandler(sdk.PhaseUpcoming)
 	if got := cacheControlFor(t, upcoming, false); got != "public, max-age=60" {
