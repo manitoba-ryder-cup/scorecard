@@ -11,6 +11,25 @@ import (
 	"github.com/google/uuid"
 )
 
+const deleteMatchResult = `-- name: DeleteMatchResult :execrows
+DELETE FROM match_results
+WHERE match_id = $1 AND tenant_id = $2
+`
+
+type DeleteMatchResultParams struct {
+	MatchID  uuid.UUID `json:"match_id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+}
+
+// Deleted rather than zeroed: the row's existence is what marks a match started.
+func (q *Queries) DeleteMatchResult(ctx context.Context, arg DeleteMatchResultParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteMatchResult, arg.MatchID, arg.TenantID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getMatchResult = `-- name: GetMatchResult :one
 SELECT match_id, tournament_id, tenant_id, finished, leader_team_id, lead, holes_remaining, updated_at FROM match_results
 WHERE match_id = $1 AND tenant_id = $2

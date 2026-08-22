@@ -16,10 +16,11 @@ type fakeMatchDB struct {
 	match   *Match
 	details []MatchDetail
 	updated *UpdateMatchInput // what UpdateMatch was last handed
+	getErr  error             // what GetMatch reports, for the unknown-match paths
 }
 
 func (f *fakeMatchDB) GetMatch(ctx context.Context, id uuid.UUID) (*Match, error) {
-	return f.match, nil
+	return f.match, f.getErr
 }
 func (f *fakeMatchDB) ListMatchesByTournament(ctx context.Context, tournamentID uuid.UUID) ([]Match, error) {
 	return nil, nil
@@ -61,6 +62,12 @@ type fakeScoreDB struct {
 	saved         []Score
 	recomputedFor []uuid.UUID
 	recomputed    []StoredResult
+	resetFor      []uuid.UUID
+}
+
+func (f *fakeScoreDB) ResetMatch(ctx context.Context, matchID uuid.UUID) error {
+	f.resetFor = append(f.resetFor, matchID)
+	return nil
 }
 
 func (f *fakeScoreDB) ListScoresByMatch(ctx context.Context, matchID uuid.UUID) ([]Score, error) {
@@ -618,5 +625,34 @@ func TestListResults_NoLeaderWhenAllSquare(t *testing.T) {
 	}
 	if results[0].LeaderTeamID != nil {
 		t.Errorf("leader = %v, want none when all square", results[0].LeaderTeamID)
+	}
+}
+
+func TestResetMatch_WorksLongAfterTheWindowHasShut(t *testing.T) {
+	m, p := twoTeamMatch()
+	sdb := &fakeScoreDB{}
+	svc := matchService(m, p, sdb)
+	svc.Now = func() time.Time { return teeOff.Add(30 * 24 * time.Hour) }
+
+	if err := svc.ResetMatch(context.Background(), matchID); err != nil {
+		t.Fatalf("ResetMatch: %v", err)
+	}
+	if len(sdb.resetFor) != 1 || sdb.resetFor[0] != matchID {
+		t.Errorf("reset = %v, want the match cleared once", sdb.resetFor)
+	}
+}
+
+func TestResetMatch_UnknownMatchIsNotFound(t *testing.T) {
+	m, p := twoTeamMatch()
+	m.getErr = ErrNotFound
+	sdb := &fakeScoreDB{}
+	svc := matchService(m, p, sdb)
+
+	err := svc.ResetMatch(context.Background(), matchID)
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("want ErrNotFound, got %v", err)
+	}
+	if len(sdb.resetFor) != 0 {
+		t.Errorf("nothing should have been cleared, got %v", sdb.resetFor)
 	}
 }

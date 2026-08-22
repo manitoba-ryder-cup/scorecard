@@ -11,10 +11,10 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/test/_util/request"
 )
 
-// The routing table in internal/api/rest/server.go is the only statement of which scope a
+// The routing table in internal/api/rest/router.go is the only statement of which scope a
 // write needs, and a wrong one there fails silently in both directions: the intended
 // caller starts getting 403s, and a caller holding some other scope quietly gains the
-// endpoint. Thirteen of the seventeen writes take scorecard:tournaments:write, so it is
+// endpoint. Twelve of the eighteen writes take scorecard:tournaments:write, so it is
 // also what a copy-paste lands on.
 //
 // This table is deliberately a second, independent copy of that mapping. It is not
@@ -43,6 +43,7 @@ var scopedRoutes = []struct {
 	{"DELETE", sdk.RouteV1TeamMember, sdk.ScopeTournamentsWrite},
 	{"PUT", sdk.RouteV1TeamCaptain, sdk.ScopeTournamentsWrite},
 	{"DELETE", sdk.RouteV1TeamCaptain, sdk.ScopeTournamentsWrite},
+	{"DELETE", sdk.RouteV1MatchScores, sdk.ScopeTournamentsWrite},
 }
 
 // concretePath fills the path parameters with UUIDs that match nothing. Authorization is
@@ -57,8 +58,8 @@ func concretePath(route string) string {
 func TestEveryWriteRequiresItsOwnScope(t *testing.T) {
 	t.Parallel()
 
-	if len(scopedRoutes) != 17 {
-		t.Fatalf("the table lists %d routes; server.go registers 17 scoped writes, so one "+
+	if len(scopedRoutes) != 18 {
+		t.Fatalf("the table lists %d routes; router.go registers 18 scoped writes, so one "+
 			"side has gained a route the other has not", len(scopedRoutes))
 	}
 

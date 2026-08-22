@@ -41,6 +41,7 @@ type participantDB interface {
 type scoreDB interface {
 	ListScoresByMatch(ctx context.Context, matchID uuid.UUID) ([]Score, error)
 	ListScoresByTournament(ctx context.Context, tournamentID uuid.UUID) ([]Score, error)
+	ResetMatch(ctx context.Context, matchID uuid.UUID) error
 	// SaveScoresAndRecompute upserts a hole's scores (per-player when PlayerID is set,
 	// else one team row) and rewrites the match's stored result, all in one transaction,
 	// returning that result. Every score lands or none does, and the repo serializes

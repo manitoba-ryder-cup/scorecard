@@ -52,3 +52,8 @@ SELECT
 FROM matches m
 LEFT JOIN match_results mr ON mr.match_id = m.id AND mr.tenant_id = m.tenant_id
 WHERE m.tenant_id = @tenant_id;
+
+-- Deleted rather than zeroed: the row's existence is what marks a match started.
+-- name: DeleteMatchResult :execrows
+DELETE FROM match_results
+WHERE match_id = @match_id AND tenant_id = @tenant_id;

@@ -105,6 +105,8 @@ func (r *Router) registerRoutes(mux *http.ServeMux) {
 	public("GET", sdk.RouteV1MatchScores, r.getMatchScores)
 	public("GET", sdk.RouteV1MatchHoles, r.getMatchHoles)
 	scoped("POST", sdk.RouteV1MatchScores, sdk.ScopeScoresWrite, r.submitScore)
+	// Scoring is the one grant handed to someone on the course; clearing a match is not.
+	scoped("DELETE", sdk.RouteV1MatchScores, sdk.ScopeTournamentsWrite, r.resetMatch)
 	public("GET", sdk.RouteV1MatchWinner, r.getMatchStatus)
 	public("GET", sdk.RouteV1MatchStatus, r.getMatchStatus)
 

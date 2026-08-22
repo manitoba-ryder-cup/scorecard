@@ -33,3 +33,7 @@ FROM scores s
 JOIN matches m ON m.id = s.match_id AND m.tenant_id = s.tenant_id
 WHERE m.tournament_id = @tournament_id AND s.tenant_id = @tenant_id
 ORDER BY s.match_id, s.hole_number;
+
+-- name: DeleteScoresByMatch :execrows
+DELETE FROM scores
+WHERE match_id = @match_id AND tenant_id = @tenant_id;

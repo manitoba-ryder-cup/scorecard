@@ -15,7 +15,7 @@ import (
 // strand a correction and long enough to absorb a burst.
 const (
 	defaultMaxAge = 60
-	settledMaxAge = 86400 // a finished cup: a day, so a late correction still surfaces
+	settledMaxAge = 3600 // a finished cup, but a reset can still change one — see cacheByPhase
 	noCacheMaxAge = 0
 )
 
@@ -42,6 +42,11 @@ func cacheableRead(next http.HandlerFunc) http.HandlerFunc {
 // cacheByPhase picks a tier from where the cup stands. Only a cup being played is exempt
 // from caching: a spectator polls it every twenty seconds, and caching it would defeat the
 // poll.
+//
+// A finished cup is cached for an hour rather than a day because resetting a match can
+// unfinish one, and the endpoints publishing a cup disagree until the longest tier expires:
+// /v1/tournaments carries every cup's phase on the default minute, while this one holds the
+// old standing. An hour is what an operator can wait out; a day is not.
 func cacheByPhase(w http.ResponseWriter, phase sdk.TournamentPhase) {
 	switch phase {
 	case sdk.PhaseLive:

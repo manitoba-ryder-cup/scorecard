@@ -220,6 +220,20 @@ func (r *Router) submitScore(w http.ResponseWriter, req *http.Request) {
 	respondJSON(w, http.StatusOK, toMatchStatusDTO(result))
 }
 
+// DELETE /v1/matches/{id}/scores
+// A match with nothing to clear is a 204, not a 404, so a repeated reset is harmless.
+func (r *Router) resetMatch(w http.ResponseWriter, req *http.Request) {
+	id, ok := pathUUIDOr400(w, req, "id", "match")
+	if !ok {
+		return
+	}
+	if err := r.MatchService.ResetMatch(req.Context(), id); err != nil {
+		respondDomainError(req.Context(), w, "Failed to reset match", err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // GET /v1/matches/{id}/winner
 // GET /v1/matches/{id}/status
 // Both report the match's outcome, in the same shape a score write returns — the winner

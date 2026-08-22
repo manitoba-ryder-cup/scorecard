@@ -72,7 +72,7 @@ func TestLiveTournamentReadsAreNotCached(t *testing.T) {
 	}
 }
 
-func TestSettledTournamentReadsAreCachedForADay(t *testing.T) {
+func TestSettledTournamentReadsAreCachedForAnHour(t *testing.T) {
 	t.Parallel()
 	client, fix := publicFixture(t)
 	closeOutRedWin(t, client, fix)
@@ -82,7 +82,7 @@ func TestSettledTournamentReadsAreCachedForADay(t *testing.T) {
 		strings.Replace(sdk.RouteV1TournamentTeams, "{id}", fix.TournamentID.String(), 1),
 		strings.Replace(sdk.RouteV1Tournament, "{id}", fix.TournamentID.String(), 1),
 	} {
-		if got := cacheControl(t, path, ""); got != "public, max-age=86400" {
+		if got := cacheControl(t, path, ""); got != "public, max-age=3600" {
 			t.Errorf("%s once finished: want the settled tier, got %q", path, got)
 		}
 	}

@@ -236,6 +236,20 @@ only). A whole hole is one unit: it takes every score on that hole, and in one t
 takes a `FOR UPDATE` lock on the match (`LockMatchForScoring`), re-reads the committed
 scores, runs the domain's `guard`, writes, re-reads, and upserts the `recompute`d result.
 
+`ScoresDB.ResetMatch` is the only other writer: it deletes a match's scores and its
+`match_results` row together, behind the same lock, in the same order, and for the same
+reason. The result row is deleted rather than zeroed — its existence is what marks a match
+started.
+
+Two things a reset does not undo. It ignores the scoring window but score entry does not,
+so clearing a match played yesterday leaves it uneditable until its tee time moves — the
+same `PUT /v1/matches/{id}` a group that went out late needs, and it has to be moved back
+afterwards or the match is permanently misscheduled. And resetting a *settled* cup strands
+the edge: `/tournaments/{id}`, `/teams` and `/results` hold the old standing for up to
+`settledMaxAge` while `/v1/tournaments` reports the new phase within the minute, so the two
+disagree until that expires. The service has no purge hook, which is why that tier is an
+hour rather than a day.
+
 **Do not split these steps, and keep the lock before the first read.** A single transaction
 is not enough on its own: under READ COMMITTED two concurrent submissions can each recompute
 from a snapshot missing the other's score, and the later write reverts the result to a
