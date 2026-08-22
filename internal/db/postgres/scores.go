@@ -86,6 +86,35 @@ func (s *ScoresDB) SaveScoresAndRecompute(
 	})
 }
 
+// ResetMatch clears a match's scores and its materialized result, returning it to
+// never-played. Both go in one transaction behind the same lock the write path takes, in
+// the same order: a submission that read the scores before a reset deleted them would
+// otherwise write a result recomputed from rows that no longer exist — the orphaned result
+// row this exists to clear.
+func (s *ScoresDB) ResetMatch(ctx context.Context, matchID uuid.UUID) error {
+	return withTenantExec(ctx, s.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
+		if _, err := q.LockMatchForScoring(ctx, sqlc.LockMatchForScoringParams{
+			ID:       matchID,
+			TenantID: tenantID,
+		}); err != nil {
+			return fmt.Errorf("locking match %s: %w", matchID, mapReadErr(err))
+		}
+		if _, err := q.DeleteScoresByMatch(ctx, sqlc.DeleteScoresByMatchParams{
+			MatchID:  matchID,
+			TenantID: tenantID,
+		}); err != nil {
+			return fmt.Errorf("deleting scores for match %s: %w", matchID, mapWriteErr(err))
+		}
+		if _, err := q.DeleteMatchResult(ctx, sqlc.DeleteMatchResultParams{
+			MatchID:  matchID,
+			TenantID: tenantID,
+		}); err != nil {
+			return fmt.Errorf("deleting match result %s: %w", matchID, mapWriteErr(err))
+		}
+		return nil
+	})
+}
+
 // upsertScore writes one hole score. PlayerID present -> per-player row (singles/
 // fourball); nil -> one team row (alt shot/scramble). The two grains hit different
 // partial unique indexes, so the write must pick the matching statement.

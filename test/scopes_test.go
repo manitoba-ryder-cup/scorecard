@@ -43,6 +43,7 @@ var scopedRoutes = []struct {
 	{"DELETE", sdk.RouteV1TeamMember, sdk.ScopeTournamentsWrite},
 	{"PUT", sdk.RouteV1TeamCaptain, sdk.ScopeTournamentsWrite},
 	{"DELETE", sdk.RouteV1TeamCaptain, sdk.ScopeTournamentsWrite},
+	{"DELETE", sdk.RouteV1MatchScores, sdk.ScopeTournamentsWrite},
 }
 
 // concretePath fills the path parameters with UUIDs that match nothing. Authorization is
@@ -57,8 +58,8 @@ func concretePath(route string) string {
 func TestEveryWriteRequiresItsOwnScope(t *testing.T) {
 	t.Parallel()
 
-	if len(scopedRoutes) != 17 {
-		t.Fatalf("the table lists %d routes; server.go registers 17 scoped writes, so one "+
+	if len(scopedRoutes) != 18 {
+		t.Fatalf("the table lists %d routes; server.go registers 18 scoped writes, so one "+
 			"side has gained a route the other has not", len(scopedRoutes))
 	}
 

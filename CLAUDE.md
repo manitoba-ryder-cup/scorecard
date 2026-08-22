@@ -236,6 +236,11 @@ only). A whole hole is one unit: it takes every score on that hole, and in one t
 takes a `FOR UPDATE` lock on the match (`LockMatchForScoring`), re-reads the committed
 scores, runs the domain's `guard`, writes, re-reads, and upserts the `recompute`d result.
 
+`ScoresDB.ResetMatch` is the only other writer, and it deletes: a match's scores and its
+`match_results` row go together, behind the same lock in the same order, which is what stops
+a concurrent submission writing a result recomputed from rows the reset has removed. The
+result row is deleted rather than zeroed — its existence is what marks a match started.
+
 **Do not split these steps, and keep the lock before the first read.** A single transaction
 is not enough on its own: under READ COMMITTED two concurrent submissions can each recompute
 from a snapshot missing the other's score, and the later write reverts the result to a

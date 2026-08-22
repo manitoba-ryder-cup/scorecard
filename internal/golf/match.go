@@ -266,6 +266,24 @@ func (s *MatchService) ListMatchHoles(ctx context.Context, matchID uuid.UUID) ([
 	return holes, nil
 }
 
+// ResetMatch clears every score on a match and its stored result, returning it to
+// never-played. The lineup is left alone, so a match can be re-entered without being
+// rebuilt.
+//
+// Deliberately not gated on the scoring window, unlike a score write: the window shuts
+// twelve hours after a tee time, and a mistake found the next morning is exactly what this
+// is for. The match is loaded first so an unknown id is a clean 404 — rows affected cannot
+// tell that apart from a match that simply had no scores.
+func (s *MatchService) ResetMatch(ctx context.Context, matchID uuid.UUID) error {
+	if _, err := s.MatchDB.GetMatch(ctx, matchID); err != nil {
+		return fmt.Errorf("failed to get match: %w", err)
+	}
+	if err := s.ScoreDB.ResetMatch(ctx, matchID); err != nil {
+		return fmt.Errorf("failed to reset match: %w", err)
+	}
+	return nil
+}
+
 // ListResults builds every match's outcome for a tournament: the display names, the
 // two sides, and the per-hole/closed-out scoring state. Participants and scores are
 // fetched tournament-wide and grouped by match, so the whole view is a fixed number of
