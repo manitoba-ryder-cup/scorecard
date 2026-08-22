@@ -204,7 +204,7 @@ type PlayerTournamentHistory struct {
 	EndDate          string       `json:"end_date"`
 	CaptainFirstName string       `json:"captain_first_name"`
 	CaptainLastName  string       `json:"captain_last_name"`
-	Result           string       `json:"result"`
+	Result           Result       `json:"result"`
 	Record           PlayerRecord `json:"record"`
 	Tier             string       `json:"tier"`
 	Biography        string       `json:"biography"`

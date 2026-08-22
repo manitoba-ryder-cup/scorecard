@@ -141,7 +141,7 @@ func ComputeCupsWon(data CupData) map[uuid.UUID]int {
 
 // TournamentResultFor is a player's verdict on one tournament, given the side they were
 // drafted onto (nil when they were entered but never drafted).
-func TournamentResultFor(s TournamentStandings, teamID *uuid.UUID) string {
+func TournamentResultFor(s TournamentStandings, teamID *uuid.UUID) sdk.Result {
 	outcome := ComputeTournamentOutcome(s.Outcomes, s.TeamIDs)
 	switch {
 	case !outcome.Finished:
