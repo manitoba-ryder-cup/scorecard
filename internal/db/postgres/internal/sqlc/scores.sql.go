@@ -21,8 +21,6 @@ type DeleteScoresByMatchParams struct {
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
-// Clears a match's scores. Paired with DeleteMatchResult in one transaction: the two
-// together are what returns a match to never-played.
 func (q *Queries) DeleteScoresByMatch(ctx context.Context, arg DeleteScoresByMatchParams) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteScoresByMatch, arg.MatchID, arg.TenantID)
 	if err != nil {

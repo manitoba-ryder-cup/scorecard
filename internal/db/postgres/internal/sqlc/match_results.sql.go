@@ -21,9 +21,7 @@ type DeleteMatchResultParams struct {
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
-// Removes a match's materialized result. Deleted rather than zeroed: the row's existence
-// is what marks a match as started, so a zeroed one would leave the cup reading live with
-// a match nobody has played.
+// Deleted rather than zeroed: the row's existence is what marks a match started.
 func (q *Queries) DeleteMatchResult(ctx context.Context, arg DeleteMatchResultParams) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteMatchResult, arg.MatchID, arg.TenantID)
 	if err != nil {
