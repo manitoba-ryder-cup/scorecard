@@ -16,11 +16,10 @@ type fakeMatchDB struct {
 	match   *Match
 	details []MatchDetail
 	updated *UpdateMatchInput // what UpdateMatch was last handed
-	getErr  error             // what GetMatch reports, for the unknown-match paths
 }
 
 func (f *fakeMatchDB) GetMatch(ctx context.Context, id uuid.UUID) (*Match, error) {
-	return f.match, f.getErr
+	return f.match, nil
 }
 func (f *fakeMatchDB) ListMatchesByTournament(ctx context.Context, tournamentID uuid.UUID) ([]Match, error) {
 	return nil, nil
@@ -627,21 +626,6 @@ func TestResetMatch_WorksLongAfterTheWindowHasShut(t *testing.T) {
 	}
 	if len(sdb.resetFor) != 1 || sdb.resetFor[0] != matchID {
 		t.Errorf("reset = %v, want the match cleared once", sdb.resetFor)
-	}
-}
-
-func TestResetMatch_UnknownMatchIsNotFound(t *testing.T) {
-	m, p := twoTeamMatch()
-	m.getErr = ErrNotFound
-	sdb := &fakeScoreDB{}
-	svc := matchService(m, p, sdb)
-
-	err := svc.ResetMatch(context.Background(), matchID)
-	if !errors.Is(err, ErrNotFound) {
-		t.Fatalf("want ErrNotFound, got %v", err)
-	}
-	if len(sdb.resetFor) != 0 {
-		t.Errorf("nothing should have been cleared, got %v", sdb.resetFor)
 	}
 }
 

@@ -15,11 +15,17 @@ const DefaultTier = "white"
 
 // Player-tournament outcomes (PlayerTournamentHistory.result). "in_progress" covers a
 // tournament that hasn't finished all its matches yet.
+//
+// Named, like TournamentPhase below, because both are closed sets that travel through
+// signatures. The two above stay plain: a tier is an open set of tee-box colour names, and
+// the team colours share their field with tee colours, which are not an enum at all.
+type Result string
+
 const (
-	ResultWon        = "won"
-	ResultLost       = "lost"
-	ResultTied       = "tied"
-	ResultInProgress = "in_progress"
+	ResultWon        Result = "won"
+	ResultLost       Result = "lost"
+	ResultTied       Result = "tied"
+	ResultInProgress Result = "in_progress"
 )
 
 // TournamentPhase is where a cup stands in its life. A cup sits in PhaseUpcoming for the
