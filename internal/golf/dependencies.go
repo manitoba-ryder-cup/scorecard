@@ -132,6 +132,9 @@ type resultDB interface {
 	// ListMatchOutcomes returns one entry per match in the tournament; the standings
 	// rules that consume them live in standings.go.
 	ListMatchOutcomes(ctx context.Context, tournamentID uuid.UUID) ([]MatchOutcome, error)
+	// The same, for every tournament at once and keyed by tournament, so listing cups
+	// costs one query rather than one per cup.
+	ListAllMatchOutcomes(ctx context.Context) (map[uuid.UUID][]MatchOutcome, error)
 	// Batched over a tournament's roster, keyed by player id.
 	ListTournamentPlayerRecords(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]PlayerRecord, error)
 	// The raw material for cups won and a player's history verdict, both decided in

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
 // MatchService owns match setup (creating matches) and scoring (the live progression,
@@ -268,19 +269,20 @@ func (s *MatchService) ListMatchHoles(ctx context.Context, matchID uuid.UUID) ([
 // ListResults builds every match's outcome for a tournament: the display names, the
 // two sides, and the per-hole/closed-out scoring state. Participants and scores are
 // fetched tournament-wide and grouped by match, so the whole view is a fixed number of
-// queries regardless of match count.
-func (s *MatchService) ListResults(ctx context.Context, tournamentID uuid.UUID) ([]MatchResult, error) {
+// queries regardless of match count. It also reports where the cup stands, which the
+// scores already answer — see GetTeamsData for why the caller wants it.
+func (s *MatchService) ListResults(ctx context.Context, tournamentID uuid.UUID) ([]MatchResult, sdk.TournamentPhase, error) {
 	matches, err := s.MatchDB.ListMatchDetailsByTournament(ctx, tournamentID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list matches: %w", err)
+		return nil, sdk.PhaseUpcoming, fmt.Errorf("failed to list matches: %w", err)
 	}
 	participants, err := s.ParticipantDB.ListParticipantsWithPlayersByTournament(ctx, tournamentID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list participants: %w", err)
+		return nil, sdk.PhaseUpcoming, fmt.Errorf("failed to list participants: %w", err)
 	}
 	scores, err := s.ScoreDB.ListScoresByTournament(ctx, tournamentID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list scores: %w", err)
+		return nil, sdk.PhaseUpcoming, fmt.Errorf("failed to list scores: %w", err)
 	}
 
 	sidesByMatch := groupSides(participants)
@@ -290,10 +292,12 @@ func (s *MatchService) ListResults(ctx context.Context, tournamentID uuid.UUID) 
 	}
 
 	results := make([]MatchResult, len(matches))
+	outcomes := make([]MatchOutcome, len(matches))
 	for i, m := range matches {
 		results[i] = buildMatchResult(m, sidesByMatch[m.ID], scoresByMatch[m.ID])
+		outcomes[i] = MatchOutcome{Started: len(scoresByMatch[m.ID]) > 0, Finished: results[i].Finished}
 	}
-	return results, nil
+	return results, ComputePhase(outcomes), nil
 }
 
 // groupSides collapses a tournament's participants into each match's sides, preserving

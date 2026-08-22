@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
+	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
 // handler that responds with the given status, the way respondJSON does.
@@ -66,11 +66,16 @@ func TestCacheableRead_ImplicitOK(t *testing.T) {
 // A finished cup can never change again, so it is worth caching properly. This is what
 // makes the History page — eighteen requests, one per cup — cheap for every visitor
 // rather than only for one who reloads within the minute.
-func TestCacheableRead_SettledIsCachedForADay(t *testing.T) {
-	settled := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cacheSettled(w)
+// phaseHandler is a handler whose only behaviour is the cache tier its cup's phase earns.
+func phaseHandler(phase sdk.TournamentPhase) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		cacheByPhase(w, phase)
 		w.WriteHeader(http.StatusOK)
-	})
+	}
+}
+
+func TestCacheableRead_SettledIsCachedForADay(t *testing.T) {
+	settled := phaseHandler(sdk.PhaseFinished)
 	if got := cacheControlFor(t, settled, false); got != "public, max-age=86400" {
 		t.Errorf("settled: got %q, want a day", got)
 	}
@@ -80,10 +85,7 @@ func TestCacheableRead_SettledIsCachedForADay(t *testing.T) {
 // twenty seconds; cached even briefly, two of three polls would return the same stored
 // answer and a spectator would watch scores land late.
 func TestCacheableRead_LiveIsNeverCached(t *testing.T) {
-	live := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cacheLive(w)
-		w.WriteHeader(http.StatusOK)
-	})
+	live := phaseHandler(sdk.PhaseLive)
 	if got := cacheControlFor(t, live, false); got != "no-store" {
 		t.Errorf("live: got %q, want no-store", got)
 	}
@@ -91,10 +93,7 @@ func TestCacheableRead_LiveIsNeverCached(t *testing.T) {
 
 // A token wins over any handler's opinion — a scorer must never be handed a stored answer.
 func TestCacheableRead_SettledStillNotCachedForAScorer(t *testing.T) {
-	settled := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cacheSettled(w)
-		w.WriteHeader(http.StatusOK)
-	})
+	settled := phaseHandler(sdk.PhaseFinished)
 	if got := cacheControlFor(t, settled, true); got != "no-store" {
 		t.Errorf("settled + token: got %q, want no-store", got)
 	}
@@ -104,25 +103,20 @@ func TestCacheableRead_SettledStillNotCachedForAScorer(t *testing.T) {
 // read there is no cacheWriter to configure, and that must not panic.
 func TestSetMaxAge_NoopOffACacheableRoute(t *testing.T) {
 	rec := httptest.NewRecorder()
-	cacheSettled(rec)
-	cacheLive(rec)
+	cacheByPhase(rec, sdk.PhaseFinished)
+	cacheByPhase(rec, sdk.PhaseLive)
 	if got := rec.Header().Get("Cache-Control"); got != "" {
 		t.Errorf("unwrapped writer: got %q, want no header", got)
 	}
 }
 
-func TestAllFinished(t *testing.T) {
-	finished := golf.MatchResult{StoredResult: golf.StoredResult{Finished: true}}
-	unfinished := golf.MatchResult{}
-
-	if allFinished(nil) {
-		t.Error("an empty schedule is a cup that hasn't started, not one that is over")
-	}
-	if !allFinished([]golf.MatchResult{finished, finished}) {
-		t.Error("every match finished should settle the tournament")
-	}
-	if allFinished([]golf.MatchResult{finished, unfinished}) {
-		t.Error("one match still out should keep it live")
+// A cup sits here for the months between its roster being entered and its first tee time,
+// and its landing page polls every twenty seconds throughout. Nothing is being scored, so
+// it takes the ordinary minute rather than the live tier.
+func TestCacheableRead_UpcomingTakesTheDefaultTier(t *testing.T) {
+	upcoming := phaseHandler(sdk.PhaseUpcoming)
+	if got := cacheControlFor(t, upcoming, false); got != "public, max-age=60" {
+		t.Errorf("upcoming: got %q, want the default tier", got)
 	}
 }
 

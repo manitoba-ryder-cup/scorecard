@@ -49,6 +49,28 @@ func IsTournamentComplete(outcomes []MatchOutcome) bool {
 	return true
 }
 
+// ComputePhase places a tournament by its matches: live from the first score recorded
+// until the last match is final.
+func ComputePhase(outcomes []MatchOutcome) sdk.TournamentPhase {
+	switch {
+	case IsTournamentComplete(outcomes):
+		return sdk.PhaseFinished
+	case anyStarted(outcomes):
+		return sdk.PhaseLive
+	default:
+		return sdk.PhaseUpcoming
+	}
+}
+
+func anyStarted(outcomes []MatchOutcome) bool {
+	for _, o := range outcomes {
+		if o.Started {
+			return true
+		}
+	}
+	return false
+}
+
 // ComputeTournamentOutcome decides the Cup: it is settled only once every match is final
 // (no early clinch), and won by the sole points leader. A tie leaves no winner. There is
 // no holder to retain it — the captains change every year — and the tie-break (the last,

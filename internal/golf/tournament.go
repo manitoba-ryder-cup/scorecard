@@ -31,6 +31,7 @@ func (s *TournamentService) CreateTournament(ctx context.Context, in CreateTourn
 	if err != nil {
 		return nil, fmt.Errorf("failed to create tournament: %w", err)
 	}
+	tournament.Phase = sdk.PhaseUpcoming // it has no matches yet, let alone scores
 	return tournament, nil
 }
 
@@ -69,21 +70,21 @@ func teamIDs(teams []TeamWithCaptain) []uuid.UUID {
 }
 
 // GetTeamsData builds each team's summary (color, captain, points) for a tournament, and
-// reports whether the cup is over.
+// reports where the cup stands.
 //
-// Finished is a by-product, not extra work: the outcomes it is computed from are the same
-// ones the points come from. It is here because this endpoint serves two opposite
-// audiences — a spectator polling a live leaderboard every twenty seconds, and the History
-// page fanning out across eighteen cups that will never change again — and whether the cup
-// is finished is the only thing that tells them apart.
-func (s *TournamentService) GetTeamsData(ctx context.Context, tournamentID uuid.UUID) ([]TeamData, bool, error) {
+// The phase is a by-product, not extra work: the outcomes it is computed from are the same
+// ones the points come from. It is here because this endpoint serves three audiences whose
+// only difference is the cup's phase — a spectator polling a live leaderboard every twenty
+// seconds, the History page fanning out across eighteen cups that will never change again,
+// and, for the months in between, a landing page whose points are all zero.
+func (s *TournamentService) GetTeamsData(ctx context.Context, tournamentID uuid.UUID) ([]TeamData, sdk.TournamentPhase, error) {
 	teams, err := s.TeamService.ListTeamsByTournament(ctx, tournamentID)
 	if err != nil {
-		return nil, false, fmt.Errorf("failed to list teams: %w", err)
+		return nil, sdk.PhaseUpcoming, fmt.Errorf("failed to list teams: %w", err)
 	}
 	outcomes, err := s.ResultDB.ListMatchOutcomes(ctx, tournamentID)
 	if err != nil {
-		return nil, false, fmt.Errorf("failed to list match outcomes: %w", err)
+		return nil, sdk.PhaseUpcoming, fmt.Errorf("failed to list match outcomes: %w", err)
 	}
 	ids := teamIDs(teams)
 	points := ComputeTeamPoints(outcomes, ids)
@@ -97,23 +98,36 @@ func (s *TournamentService) GetTeamsData(ctx context.Context, tournamentID uuid.
 			Points:  points[team.ID],
 		})
 	}
-	return result, ComputeTournamentOutcome(outcomes, ids).Finished, nil
+	return result, ComputePhase(outcomes), nil
 }
 
-// GetTournament retrieves a tournament by ID
+// GetTournament retrieves a tournament by ID, in the phase its matches put it in.
 func (s *TournamentService) GetTournament(ctx context.Context, tournamentID uuid.UUID) (*Tournament, error) {
 	tournament, err := s.TournamentDB.GetTournament(ctx, tournamentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tournament: %w", err)
 	}
+	outcomes, err := s.ResultDB.ListMatchOutcomes(ctx, tournamentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list match outcomes: %w", err)
+	}
+	tournament.Phase = ComputePhase(outcomes)
 	return tournament, nil
 }
 
-// ListTournaments retrieves all tournaments for the tenant
+// ListTournaments retrieves all tournaments for the tenant. The outcomes behind their
+// phases are fetched in one query rather than one per cup.
 func (s *TournamentService) ListTournaments(ctx context.Context) ([]Tournament, error) {
 	tournaments, err := s.TournamentDB.ListTournaments(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list tournaments: %w", err)
+	}
+	outcomes, err := s.ResultDB.ListAllMatchOutcomes(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list match outcomes: %w", err)
+	}
+	for i := range tournaments {
+		tournaments[i].Phase = ComputePhase(outcomes[tournaments[i].ID])
 	}
 	return tournaments, nil
 }

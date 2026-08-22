@@ -97,34 +97,13 @@ func (r *Router) listResults(w http.ResponseWriter, req *http.Request) {
 	if !ok {
 		return
 	}
-	results, err := r.MatchService.ListResults(req.Context(), tournamentID)
+	results, phase, err := r.MatchService.ListResults(req.Context(), tournamentID)
 	if err != nil {
 		respondDomainError(req.Context(), w, "Failed to list results", err)
 		return
 	}
-	// Answered from what we already hold: once every match has finished nothing here can
-	// change again. Until then a spectator is polling this every twenty seconds, so
-	// caching it at all would defeat the poll.
-	if allFinished(results) {
-		cacheSettled(w)
-	} else {
-		cacheLive(w)
-	}
+	cacheByPhase(w, phase)
 	respondJSON(w, http.StatusOK, mapSlice(results, toMatchResultDTO))
-}
-
-// allFinished reports whether every match in a tournament has a settled result. An empty
-// schedule is not finished — a cup with no matches yet is one that hasn't started.
-func allFinished(results []golf.MatchResult) bool {
-	if len(results) == 0 {
-		return false
-	}
-	for _, m := range results {
-		if !m.Finished {
-			return false
-		}
-	}
-	return true
 }
 
 // GET /v1/matches/{id}/holes

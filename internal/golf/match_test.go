@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
 // --- fakes ---
@@ -110,13 +111,19 @@ func upsert(scores []Score, s Score) []Score {
 	return append(scores, s)
 }
 
-type fakeResultDB struct{}
+type fakeResultDB struct {
+	outcomes    []MatchOutcome
+	allOutcomes map[uuid.UUID][]MatchOutcome
+}
 
 func (f *fakeResultDB) GetMatchResult(ctx context.Context, matchID uuid.UUID) (*StoredResult, error) {
 	return nil, nil
 }
 func (f *fakeResultDB) ListMatchOutcomes(ctx context.Context, tournamentID uuid.UUID) ([]MatchOutcome, error) {
-	return nil, nil
+	return f.outcomes, nil
+}
+func (f *fakeResultDB) ListAllMatchOutcomes(ctx context.Context) (map[uuid.UUID][]MatchOutcome, error) {
+	return f.allOutcomes, nil
 }
 func (f *fakeResultDB) ListTournamentPlayerRecords(ctx context.Context, tournamentID uuid.UUID) (map[uuid.UUID]PlayerRecord, error) {
 	return nil, nil
@@ -428,7 +435,7 @@ func TestListResults_AssemblesSidesProgressAndOutcome(t *testing.T) {
 	}}
 	svc := matchService(m, p, sdb)
 
-	results, err := svc.ListResults(context.Background(), tournamentID)
+	results, _, err := svc.ListResults(context.Background(), tournamentID)
 	if err != nil {
 		t.Fatalf("ListResults: %v", err)
 	}
@@ -515,7 +522,7 @@ func TestListResults_ReportsTheLeaderOfAnUnfinishedMatch(t *testing.T) {
 	}}
 	svc := matchService(m, p, sdb)
 
-	results, err := svc.ListResults(context.Background(), tournamentID)
+	results, _, err := svc.ListResults(context.Background(), tournamentID)
 	if err != nil {
 		t.Fatalf("ListResults: %v", err)
 	}
@@ -527,6 +534,56 @@ func TestListResults_ReportsTheLeaderOfAnUnfinishedMatch(t *testing.T) {
 	if r.Winner() != nil {
 		t.Errorf("winner = %v, want none while unfinished", r.Winner())
 	}
+}
+
+// The phase the caller caches on. A single one-sided score is enough to be live: the
+// match has a scorer working it even though no hole has completed yet, so nothing here can
+// be handed out stale.
+func TestListResults_ReportsThePhase(t *testing.T) {
+	tests := []struct {
+		name   string
+		scores []Score
+		want   sdk.TournamentPhase
+	}{
+		{"scheduled, nothing scored", nil, sdk.PhaseUpcoming},
+		{"one side has entered a hole", []Score{
+			{MatchID: matchID, TeamID: teamA, HoleNumber: 1, Strokes: 4},
+		}, sdk.PhaseLive},
+		{"closed out", closingScores(), sdk.PhaseFinished},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			m := &fakeMatchDB{details: []MatchDetail{{
+				Match: Match{ID: matchID, TournamentID: tournamentID, CourseID: courseID, TeeColorID: teeColorID},
+			}}}
+			p := &fakeParticipantDB{withPlayers: []MatchParticipantPlayer{
+				{MatchID: matchID, TeamID: teamA, PlayerID: playerA},
+				{MatchID: matchID, TeamID: teamB, PlayerID: playerB},
+			}}
+			svc := matchService(m, p, &fakeScoreDB{scores: tc.scores})
+
+			_, phase, err := svc.ListResults(context.Background(), tournamentID)
+			if err != nil {
+				t.Fatalf("ListResults: %v", err)
+			}
+			if phase != tc.want {
+				t.Errorf("phase = %v, want %v", phase, tc.want)
+			}
+		})
+	}
+}
+
+// Team A takes the first ten holes, which closes the match out 10 & 8.
+func closingScores() []Score {
+	var scores []Score
+	for h := int32(1); h <= 10; h++ {
+		scores = append(scores,
+			Score{MatchID: matchID, TeamID: teamA, HoleNumber: h, Strokes: 4},
+			Score{MatchID: matchID, TeamID: teamB, HoleNumber: h, Strokes: 5},
+		)
+	}
+	return scores
 }
 
 // A halved hole leaves nobody ahead.
@@ -544,7 +601,7 @@ func TestListResults_NoLeaderWhenAllSquare(t *testing.T) {
 	}}
 	svc := matchService(m, p, sdb)
 
-	results, err := svc.ListResults(context.Background(), tournamentID)
+	results, _, err := svc.ListResults(context.Background(), tournamentID)
 	if err != nil {
 		t.Fatalf("ListResults: %v", err)
 	}

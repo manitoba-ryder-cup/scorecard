@@ -60,6 +60,9 @@ func (r *Router) getTournament(w http.ResponseWriter, req *http.Request) {
 		respondDomainError(req.Context(), w, "Failed to get tournament", err)
 		return
 	}
+	// The record carries the cup's phase, so it goes stale on the same schedule as the
+	// leaderboard it is read alongside.
+	cacheByPhase(w, tournament.Phase)
 	respondJSON(w, http.StatusOK, toTournamentDTO(*tournament))
 }
 
@@ -69,17 +72,12 @@ func (r *Router) getTournamentTeams(w http.ResponseWriter, req *http.Request) {
 	if !ok {
 		return
 	}
-	teams, finished, err := r.TournamentService.GetTeamsData(req.Context(), id)
+	teams, phase, err := r.TournamentService.GetTeamsData(req.Context(), id)
 	if err != nil {
 		respondDomainError(req.Context(), w, "Failed to get teams data", err)
 		return
 	}
-	// A finished cup is settled for good; a live one is polled every twenty seconds.
-	if finished {
-		cacheSettled(w)
-	} else {
-		cacheLive(w)
-	}
+	cacheByPhase(w, phase)
 	respondJSON(w, http.StatusOK, mapSlice(teams, toTournamentTeamDTO))
 }
 

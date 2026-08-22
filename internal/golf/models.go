@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
 // The domain layer holds no tenant_id — tenancy is a persistence/RLS concern
@@ -42,6 +43,10 @@ type Tournament struct {
 	StartDate time.Time
 	EndDate   time.Time
 	Location  string
+	// Phase is derived on read from the cup's match outcomes, the way a Player's record
+	// is — it is not stored, so a caller that builds a Tournament outside the service is
+	// responsible for setting it.
+	Phase sdk.TournamentPhase
 }
 
 // Match represents an individual golf match
@@ -303,9 +308,10 @@ type PlayerRecord struct {
 	Ties   int32
 }
 
-// MatchOutcome is a match's standing: whether it is complete, and the winning team
-// (nil while undecided, or when the match was halved).
+// MatchOutcome is a match's standing: whether anyone has scored it, whether it is
+// complete, and the winning team (nil while undecided, or when the match was halved).
 type MatchOutcome struct {
+	Started      bool
 	Finished     bool
 	WinnerTeamID *uuid.UUID
 }
