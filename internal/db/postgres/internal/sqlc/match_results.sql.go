@@ -40,6 +40,7 @@ func (q *Queries) GetMatchResult(ctx context.Context, arg GetMatchResultParams) 
 const listAllMatchOutcomes = `-- name: ListAllMatchOutcomes :many
 SELECT
     m.tournament_id,
+    (mr.match_id IS NOT NULL)::boolean AS started,
     COALESCE(mr.finished, false)::boolean AS finished,
     mr.leader_team_id
 FROM matches m
@@ -49,6 +50,7 @@ WHERE m.tenant_id = $1
 
 type ListAllMatchOutcomesRow struct {
 	TournamentID uuid.UUID  `json:"tournament_id"`
+	Started      bool       `json:"started"`
 	Finished     bool       `json:"finished"`
 	LeaderTeamID *uuid.UUID `json:"leader_team_id"`
 }
@@ -64,7 +66,12 @@ func (q *Queries) ListAllMatchOutcomes(ctx context.Context, tenantID uuid.UUID) 
 	items := []ListAllMatchOutcomesRow{}
 	for rows.Next() {
 		var i ListAllMatchOutcomesRow
-		if err := rows.Scan(&i.TournamentID, &i.Finished, &i.LeaderTeamID); err != nil {
+		if err := rows.Scan(
+			&i.TournamentID,
+			&i.Started,
+			&i.Finished,
+			&i.LeaderTeamID,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -77,6 +84,7 @@ func (q *Queries) ListAllMatchOutcomes(ctx context.Context, tenantID uuid.UUID) 
 
 const listMatchOutcomes = `-- name: ListMatchOutcomes :many
 SELECT
+    (mr.match_id IS NOT NULL)::boolean AS started,
     COALESCE(mr.finished, false)::boolean AS finished,
     mr.leader_team_id
 FROM matches m
@@ -90,13 +98,14 @@ type ListMatchOutcomesParams struct {
 }
 
 type ListMatchOutcomesRow struct {
+	Started      bool       `json:"started"`
 	Finished     bool       `json:"finished"`
 	LeaderTeamID *uuid.UUID `json:"leader_team_id"`
 }
 
 // Every match in the tournament with its stored outcome. A match with no result row has
-// not been scored, so it reads as unfinished — the standings rules live in the domain and
-// take these rows as input.
+// not been scored, so it reads as neither started nor finished — the standings rules live
+// in the domain and take these rows as input.
 func (q *Queries) ListMatchOutcomes(ctx context.Context, arg ListMatchOutcomesParams) ([]ListMatchOutcomesRow, error) {
 	rows, err := q.db.Query(ctx, listMatchOutcomes, arg.TournamentID, arg.TenantID)
 	if err != nil {
@@ -106,7 +115,7 @@ func (q *Queries) ListMatchOutcomes(ctx context.Context, arg ListMatchOutcomesPa
 	items := []ListMatchOutcomesRow{}
 	for rows.Next() {
 		var i ListMatchOutcomesRow
-		if err := rows.Scan(&i.Finished, &i.LeaderTeamID); err != nil {
+		if err := rows.Scan(&i.Started, &i.Finished, &i.LeaderTeamID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

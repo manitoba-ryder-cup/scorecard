@@ -7,9 +7,12 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
-func won(team uuid.UUID) MatchOutcome { return MatchOutcome{Finished: true, WinnerTeamID: &team} }
-func halved() MatchOutcome            { return MatchOutcome{Finished: true} }
-func unplayed() MatchOutcome          { return MatchOutcome{} }
+func won(team uuid.UUID) MatchOutcome {
+	return MatchOutcome{Started: true, Finished: true, WinnerTeamID: &team}
+}
+func halved() MatchOutcome     { return MatchOutcome{Started: true, Finished: true} }
+func inProgress() MatchOutcome { return MatchOutcome{Started: true} }
+func unplayed() MatchOutcome   { return MatchOutcome{} }
 
 func TestComputeTeamPoints(t *testing.T) {
 	teams := []uuid.UUID{teamA, teamB}
@@ -67,6 +70,28 @@ func TestIsTournamentComplete(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := IsTournamentComplete(tc.outcomes); got != tc.want {
 				t.Errorf("complete = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestComputePhase(t *testing.T) {
+	tests := []struct {
+		name     string
+		outcomes []MatchOutcome
+		want     sdk.TournamentPhase
+	}{
+		{"every match final", []MatchOutcome{won(teamA), halved()}, sdk.PhaseFinished},
+		{"a match under way", []MatchOutcome{inProgress(), unplayed()}, sdk.PhaseLive},
+		{"one still out after the rest are in", []MatchOutcome{won(teamA), unplayed()}, sdk.PhaseLive},
+		{"scheduled but unscored", []MatchOutcome{unplayed(), unplayed()}, sdk.PhaseUpcoming},
+		{"no matches", nil, sdk.PhaseUpcoming},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := ComputePhase(tc.outcomes); got != tc.want {
+				t.Errorf("phase = %v, want %v", got, tc.want)
 			}
 		})
 	}

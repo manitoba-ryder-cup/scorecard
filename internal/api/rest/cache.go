@@ -3,19 +3,16 @@ package rest
 import (
 	"fmt"
 	"net/http"
+
+	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
 // How long an anonymous read may be served from Cloudflare's edge.
 //
-// The split exists because two very different requests hit the same endpoints. The
-// History page fans out across every cup, and seventeen of eighteen can never change
-// again. The live leaderboard polls /teams and /results every twenty seconds so a
-// spectator sees scores land without refreshing — cache those and the polling is
-// pointless, because two out of three requests would return the same stored answer.
-//
-// So the discriminator is not the route, it is whether the cup is over. Handlers that can
-// tell say so with cacheSettled or cacheLive; everything else takes the default, which is
-// short enough not to strand a correction and long enough to absorb a burst.
+// The same endpoint serves a live leaderboard and a History page fanning out across every
+// cup, so the discriminator is not the route, it is the cup's phase. Handlers that can tell
+// say so with cacheByPhase; everything else takes the default, which is short enough not to
+// strand a correction and long enough to absorb a burst.
 const (
 	defaultMaxAge = 60
 	settledMaxAge = 86400 // a finished cup: a day, so a late correction still surfaces
@@ -42,13 +39,17 @@ func cacheableRead(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// cacheSettled marks a response that describes a finished cup — nothing about it can
-// change again, so it is worth caching properly rather than for a minute.
-func cacheSettled(w http.ResponseWriter) { setMaxAge(w, settledMaxAge) }
-
-// cacheLive marks a response a spectator is polling for. Caching it at all would defeat
-// the poll, so it is served fresh every time.
-func cacheLive(w http.ResponseWriter) { setMaxAge(w, noCacheMaxAge) }
+// cacheByPhase picks a tier from where the cup stands. Only a cup being played is exempt
+// from caching: a spectator polls it every twenty seconds, and caching it would defeat the
+// poll.
+func cacheByPhase(w http.ResponseWriter, phase sdk.TournamentPhase) {
+	switch phase {
+	case sdk.PhaseLive:
+		setMaxAge(w, noCacheMaxAge)
+	case sdk.PhaseFinished:
+		setMaxAge(w, settledMaxAge)
+	}
+}
 
 // setMaxAge is a no-op when the route was not registered as a cacheable read, so a
 // handler can call it unconditionally.

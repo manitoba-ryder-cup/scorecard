@@ -14,10 +14,9 @@ import (
 )
 
 // The three cache tiers are unit-tested in internal/api/rest/cache_test.go, but only in
-// isolation: nothing there checks that a live cup actually reaches cacheLive. The choice
-// is a branch inside two handlers, and picking the wrong side of it is invisible in the
-// body — a frozen leaderboard is served with the same 200 and the same JSON as a correct
-// one, just a stale copy of it, and only during play.
+// isolation: nothing there checks that a real cup reaches the phase it is in. Getting that
+// wrong is invisible in the body — a frozen leaderboard is served with the same 200 and the
+// same JSON as a correct one, just a stale copy of it, and only during play.
 //
 // These read the fixture anonymously, which is both the path that gets cached and the
 // only one that can be: cacheableRead marks a response only when the request carries no
@@ -57,14 +56,15 @@ func cacheControl(t *testing.T, path, token string) string {
 
 func TestLiveTournamentReadsAreNotCached(t *testing.T) {
 	t.Parallel()
-	_, fix := publicFixture(t)
+	client, fix := publicFixture(t)
+	playHole(t, client, fix, 1, 4, 5) // one hole in: the cup is being played
 
-	// One match, no scores: the cup is under way, and a spectator is polling both of
-	// these every twenty seconds. Caching either would answer two polls in three from a
-	// copy taken before the score they are waiting for.
+	// A spectator is polling both of these every twenty seconds. Caching either would
+	// answer two polls in three from a copy taken before the score they are waiting for.
 	for _, path := range []string{
 		strings.Replace(sdk.RouteV1TournamentResults, "{id}", fix.TournamentID.String(), 1),
 		strings.Replace(sdk.RouteV1TournamentTeams, "{id}", fix.TournamentID.String(), 1),
+		strings.Replace(sdk.RouteV1Tournament, "{id}", fix.TournamentID.String(), 1),
 	} {
 		if got := cacheControl(t, path, ""); got != "no-store" {
 			t.Errorf("%s during play: want no-store, got %q", path, got)
@@ -80,6 +80,7 @@ func TestSettledTournamentReadsAreCachedForADay(t *testing.T) {
 	for _, path := range []string{
 		strings.Replace(sdk.RouteV1TournamentResults, "{id}", fix.TournamentID.String(), 1),
 		strings.Replace(sdk.RouteV1TournamentTeams, "{id}", fix.TournamentID.String(), 1),
+		strings.Replace(sdk.RouteV1Tournament, "{id}", fix.TournamentID.String(), 1),
 	} {
 		if got := cacheControl(t, path, ""); got != "public, max-age=86400" {
 			t.Errorf("%s once finished: want the settled tier, got %q", path, got)
@@ -93,6 +94,21 @@ func TestOrdinaryReadsTakeTheDefaultTier(t *testing.T) {
 	t.Parallel()
 	if got := cacheControl(t, sdk.RouteV1Players, ""); got != "public, max-age=60" {
 		t.Errorf("%s: want the default tier, got %q", sdk.RouteV1Players, got)
+	}
+}
+
+func TestScheduledButUnplayedReadsTakeTheDefaultTier(t *testing.T) {
+	t.Parallel()
+	_, fix := publicFixture(t)
+
+	for _, path := range []string{
+		strings.Replace(sdk.RouteV1TournamentResults, "{id}", fix.TournamentID.String(), 1),
+		strings.Replace(sdk.RouteV1TournamentTeams, "{id}", fix.TournamentID.String(), 1),
+		strings.Replace(sdk.RouteV1Tournament, "{id}", fix.TournamentID.String(), 1),
+	} {
+		if got := cacheControl(t, path, ""); got != "public, max-age=60" {
+			t.Errorf("%s before play: want the default tier, got %q", path, got)
+		}
 	}
 }
 
@@ -113,5 +129,25 @@ func TestAuthenticatedReadsAreNeverCacheable(t *testing.T) {
 		if got := cacheControl(t, path, token); got != "no-store" {
 			t.Errorf("%s with a token: want no-store, got %q", path, got)
 		}
+	}
+}
+
+// The two endpoints derive the cup's phase from different rows, and this is where that
+// showed: /results reads live scores while /teams and the record read match_results.
+// Removing a participant cascades their scores away but leaves the materialized result
+// behind, so the two disagreed about the same cup at the same instant.
+func TestPhaseAgreesAcrossReadsAfterAParticipantIsRemoved(t *testing.T) {
+	t.Parallel()
+	client, fix := publicFixture(t)
+	closeOutRedWin(t, client, fix)
+
+	if err := client.RemoveParticipant(context.Background(), fix.MatchID, fix.RedPlayer); err != nil {
+		t.Fatalf("remove participant: %v", err)
+	}
+
+	results := strings.Replace(sdk.RouteV1TournamentResults, "{id}", fix.TournamentID.String(), 1)
+	record := strings.Replace(sdk.RouteV1Tournament, "{id}", fix.TournamentID.String(), 1)
+	if got, want := cacheControl(t, results, ""), cacheControl(t, record, ""); got != want {
+		t.Errorf("one cup, two phases: /results %q, the record %q", got, want)
 	}
 }

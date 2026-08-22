@@ -157,6 +157,10 @@ type Tournament struct {
 	StartDate string    `json:"start_date"`
 	EndDate   string    `json:"end_date"`
 	Location  string    `json:"location"`
+	// Phase is the server's own answer to whether the cup is upcoming, being played, or
+	// over. Derived from its matches, not from the dates above — a cup whose start date has
+	// arrived is still upcoming until someone records a score.
+	Phase TournamentPhase `json:"phase"`
 }
 
 // CreateTournamentRequest is the body for POST /v1/tournaments. Dates are YYYY-MM-DD.

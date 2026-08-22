@@ -55,6 +55,9 @@ func TestCreateTournamentSeedsBothTeams(t *testing.T) {
 	if got.ID != tour.ID || got.Location != "Winnipeg" {
 		t.Fatalf("round-trip mismatch: %+v", got)
 	}
+	if tour.Phase != sdk.PhaseUpcoming || got.Phase != sdk.PhaseUpcoming {
+		t.Fatalf("a cup with no matches is upcoming: created %q, read %q", tour.Phase, got.Phase)
+	}
 
 	// Creating the tournament must have seeded exactly its two sides, Red and Blue —
 	// no separate team-creation step exists.
@@ -109,5 +112,39 @@ func TestCreateTournamentInvalidDatesRejectedByServer(t *testing.T) {
 	status, _ := request.Raw(t, http.MethodPost, sdk.RouteV1Tournaments, body, freshToken(t))
 	if status != http.StatusBadRequest {
 		t.Fatalf("want 400, got %d", status)
+	}
+}
+
+func phaseOf(t *testing.T, client *sdk.Client, id uuid.UUID) sdk.TournamentPhase {
+	t.Helper()
+	tour, err := client.GetTournament(context.Background(), id)
+	if err != nil {
+		t.Fatalf("get tournament: %v", err)
+	}
+	return tour.Phase
+}
+
+// The phase the landing page renders itself from. It is published rather than left to each
+// client to re-derive, so this walks a cup through all three and checks the server agrees
+// with what actually happened to its matches — in particular that a scheduled cup is not
+// "live" merely because it is unfinished.
+func TestTournamentPhaseFollowsPlay(t *testing.T) {
+	t.Parallel()
+	client, fix := authedClient(t)
+
+	if got := phaseOf(t, client, fix.TournamentID); got != sdk.PhaseUpcoming {
+		t.Fatalf("scheduled, nothing scored: phase = %q, want upcoming", got)
+	}
+
+	playHole(t, client, fix, 1, 4, 5)
+	if got := phaseOf(t, client, fix.TournamentID); got != sdk.PhaseLive {
+		t.Fatalf("one hole in: phase = %q, want live", got)
+	}
+
+	for h := int32(2); h <= 10; h++ {
+		playHole(t, client, fix, h, 4, 5)
+	}
+	if got := phaseOf(t, client, fix.TournamentID); got != sdk.PhaseFinished {
+		t.Fatalf("match closed out: phase = %q, want finished", got)
 	}
 }

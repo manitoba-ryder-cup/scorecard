@@ -30,10 +30,11 @@ WHERE tp.tournament_id = @tournament_id AND tp.tenant_id = @tenant_id
 GROUP BY tp.player_id;
 
 -- Every match in the tournament with its stored outcome. A match with no result row has
--- not been scored, so it reads as unfinished — the standings rules live in the domain and
--- take these rows as input.
+-- not been scored, so it reads as neither started nor finished — the standings rules live
+-- in the domain and take these rows as input.
 -- name: ListMatchOutcomes :many
 SELECT
+    (mr.match_id IS NOT NULL)::boolean AS started,
     COALESCE(mr.finished, false)::boolean AS finished,
     mr.leader_team_id
 FROM matches m
@@ -45,6 +46,7 @@ WHERE m.tournament_id = @tournament_id AND m.tenant_id = @tenant_id;
 -- name: ListAllMatchOutcomes :many
 SELECT
     m.tournament_id,
+    (mr.match_id IS NOT NULL)::boolean AS started,
     COALESCE(mr.finished, false)::boolean AS finished,
     mr.leader_team_id
 FROM matches m

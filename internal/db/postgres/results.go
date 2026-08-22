@@ -45,8 +45,25 @@ func (r *ResultsDB) ListMatchOutcomes(ctx context.Context, tournamentID uuid.UUI
 			return nil, fmt.Errorf("listing match outcomes: %w", err)
 		}
 		return mapSlice(rows, func(row sqlc.ListMatchOutcomesRow) golf.MatchOutcome {
-			return golf.MatchOutcome{Finished: row.Finished, WinnerTeamID: row.LeaderTeamID}
+			return golf.MatchOutcome{Started: row.Started, Finished: row.Finished, WinnerTeamID: row.LeaderTeamID}
 		}), nil
+	})
+}
+
+// ListAllMatchOutcomes groups every match outcome in the tenant by tournament.
+func (r *ResultsDB) ListAllMatchOutcomes(ctx context.Context) (map[uuid.UUID][]golf.MatchOutcome, error) {
+	return withTenant(ctx, r.db, func(q *sqlc.Queries, tenantID uuid.UUID) (map[uuid.UUID][]golf.MatchOutcome, error) {
+		rows, err := q.ListAllMatchOutcomes(ctx, tenantID)
+		if err != nil {
+			return nil, fmt.Errorf("listing all match outcomes: %w", err)
+		}
+		outcomes := make(map[uuid.UUID][]golf.MatchOutcome)
+		for _, o := range rows {
+			outcomes[o.TournamentID] = append(outcomes[o.TournamentID], golf.MatchOutcome{
+				Started: o.Started, Finished: o.Finished, WinnerTeamID: o.LeaderTeamID,
+			})
+		}
+		return outcomes, nil
 	})
 }
 
@@ -94,7 +111,7 @@ func tournamentStandings(ctx context.Context, q *sqlc.Queries, tenantID uuid.UUI
 	}
 	for _, o := range outcomes {
 		s := standings[o.TournamentID]
-		s.Outcomes = append(s.Outcomes, golf.MatchOutcome{Finished: o.Finished, WinnerTeamID: o.LeaderTeamID})
+		s.Outcomes = append(s.Outcomes, golf.MatchOutcome{Started: o.Started, Finished: o.Finished, WinnerTeamID: o.LeaderTeamID})
 		standings[o.TournamentID] = s
 	}
 	return standings, nil

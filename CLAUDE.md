@@ -133,7 +133,10 @@ test/                    # Integration suite (needs the docker-compose stack)
 - **Player** — stable identity (name, optional heimdall `user_id`, optional email) plus an
   all-time record and cups won, both derived on read from `match_results`
 - **Tournament** — the event; created with both teams in one transaction, and carries its
-  location. It has no timezone — that moved to the course
+  location. It has no timezone — that moved to the course. Its `phase` (upcoming / live /
+  finished) is derived on read from its match outcomes, never stored — live from the first
+  score recorded until the last match is final, so a cup whose start date has arrived is
+  still upcoming until someone scores. It also picks the endpoint's cache tier
 - **Team** — Red or Blue, with an optional captain
 - **TournamentPlayer** — a player entered in a tournament, carrying the per-tournament tier,
   biography, and handicap (these are *not* on Player)

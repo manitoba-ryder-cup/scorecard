@@ -21,3 +21,15 @@ const (
 	ResultTied       = "tied"
 	ResultInProgress = "in_progress"
 )
+
+// TournamentPhase is where a cup stands in its life. A cup sits in PhaseUpcoming for the
+// months between its roster being entered and its first tee time, so "not finished" alone
+// does not mean anything is moving — which is why this is published rather than left for
+// each client to re-derive from the results.
+type TournamentPhase string
+
+const (
+	PhaseUpcoming TournamentPhase = "upcoming"
+	PhaseLive     TournamentPhase = "live"
+	PhaseFinished TournamentPhase = "finished"
+)
