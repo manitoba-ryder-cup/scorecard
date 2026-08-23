@@ -267,9 +267,6 @@ func (s *MatchService) ListMatchHoles(ctx context.Context, matchID uuid.UUID) ([
 
 // ResetMatch clears a match's scores and stored result, leaving its lineup.
 func (s *MatchService) ResetMatch(ctx context.Context, matchID uuid.UUID) error {
-	if _, err := s.MatchDB.GetMatch(ctx, matchID); err != nil {
-		return fmt.Errorf("failed to get match: %w", err)
-	}
 	if err := s.ScoreDB.ResetMatch(ctx, matchID); err != nil {
 		return fmt.Errorf("failed to reset match: %w", err)
 	}

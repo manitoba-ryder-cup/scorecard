@@ -172,7 +172,7 @@ func TestTournamentResultFor(t *testing.T) {
 		name     string
 		outcomes []MatchOutcome
 		team     *uuid.UUID
-		want     string
+		want     sdk.Result
 	}{
 		{"won", []MatchOutcome{won(red)}, &red, sdk.ResultWon},
 		{"lost", []MatchOutcome{won(red)}, &blue, sdk.ResultLost},

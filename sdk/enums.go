@@ -13,13 +13,14 @@ const (
 // default on tournament_players.tier.
 const DefaultTier = "white"
 
-// Player-tournament outcomes (PlayerTournamentHistory.result). "in_progress" covers a
-// tournament that hasn't finished all its matches yet.
+// Player-tournament outcomes
+type Result string
+
 const (
-	ResultWon        = "won"
-	ResultLost       = "lost"
-	ResultTied       = "tied"
-	ResultInProgress = "in_progress"
+	ResultWon        Result = "won"
+	ResultLost       Result = "lost"
+	ResultTied       Result = "tied"
+	ResultInProgress Result = "in_progress"
 )
 
 // TournamentPhase is where a cup stands in its life. A cup sits in PhaseUpcoming for the

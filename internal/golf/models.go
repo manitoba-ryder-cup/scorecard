@@ -251,7 +251,7 @@ type PlayerTournamentHistory struct {
 	CaptainFirstName string
 	CaptainLastName  string
 	TeamID           *uuid.UUID // nil when entered but never drafted
-	Result           string
+	Result           sdk.Result
 	Record           PlayerRecord
 	Tier             string
 	Biography        string
