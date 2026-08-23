@@ -489,21 +489,9 @@ func TestHoleWinner(t *testing.T) {
 	}
 }
 
-func TestRemoveParticipant_DelegatesToDB(t *testing.T) {
-	p := &fakeParticipantDB{}
-	svc := &MatchService{ParticipantDB: p}
-
-	if err := svc.RemoveParticipant(context.Background(), matchID, playerA); err != nil {
-		t.Fatalf("RemoveParticipant: %v", err)
-	}
-	if len(p.deleted) != 1 || p.deleted[0] != playerA {
-		t.Fatalf("want delete for player %v, got %v", playerA, p.deleted)
-	}
-}
-
 func TestRemoveParticipant_PropagatesNotFound(t *testing.T) {
 	p := &fakeParticipantDB{deleteErr: ErrNotFound}
-	svc := &MatchService{ParticipantDB: p}
+	svc := &MatchService{ParticipantDB: p, ScoreDB: &fakeScoreDB{}}
 
 	err := svc.RemoveParticipant(context.Background(), matchID, playerA)
 	if !errors.Is(err, ErrNotFound) {
@@ -654,5 +642,17 @@ func TestResetMatch_UnknownMatchIsNotFound(t *testing.T) {
 	}
 	if len(sdb.resetFor) != 0 {
 		t.Errorf("nothing should have been cleared, got %v", sdb.resetFor)
+	}
+}
+
+func TestRemoveParticipant_AllowedWhileTheMatchIsUnscored(t *testing.T) {
+	m, p := twoTeamMatch()
+	svc := matchService(m, p, &fakeScoreDB{})
+
+	if err := svc.RemoveParticipant(context.Background(), matchID, playerA); err != nil {
+		t.Fatalf("RemoveParticipant: %v", err)
+	}
+	if len(p.deleted) != 1 || p.deleted[0] != playerA {
+		t.Errorf("removed = %v, want the player", p.deleted)
 	}
 }

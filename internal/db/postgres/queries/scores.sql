@@ -37,3 +37,6 @@ ORDER BY s.match_id, s.hole_number;
 -- name: DeleteScoresByMatch :execrows
 DELETE FROM scores
 WHERE match_id = @match_id AND tenant_id = @tenant_id;
+
+-- name: MatchHasScores :one
+SELECT EXISTS (SELECT 1 FROM scores WHERE match_id = @match_id AND tenant_id = @tenant_id)::boolean;

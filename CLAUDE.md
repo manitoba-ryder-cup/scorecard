@@ -241,6 +241,22 @@ scores, runs the domain's `guard`, writes, re-reads, and upserts the `recompute`
 reason. The result row is deleted rather than zeroed — its existence is what marks a match
 started.
 
+**Nothing else may delete a score.** `scores` referenced `match_participants` with
+`ON DELETE CASCADE`, which let two routes destroy a played match without anything
+recomputing what was left behind — removing a participant, and undrafting a player, which
+reaches participants by cascade. Either left `match_results` claiming a finished match whose
+scores were gone, so one cup read as finished and never-played at once depending on the
+endpoint. Both are refused now, in two places that do not cover the same ground:
+
+- `ParticipantsDB.DeleteMatchParticipant` and `TeamMembersDB.DeleteTeamMember` refuse with
+  `ErrConflict`, and are the complete rule — they hold for every scoring grain. The check
+  sits in the repository beside the delete, inside one transaction and behind the lock the
+  score write path takes: asked from the service and then deleted separately, a score landing
+  in between would be orphaned.
+- The `ON DELETE RESTRICT` from migration 003 is the backstop, and covers **only per-player
+  scores**. A one-ball format records against the team with a null `player_id`, which the
+  foreign key skips (`MATCH SIMPLE`), so alt shot and scramble rest on the guard alone.
+
 Two things a reset does not undo. It ignores the scoring window but score entry does not,
 so clearing a match played yesterday leaves it uneditable until its tee time moves — the
 same `PUT /v1/matches/{id}` a group that went out late needs, and it has to be moved back

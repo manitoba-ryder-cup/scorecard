@@ -101,7 +101,6 @@ func (s *MatchService) AddParticipant(ctx context.Context, matchID, playerID, te
 }
 
 // RemoveParticipant removes a player from a match. ErrNotFound if they weren't in it.
-// The player stays drafted on their team — only the match assignment is cleared.
 func (s *MatchService) RemoveParticipant(ctx context.Context, matchID, playerID uuid.UUID) error {
 	if err := s.ParticipantDB.DeleteMatchParticipant(ctx, matchID, playerID); err != nil {
 		return fmt.Errorf("failed to remove participant: %w", err)

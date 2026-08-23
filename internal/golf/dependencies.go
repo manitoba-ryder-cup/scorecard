@@ -33,7 +33,6 @@ type participantDB interface {
 	ListMatchParticipants(ctx context.Context, matchID uuid.UUID) ([]MatchParticipant, error)
 	ListParticipantsWithPlayersByTournament(ctx context.Context, tournamentID uuid.UUID) ([]MatchParticipantPlayer, error)
 	CreateMatchParticipant(ctx context.Context, tournamentID, matchID, playerID, teamID uuid.UUID) (*MatchParticipant, error)
-	// DeleteMatchParticipant removes a player from a match; ErrNotFound if not in it.
 	DeleteMatchParticipant(ctx context.Context, matchID, playerID uuid.UUID) error
 }
 

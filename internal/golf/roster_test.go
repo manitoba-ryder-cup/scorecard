@@ -94,3 +94,43 @@ func TestUpdatePlayer_LeavesAnOmittedTierAlone(t *testing.T) {
 		t.Errorf("hdcp = %v, want nil so the stored one survives", *db.updated[0].Hdcp)
 	}
 }
+
+// Only the captain clear that follows an undraft is exercised here.
+type fakeTeamDB struct{}
+
+func (f *fakeTeamDB) GetTeam(ctx context.Context, id uuid.UUID) (*Team, error) { return nil, nil }
+func (f *fakeTeamDB) ListTeamsByTournament(ctx context.Context, tournamentID uuid.UUID) ([]TeamWithCaptain, error) {
+	return nil, nil
+}
+func (f *fakeTeamDB) SetTeamCaptain(ctx context.Context, teamID, captainID uuid.UUID) (*Team, error) {
+	return nil, nil
+}
+func (f *fakeTeamDB) ClearCaptainForPlayer(ctx context.Context, teamID, playerID uuid.UUID) error {
+	return nil
+}
+func (f *fakeTeamDB) ClearCaptain(ctx context.Context, teamID uuid.UUID) error { return nil }
+
+type fakeTeamMemberDB struct {
+	undrafted []uuid.UUID
+}
+
+func (f *fakeTeamMemberDB) CreateTeamMember(ctx context.Context, teamID, playerID, tournamentID uuid.UUID) (*TeamMember, error) {
+	return nil, nil
+}
+func (f *fakeTeamMemberDB) DeleteTeamMember(ctx context.Context, teamID, playerID uuid.UUID) error {
+	f.undrafted = append(f.undrafted, playerID)
+	return nil
+}
+
+// Being in a lineup is not being played: a draft is edited right up to the first tee.
+func TestUndraftPlayer_AllowedBeforeTheyHaveBeenScored(t *testing.T) {
+	db := &fakeTeamMemberDB{}
+	svc := &RosterService{TeamMemberDB: db, TeamDB: &fakeTeamDB{}}
+
+	if err := svc.UndraftPlayer(context.Background(), teamA, playerA); err != nil {
+		t.Fatalf("UndraftPlayer: %v", err)
+	}
+	if len(db.undrafted) != 1 || db.undrafted[0] != playerA {
+		t.Errorf("undrafted = %v, want the player", db.undrafted)
+	}
+}

@@ -119,6 +119,22 @@ func (q *Queries) ListScoresByTournament(ctx context.Context, arg ListScoresByTo
 	return items, nil
 }
 
+const matchHasScores = `-- name: MatchHasScores :one
+SELECT EXISTS (SELECT 1 FROM scores WHERE match_id = $1 AND tenant_id = $2)::boolean
+`
+
+type MatchHasScoresParams struct {
+	MatchID  uuid.UUID `json:"match_id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+}
+
+func (q *Queries) MatchHasScores(ctx context.Context, arg MatchHasScoresParams) (bool, error) {
+	row := q.db.QueryRow(ctx, matchHasScores, arg.MatchID, arg.TenantID)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const upsertPlayerScore = `-- name: UpsertPlayerScore :one
 INSERT INTO scores (
     match_id, team_id, player_id, course_id, tee_color_id, hole_number, tenant_id, strokes

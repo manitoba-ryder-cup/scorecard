@@ -49,3 +49,12 @@ JOIN match_formats mf ON mf.id = m.match_format_id
 JOIN courses c ON c.id = m.course_id AND c.tenant_id = m.tenant_id
 WHERE m.tournament_id = @tournament_id AND m.tenant_id = @tenant_id
 ORDER BY m.tee_time NULLS LAST, m.id;
+
+-- Locks every match a player is in, so undrafting them serialises against a score landing
+-- in any of them. Ordered, so two undrafts cannot take the same locks in opposite orders.
+-- name: LockPlayerMatchesForScoring :many
+SELECT m.id FROM matches m
+JOIN match_participants mp ON mp.match_id = m.id AND mp.tenant_id = m.tenant_id
+WHERE mp.team_id = @team_id AND mp.player_id = @player_id AND mp.tenant_id = @tenant_id
+ORDER BY m.id
+FOR UPDATE OF m;
