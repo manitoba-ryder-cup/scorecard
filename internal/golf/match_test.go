@@ -171,7 +171,7 @@ func TestSubmitScore_WritesScoreWithMatchCourseAndRecomputes(t *testing.T) {
 	sdb := &fakeScoreDB{}
 	svc := matchService(m, p, sdb)
 
-	_, err := svc.SubmitHoleScores(context.Background(), matchID, 1, []ScoreEntry{{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4}})
+	_, err := svc.SubmitHoleScores(context.Background(), SubmitScoresInput{MatchID: matchID, Hole: 1, Entries: []ScoreEntry{{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4}}})
 	if err != nil {
 		t.Fatalf("SubmitScore: %v", err)
 	}
@@ -198,7 +198,7 @@ func TestSubmitScore_RejectsTeamNotInMatch(t *testing.T) {
 	sdb := &fakeScoreDB{}
 	svc := matchService(m, p, sdb)
 
-	_, err := svc.SubmitHoleScores(context.Background(), matchID, 1, []ScoreEntry{{TeamID: uuid.New(), PlayerID: nil, Strokes: 4}})
+	_, err := svc.SubmitHoleScores(context.Background(), SubmitScoresInput{MatchID: matchID, Hole: 1, Entries: []ScoreEntry{{TeamID: uuid.New(), PlayerID: nil, Strokes: 4}}})
 	if !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("want ErrInvalidInput for team not in match, got %v", err)
 	}
@@ -214,10 +214,10 @@ func TestSubmitHoleScores_WritesNothingWhenOneEntryIsInvalid(t *testing.T) {
 	sdb := &fakeScoreDB{}
 	svc := matchService(m, p, sdb)
 
-	_, err := svc.SubmitHoleScores(context.Background(), matchID, 1, []ScoreEntry{
+	_, err := svc.SubmitHoleScores(context.Background(), SubmitScoresInput{MatchID: matchID, Hole: 1, Entries: []ScoreEntry{
 		{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4},
 		{TeamID: uuid.New(), PlayerID: pUUID(playerB), Strokes: 5}, // not in this match
-	})
+	}})
 
 	if !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("want ErrInvalidInput for a team not in the match, got %v", err)
@@ -234,10 +234,10 @@ func TestSubmitHoleScores_WritesTheWholeHoleAndRecomputesOnce(t *testing.T) {
 	sdb := &fakeScoreDB{}
 	svc := matchService(m, p, sdb)
 
-	got, err := svc.SubmitHoleScores(context.Background(), matchID, 1, []ScoreEntry{
+	got, err := svc.SubmitHoleScores(context.Background(), SubmitScoresInput{MatchID: matchID, Hole: 1, Entries: []ScoreEntry{
 		{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4},
 		{TeamID: teamB, PlayerID: pUUID(playerB), Strokes: 5},
-	})
+	}})
 	if err != nil {
 		t.Fatalf("SubmitHoleScores: %v", err)
 	}
@@ -279,9 +279,9 @@ func TestSubmitHoleScores_RejectsAWriteOutsideTheScoringWindow(t *testing.T) {
 			svc := matchService(m, p, sdb)
 			svc.Now = func() time.Time { return tc.now }
 
-			_, err := svc.SubmitHoleScores(context.Background(), matchID, 1, []ScoreEntry{
+			_, err := svc.SubmitHoleScores(context.Background(), SubmitScoresInput{MatchID: matchID, Hole: 1, Entries: []ScoreEntry{
 				{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4},
-			})
+			}})
 
 			if tc.want {
 				if err != nil {
@@ -347,9 +347,9 @@ func TestSubmitHoleScores_ScoresEachMatchOnItsOwnTeeTime(t *testing.T) {
 	sdb := &fakeScoreDB{}
 	svc := matchService(m, p, sdb)
 
-	_, err := svc.SubmitHoleScores(context.Background(), matchID, 1, []ScoreEntry{
+	_, err := svc.SubmitHoleScores(context.Background(), SubmitScoresInput{MatchID: matchID, Hole: 1, Entries: []ScoreEntry{
 		{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4},
-	})
+	}})
 
 	if !errors.Is(err, ErrConflict) {
 		t.Fatalf("want ErrConflict for a match not yet out, got %v", err)
@@ -376,7 +376,7 @@ func TestSubmitScore_ReturnsTheRecomputedStatus(t *testing.T) {
 	sdb := &fakeScoreDB{scores: decidedMatch()[:18]} // holes 1-9, teamA 9 up with 9 to play
 	svc := matchService(m, p, sdb)
 
-	got, err := svc.SubmitHoleScores(context.Background(), matchID, 10, []ScoreEntry{{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4}})
+	got, err := svc.SubmitHoleScores(context.Background(), SubmitScoresInput{MatchID: matchID, Hole: 10, Entries: []ScoreEntry{{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4}}})
 	if err != nil {
 		t.Fatalf("SubmitScore: %v", err)
 	}
@@ -392,7 +392,7 @@ func TestSubmitScore_RejectsANewHoleOnAFinishedMatch(t *testing.T) {
 	sdb := &fakeScoreDB{scores: decidedMatch()}
 	svc := matchService(m, p, sdb)
 
-	_, err := svc.SubmitHoleScores(context.Background(), matchID, 11, []ScoreEntry{{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4}})
+	_, err := svc.SubmitHoleScores(context.Background(), SubmitScoresInput{MatchID: matchID, Hole: 11, Entries: []ScoreEntry{{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4}}})
 
 	if !errors.Is(err, ErrConflict) {
 		t.Fatalf("want ErrConflict for a hole played after the close-out, got %v", err)
@@ -409,7 +409,7 @@ func TestSubmitScore_AllowsCorrectingAScoredHoleOnAFinishedMatch(t *testing.T) {
 	sdb := &fakeScoreDB{scores: decidedMatch()}
 	svc := matchService(m, p, sdb)
 
-	got, err := svc.SubmitHoleScores(context.Background(), matchID, 5, []ScoreEntry{{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 9}})
+	got, err := svc.SubmitHoleScores(context.Background(), SubmitScoresInput{MatchID: matchID, Hole: 5, Entries: []ScoreEntry{{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 9}}})
 	if err != nil {
 		t.Fatalf("want the correction accepted, got %v", err)
 	}
@@ -668,5 +668,39 @@ func TestRemoveParticipant_AllowedWhileTheMatchIsUnscored(t *testing.T) {
 	}
 	if len(p.deleted) != 1 || p.deleted[0] != playerA {
 		t.Errorf("removed = %v, want the player", p.deleted)
+	}
+}
+
+// The window is there to stop a scorer recording against the wrong match, which is not a
+// mistake an administrator correcting a card can make — they went looking for that match.
+// Both bounds are lifted, not just the closing one: a match moved forward is as reachable
+// as one already played.
+func TestSubmitHoleScores_IgnoresTheWindowWhenTheCallerMay(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		now  time.Time
+	}{
+		{"long after it shut", teeOff.Add(365 * 24 * time.Hour)},
+		{"long before it opens", teeOff.Add(-200 * 24 * time.Hour)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m, p := twoTeamMatch()
+			sdb := &fakeScoreDB{}
+			svc := matchService(m, p, sdb)
+			svc.Now = func() time.Time { return tc.now }
+
+			_, err := svc.SubmitHoleScores(context.Background(), SubmitScoresInput{
+				MatchID:             matchID,
+				Hole:                1,
+				Entries:             []ScoreEntry{{TeamID: teamA, PlayerID: pUUID(playerA), Strokes: 4}},
+				IgnoreScoringWindow: true,
+			})
+			if err != nil {
+				t.Fatalf("want the score accepted, got %v", err)
+			}
+			if len(sdb.saved) != 1 {
+				t.Errorf("want the hole written, got %d scores", len(sdb.saved))
+			}
+		})
 	}
 }

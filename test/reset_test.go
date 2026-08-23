@@ -101,8 +101,9 @@ func TestResetWorksAfterTheScoringWindowHasShut(t *testing.T) {
 	if _, err := client.UpdateMatch(ctx, fix.MatchID, sdk.UpdateMatchRequest{TeeTime: &lastYear}); err != nil {
 		t.Fatalf("move the tee time: %v", err)
 	}
-	// Without this the reset below would pass whether or not the window is enforced.
-	if _, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
+	// Without this the reset below would pass whether or not the window is enforced. Asked
+	// of a scorer's token, since the window does not apply to the client above.
+	if _, err := scorerClient(t, fix).SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
 		HoleNumber: 11,
 		Scores: []sdk.ScoreEntry{
 			{TeamID: fix.TeamRed, PlayerID: &fix.RedPlayer, Strokes: 4},

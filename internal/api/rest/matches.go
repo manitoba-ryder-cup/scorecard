@@ -212,7 +212,16 @@ func (r *Router) submitScore(w http.ResponseWriter, req *http.Request) {
 	// Shape is validated above; the domain still enforces its invariants — team not in
 	// the match -> 400, scoring past a finished match -> 409 — while a real failure
 	// (DB, etc.) -> 500.
-	result, err := r.MatchService.SubmitHoleScores(req.Context(), id, body.HoleNumber, entries)
+	//
+	// The scoring window stops a scorer recording against the wrong match. Someone who can
+	// administer the tournament is the one who corrects a card afterwards, so it does not
+	// apply to them.
+	result, err := r.MatchService.SubmitHoleScores(req.Context(), golf.SubmitScoresInput{
+		MatchID:             id,
+		Hole:                body.HoleNumber,
+		Entries:             entries,
+		IgnoreScoringWindow: hasScope(req, sdk.ScopeTournamentsWrite),
+	})
 	if err != nil {
 		respondDomainError(req.Context(), w, "Failed to submit score", err)
 		return

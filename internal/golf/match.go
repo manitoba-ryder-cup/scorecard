@@ -177,12 +177,26 @@ func scoringOpen(now, teeTime time.Time) bool {
 	return !now.Before(opens) && !now.After(closes)
 }
 
+// SubmitScoresInput is one hole's scores, and whether the caller may record them outside
+// the match's scoring window. The domain does not know who that is — the API layer decides
+// it from the token's scopes.
+type SubmitScoresInput struct {
+	MatchID uuid.UUID
+	Hole    int32
+	Entries []ScoreEntry
+	// IgnoreScoringWindow lifts the tee-time check. It exists because the window guards
+	// against scoring the wrong match, which is a mistake to protect a scorer from and a
+	// job to let an administrator do — correcting a card is most of the week after a cup.
+	IgnoreScoringWindow bool
+}
+
 // SubmitHoleScores persists every score for one hole and recomputes the match's
 // materialized result — the single write path that keeps match_results in sync. The hole
 // is written as a unit, so a caller cannot leave one side scored and the other not. It
 // returns the recomputed result, so a caller learns the hole closed the match out without
 // having to re-derive the close-out rule.
-func (s *MatchService) SubmitHoleScores(ctx context.Context, matchID uuid.UUID, hole int32, entries []ScoreEntry) (StoredResult, error) {
+func (s *MatchService) SubmitHoleScores(ctx context.Context, in SubmitScoresInput) (StoredResult, error) {
+	matchID, hole, entries := in.MatchID, in.Hole, in.Entries
 	var zero StoredResult
 	match, err := s.MatchDB.GetMatch(ctx, matchID)
 	if err != nil {
@@ -191,7 +205,7 @@ func (s *MatchService) SubmitHoleScores(ctx context.Context, matchID uuid.UUID, 
 	// A match months out is only ever being poked at, and one from a past cup is history.
 	// Both are the same question — is this match being played around now — which its tee
 	// time answers on its own.
-	if !scoringOpen(s.now(), match.TeeTime) {
+	if !in.IgnoreScoringWindow && !scoringOpen(s.now(), match.TeeTime) {
 		opens, closes := ScoringWindow(match.TeeTime)
 		return zero, fmt.Errorf("%w: match %s tees off at %s; scores can only be recorded from %s to %s",
 			ErrConflict, matchID, match.TeeTime.Format(time.RFC3339),

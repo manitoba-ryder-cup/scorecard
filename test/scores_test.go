@@ -188,12 +188,22 @@ func TestSubmitScoreRejectsHolesAfterTheCloseOut(t *testing.T) {
 	}
 }
 
+// scorerClient holds scores:write and nothing else. The window is a scorer's guard, so a
+// test asserting it has to be one — authedClient carries tournaments:write, which lifts it.
+func scorerClient(t *testing.T, fix *util.Fixture) *sdk.Client {
+	t.Helper()
+	client := sdk.NewClient(util.LoadConfig().BaseURL)
+	client.SetToken(testjwt.MintAccessToken(t, fix.TenantID, uuid.New(), sdk.ScopeScoresWrite))
+	return client
+}
+
 // TestSubmitScoreRejectsAMatchOutsideItsScoringWindow covers the guard that replaced the
 // tournament-dates one: the window is measured from each match's own tee time, so a match
 // still weeks out is refused even though its tournament is the one being played.
 func TestSubmitScoreRejectsAMatchOutsideItsScoringWindow(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)
+	scorer := scorerClient(t, fix)
 	ctx := context.Background()
 	red := fix.RedPlayer
 
@@ -234,9 +244,16 @@ func TestSubmitScoreRejectsAMatchOutsideItsScoringWindow(t *testing.T) {
 				}
 			}
 
-			_, err = client.SubmitScore(ctx, match.ID, sdk.ScoreSubmission{
+			submission := sdk.ScoreSubmission{
 				HoleNumber: 1, Scores: []sdk.ScoreEntry{{TeamID: fix.TeamRed, PlayerID: &red, Strokes: 4}},
-			})
+			}
+			// Whoever can administer the tournament is never refused, so the window only
+			// shows up against a scorer's token.
+			if _, err := client.SubmitScore(ctx, match.ID, submission); err != nil {
+				t.Fatalf("an administrator is not subject to the window, got %v", err)
+			}
+
+			_, err = scorer.SubmitScore(ctx, match.ID, submission)
 			if tc.want {
 				if err != nil {
 					t.Fatalf("want the score accepted, got %v", err)

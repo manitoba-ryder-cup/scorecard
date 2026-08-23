@@ -174,6 +174,13 @@ Scores are accepted only from `scoringOpensBefore` (2h) before a match's tee tim
 tee time, which is an instant and so needs no timezone. Outside the window a write is
 `ErrConflict` (409), and the error names the window's bounds.
 
+The window is a scorer's guard, not the tournament's rule: it stops a phone on a fairway
+recording against the wrong match. A token carrying `tournaments:write` is exempt, decided in
+the handler from the token's scopes and passed down as `SubmitScoresInput.IgnoreScoringWindow`
+— the domain never learns who the caller is. Correcting a card the next morning is the case,
+and the alternative was moving the tee time, which is published on the match and derives the
+window, so it left the match misscheduled unless it was moved back.
+
 `Match.TeeTime` is required for exactly this reason. `MatchResult` also carries the window
 itself as `scoring_opens_at`/`scoring_closes_at`, derived by `golf.ScoringWindow` — the one
 place either bound is computed, including for the 409 message. The web client gates its UI on

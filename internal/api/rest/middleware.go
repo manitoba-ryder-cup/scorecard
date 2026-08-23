@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+	"slices"
 
 	"github.com/google/uuid"
 	"github.com/travisbale/knowhere/identity"
@@ -43,4 +44,14 @@ func recoverMiddleware(next http.Handler) http.Handler {
 		}()
 		next.ServeHTTP(w, req)
 	})
+}
+
+// hasScope reports whether the request's token carries a scope beyond the one its route
+// required. Absent claims read as no scopes, so an unauthenticated caller never qualifies.
+func hasScope(req *http.Request, scope string) bool {
+	claims, err := jwt.GetJWTClaims(req)
+	if err != nil {
+		return false
+	}
+	return slices.Contains(claims.Scopes, jwt.Scope(scope))
 }
