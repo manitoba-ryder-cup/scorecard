@@ -42,12 +42,26 @@ The Go minor is pinned in the workflow, not read from `go.mod` — bumping Go me
 ### Database Migrations
 
 ```bash
-./bin/scorecard migrate up --database-url "postgres://..."
-./bin/scorecard migrate down --database-url "postgres://..."
-./bin/scorecard migrate version --database-url "postgres://..."
+./bin/scorecard --database-url "postgres://..." migrate up
+./bin/scorecard --database-url "postgres://..." migrate down
+./bin/scorecard --database-url "postgres://..." migrate version
 ```
 
-The server also runs pending migrations on startup.
+`--database-url` is a global flag, so it goes before the subcommand, not after it.
+
+The server also runs pending migrations on startup. A migration that fails therefore leaves
+the version dirty, and every start after it fails on the dirty version rather than on the
+original error — recovering means forcing the version by hand, which no subcommand does.
+
+**Migrations are append-only.** One that has shipped will never run again on a database that
+already applied it, so a mistake is corrected by the next migration, not by editing that one.
+
+**A foreign key added to a table under `FORCE ROW LEVEL SECURITY` must be `NOT VALID`.**
+Validating existing rows scans the table under its own tenant policy, and a migration has no
+tenant to satisfy it with: the scan either casts an empty string to uuid and fails outright,
+or sees no rows and marks the constraint valid having checked nothing. `ON DELETE` actions
+fire either way, so nothing is given up. `004_restrict_scored_participants_without_a_scan.up.sql`
+is the worked example; `003` is the mistake it corrects.
 
 ### Running the Service
 
@@ -353,8 +367,8 @@ neither can be dropped without a client change.
 - No `Co-Authored-By` trailer and no generated-with footer, in commits or PR descriptions.
   The repo squash-merges with the PR body as the message, so anything in it lands in the
   log — write PR descriptions as prose for that reason.
-- Not yet released — no backwards compatibility required, and existing migrations can be
-  edited in place rather than adding new ones.
+- Released, and running against production data: a migration cannot be edited once it has
+  shipped (see **Database Migrations**), and a wire change is a breaking one.
 - The web client (sibling `web/` repository) consumes the SDK's wire types. Changing a
   response shape means updating `web/src/api/types.ts` too.
 - The match format *names* seeded in `002_seed_match_formats.up.sql` are matched by string in
