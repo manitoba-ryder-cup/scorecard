@@ -76,7 +76,7 @@ integration stack does.
 Migrations run automatically on server startup, or apply them manually:
 
 ```bash
-./bin/scorecard migrate up --database-url "postgres://scorecard:scorecard_password@localhost:5432/scorecard?sslmode=disable"
+./bin/scorecard --database-url "postgres://scorecard:scorecard_password@localhost:5432/scorecard?sslmode=disable" migrate up
 ```
 
 ### Running the Service
