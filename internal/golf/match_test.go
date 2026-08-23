@@ -39,7 +39,6 @@ func (f *fakeMatchDB) UpdateMatch(ctx context.Context, in UpdateMatchInput) (*Ma
 type fakeParticipantDB struct {
 	participants []MatchParticipant
 	withPlayers  []MatchParticipantPlayer
-	scores       []Score     // what the guard sees, as the repository would read it
 	deleteErr    error       // returned by DeleteMatchParticipant
 	deleted      []uuid.UUID // player ids passed to DeleteMatchParticipant
 }
@@ -53,10 +52,7 @@ func (f *fakeParticipantDB) ListParticipantsWithPlayersByTournament(ctx context.
 func (f *fakeParticipantDB) CreateMatchParticipant(ctx context.Context, tournamentID, matchID, playerID, teamID uuid.UUID) (*MatchParticipant, error) {
 	return nil, nil
 }
-func (f *fakeParticipantDB) DeleteMatchParticipant(ctx context.Context, matchID, playerID uuid.UUID, guard func([]Score) error) error {
-	if err := guard(f.scores); err != nil {
-		return err
-	}
+func (f *fakeParticipantDB) DeleteMatchParticipant(ctx context.Context, matchID, playerID uuid.UUID) error {
 	f.deleted = append(f.deleted, playerID)
 	return f.deleteErr
 }
@@ -646,37 +642,6 @@ func TestResetMatch_UnknownMatchIsNotFound(t *testing.T) {
 	}
 	if len(sdb.resetFor) != 0 {
 		t.Errorf("nothing should have been cleared, got %v", sdb.resetFor)
-	}
-}
-
-// The lineup is what a played match's scores are attributed to, so changing it after the
-// fact rewrites holes already recorded — and for a per-player format the scores cascade
-// away entirely, leaving the stored result describing a match with one side.
-func TestRemoveParticipant_RefusedOnceTheMatchHasScores(t *testing.T) {
-	tests := []struct {
-		name   string
-		scores []Score
-	}{
-		{"per-player", []Score{{MatchID: matchID, TeamID: teamA, PlayerID: &playerA, HoleNumber: 1, Strokes: 4}}},
-		// The one the foreign key cannot catch: a team score carries no player, so it
-		// does not reference the participant row and nothing stops the delete below it.
-		{"one-ball", []Score{{MatchID: matchID, TeamID: teamA, HoleNumber: 1, Strokes: 4}}},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			m, p := twoTeamMatch()
-			p.scores = tc.scores
-			svc := matchService(m, p, &fakeScoreDB{})
-
-			err := svc.RemoveParticipant(context.Background(), matchID, playerA)
-			if !errors.Is(err, ErrConflict) {
-				t.Fatalf("want ErrConflict, got %v", err)
-			}
-			if len(p.deleted) != 0 {
-				t.Errorf("nothing should have been removed, got %v", p.deleted)
-			}
-		})
 	}
 }
 

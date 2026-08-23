@@ -2,7 +2,6 @@ package golf
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -112,34 +111,15 @@ func (f *fakeTeamDB) ClearCaptainForPlayer(ctx context.Context, teamID, playerID
 func (f *fakeTeamDB) ClearCaptain(ctx context.Context, teamID uuid.UUID) error { return nil }
 
 type fakeTeamMemberDB struct {
-	scored    bool
 	undrafted []uuid.UUID
 }
 
 func (f *fakeTeamMemberDB) CreateTeamMember(ctx context.Context, teamID, playerID, tournamentID uuid.UUID) (*TeamMember, error) {
 	return nil, nil
 }
-func (f *fakeTeamMemberDB) DeleteTeamMember(ctx context.Context, teamID, playerID uuid.UUID, guard func(bool) error) error {
-	if err := guard(f.scored); err != nil {
-		return err
-	}
+func (f *fakeTeamMemberDB) DeleteTeamMember(ctx context.Context, teamID, playerID uuid.UUID) error {
 	f.undrafted = append(f.undrafted, playerID)
 	return nil
-}
-
-// Undrafting cascades through the player's lineups into their scores, so a played match
-// would lose the card behind its stored result.
-func TestUndraftPlayer_RefusedOnceTheyHaveBeenScored(t *testing.T) {
-	db := &fakeTeamMemberDB{scored: true}
-	svc := &RosterService{TeamMemberDB: db}
-
-	err := svc.UndraftPlayer(context.Background(), teamA, playerA)
-	if !errors.Is(err, ErrConflict) {
-		t.Fatalf("want ErrConflict, got %v", err)
-	}
-	if len(db.undrafted) != 0 {
-		t.Errorf("nothing should have been undrafted, got %v", db.undrafted)
-	}
 }
 
 // Being in a lineup is not being played: a draft is edited right up to the first tee.

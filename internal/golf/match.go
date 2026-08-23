@@ -101,19 +101,8 @@ func (s *MatchService) AddParticipant(ctx context.Context, matchID, playerID, te
 }
 
 // RemoveParticipant removes a player from a match. ErrNotFound if they weren't in it.
-// The player stays drafted on their team — only the match assignment is cleared.
-//
-// Refused once the match has been scored, whatever the grain: a played match's scores are
-// attributed to its lineup, and per-player ones cascade away with the participant, leaving
-// the stored result describing a match that no longer has two sides.
 func (s *MatchService) RemoveParticipant(ctx context.Context, matchID, playerID uuid.UUID) error {
-	guard := func(scores []Score) error {
-		if len(scores) > 0 {
-			return fmt.Errorf("%w: match %s has been scored; reset it before changing its lineup", ErrConflict, matchID)
-		}
-		return nil
-	}
-	if err := s.ParticipantDB.DeleteMatchParticipant(ctx, matchID, playerID, guard); err != nil {
+	if err := s.ParticipantDB.DeleteMatchParticipant(ctx, matchID, playerID); err != nil {
 		return fmt.Errorf("failed to remove participant: %w", err)
 	}
 	return nil

@@ -33,10 +33,7 @@ type participantDB interface {
 	ListMatchParticipants(ctx context.Context, matchID uuid.UUID) ([]MatchParticipant, error)
 	ListParticipantsWithPlayersByTournament(ctx context.Context, tournamentID uuid.UUID) ([]MatchParticipantPlayer, error)
 	CreateMatchParticipant(ctx context.Context, tournamentID, matchID, playerID, teamID uuid.UUID) (*MatchParticipant, error)
-	// DeleteMatchParticipant removes a player from a match; ErrNotFound if not in it. The
-	// guard sees the match's committed scores and can refuse, behind the lock the score
-	// write path takes and in the same transaction as the delete.
-	DeleteMatchParticipant(ctx context.Context, matchID, playerID uuid.UUID, guard func(scores []Score) error) error
+	DeleteMatchParticipant(ctx context.Context, matchID, playerID uuid.UUID) error
 }
 
 // scoreDB interface defines database operations for scores
@@ -81,10 +78,8 @@ type teamDB interface {
 type teamMemberDB interface {
 	// CreateTeamMember drafts a player onto a team (the tournament is the team's).
 	CreateTeamMember(ctx context.Context, teamID, playerID, tournamentID uuid.UUID) (*TeamMember, error)
-	// DeleteTeamMember undrafts a player; ErrNotFound if they weren't on the team. The
-	// guard is told whether they have been scored, behind a lock on every match they are
-	// in and in the same transaction as the delete.
-	DeleteTeamMember(ctx context.Context, teamID, playerID uuid.UUID, guard func(scored bool) error) error
+	// DeleteTeamMember undrafts a player; ErrNotFound if they weren't on the team.
+	DeleteTeamMember(ctx context.Context, teamID, playerID uuid.UUID) error
 }
 
 // tournamentPlayerDB interface defines database operations for tournament entries

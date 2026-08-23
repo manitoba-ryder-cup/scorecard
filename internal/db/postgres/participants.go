@@ -38,16 +38,7 @@ func (p *ParticipantsDB) CreateMatchParticipant(ctx context.Context, tournamentI
 }
 
 // DeleteMatchParticipant removes a player from a match. ErrNotFound if they weren't in it.
-//
-// The guard decides, from the match's committed scores, whether the removal is allowed. It
-// runs behind the same lock the score write path takes, and in the same transaction as the
-// delete, because otherwise a score landing between the two would be orphaned — the foreign
-// key catches that for a per-player score and cannot see a one-ball one.
-func (p *ParticipantsDB) DeleteMatchParticipant(
-	ctx context.Context,
-	matchID, playerID uuid.UUID,
-	guard func(scores []golf.Score) error,
-) error {
+func (p *ParticipantsDB) DeleteMatchParticipant(ctx context.Context, matchID, playerID uuid.UUID) error {
 	return withTenantExec(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
 		if _, err := q.LockMatchForScoring(ctx, sqlc.LockMatchForScoringParams{
 			ID:       matchID,
@@ -55,15 +46,15 @@ func (p *ParticipantsDB) DeleteMatchParticipant(
 		}); err != nil {
 			return fmt.Errorf("locking match %s: %w", matchID, mapReadErr(err))
 		}
-		scores, err := q.ListScoresByMatch(ctx, sqlc.ListScoresByMatchParams{
+		scored, err := q.MatchHasScores(ctx, sqlc.MatchHasScoresParams{
 			MatchID:  matchID,
 			TenantID: tenantID,
 		})
 		if err != nil {
-			return fmt.Errorf("listing scores for match %s: %w", matchID, err)
+			return fmt.Errorf("checking scores for match %s: %w", matchID, err)
 		}
-		if err := guard(mapSlice(scores, toDomainScore)); err != nil {
-			return err
+		if scored {
+			return fmt.Errorf("%w: match %s has been scored; reset it before changing its lineup", golf.ErrConflict, matchID)
 		}
 		rows, err := q.DeleteMatchParticipant(ctx, sqlc.DeleteMatchParticipantParams{
 			MatchID:  matchID,
