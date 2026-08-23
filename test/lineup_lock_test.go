@@ -50,6 +50,34 @@ func TestUndraftingAScoredPlayerIsRefused(t *testing.T) {
 	}
 }
 
+// The grain the foreign key cannot see: a one-ball format records against the team with no
+// player, so those rows reference no participant and the domain guard is the only thing
+// between them and a cascade. Asserted through the API for that reason — the constraint
+// test below does not cover this and cannot.
+func TestAOneBallScoreAlsoLocksTheLineup(t *testing.T) {
+	t.Parallel()
+	client, fix := authedClient(t)
+	ctx := context.Background()
+
+	if _, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
+		HoleNumber: 1,
+		Scores: []sdk.ScoreEntry{
+			{TeamID: fix.TeamRed, PlayerID: nil, Strokes: 4},
+			{TeamID: fix.TeamBlue, PlayerID: nil, Strokes: 5},
+		},
+	}); err != nil {
+		t.Fatalf("submit a team score: %v", err)
+	}
+
+	var apiErr *sdk.APIError
+	if err := client.RemoveParticipant(ctx, fix.MatchID, fix.RedPlayer); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
+		t.Errorf("remove participant: want 409, got %v", err)
+	}
+	if err := client.UndraftPlayer(ctx, fix.TeamRed, fix.RedPlayer); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
+		t.Errorf("undraft: want 409, got %v", err)
+	}
+}
+
 // Reset is the way through, which is what makes it more than a testing tool: clear the
 // match, then the lineup is editable again.
 func TestResetReopensAScoredMatchesLineup(t *testing.T) {

@@ -249,7 +249,11 @@ scores were gone, so one cup read as finished and never-played at once depending
 endpoint. Both are refused now, in two places that do not cover the same ground:
 
 - The domain guards (`MatchService.RemoveParticipant`, `RosterService.UndraftPlayer`) refuse
-  with `ErrConflict`, and are the complete rule — they hold for every scoring grain.
+  with `ErrConflict`, and are the complete rule — they hold for every scoring grain. Each
+  arrives as a callback into the repository, so it runs inside the deleting transaction and
+  behind the same lock the score write path takes: checked and then deleted separately, a
+  score landing in between would be orphaned, and the foreign key below cannot see the
+  one-ball case that would leave.
 - The `ON DELETE RESTRICT` from migration 003 is the backstop, and covers **only per-player
   scores**. A one-ball format records against the team with a null `player_id`, which the
   foreign key skips (`MATCH SIMPLE`), so alt shot and scramble rest on the guard alone.

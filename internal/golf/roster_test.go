@@ -119,12 +119,12 @@ type fakeTeamMemberDB struct {
 func (f *fakeTeamMemberDB) CreateTeamMember(ctx context.Context, teamID, playerID, tournamentID uuid.UUID) (*TeamMember, error) {
 	return nil, nil
 }
-func (f *fakeTeamMemberDB) DeleteTeamMember(ctx context.Context, teamID, playerID uuid.UUID) error {
+func (f *fakeTeamMemberDB) DeleteTeamMember(ctx context.Context, teamID, playerID uuid.UUID, guard func(bool) error) error {
+	if err := guard(f.scored); err != nil {
+		return err
+	}
 	f.undrafted = append(f.undrafted, playerID)
 	return nil
-}
-func (f *fakeTeamMemberDB) PlayerHasScoredMatches(ctx context.Context, teamID, playerID uuid.UUID) (bool, error) {
-	return f.scored, nil
 }
 
 // Undrafting cascades through the player's lineups into their scores, so a played match

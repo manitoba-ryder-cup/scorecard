@@ -107,14 +107,13 @@ func (s *MatchService) AddParticipant(ctx context.Context, matchID, playerID, te
 // attributed to its lineup, and per-player ones cascade away with the participant, leaving
 // the stored result describing a match that no longer has two sides.
 func (s *MatchService) RemoveParticipant(ctx context.Context, matchID, playerID uuid.UUID) error {
-	scores, err := s.ScoreDB.ListScoresByMatch(ctx, matchID)
-	if err != nil {
-		return fmt.Errorf("failed to list scores: %w", err)
+	guard := func(scores []Score) error {
+		if len(scores) > 0 {
+			return fmt.Errorf("%w: match %s has been scored; reset it before changing its lineup", ErrConflict, matchID)
+		}
+		return nil
 	}
-	if len(scores) > 0 {
-		return fmt.Errorf("%w: match %s has been scored; reset it before changing its lineup", ErrConflict, matchID)
-	}
-	if err := s.ParticipantDB.DeleteMatchParticipant(ctx, matchID, playerID); err != nil {
+	if err := s.ParticipantDB.DeleteMatchParticipant(ctx, matchID, playerID, guard); err != nil {
 		return fmt.Errorf("failed to remove participant: %w", err)
 	}
 	return nil

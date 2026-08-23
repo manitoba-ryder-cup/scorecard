@@ -39,6 +39,7 @@ func (f *fakeMatchDB) UpdateMatch(ctx context.Context, in UpdateMatchInput) (*Ma
 type fakeParticipantDB struct {
 	participants []MatchParticipant
 	withPlayers  []MatchParticipantPlayer
+	scores       []Score     // what the guard sees, as the repository would read it
 	deleteErr    error       // returned by DeleteMatchParticipant
 	deleted      []uuid.UUID // player ids passed to DeleteMatchParticipant
 }
@@ -52,7 +53,10 @@ func (f *fakeParticipantDB) ListParticipantsWithPlayersByTournament(ctx context.
 func (f *fakeParticipantDB) CreateMatchParticipant(ctx context.Context, tournamentID, matchID, playerID, teamID uuid.UUID) (*MatchParticipant, error) {
 	return nil, nil
 }
-func (f *fakeParticipantDB) DeleteMatchParticipant(ctx context.Context, matchID, playerID uuid.UUID) error {
+func (f *fakeParticipantDB) DeleteMatchParticipant(ctx context.Context, matchID, playerID uuid.UUID, guard func([]Score) error) error {
+	if err := guard(f.scores); err != nil {
+		return err
+	}
 	f.deleted = append(f.deleted, playerID)
 	return f.deleteErr
 }
@@ -662,7 +666,8 @@ func TestRemoveParticipant_RefusedOnceTheMatchHasScores(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			m, p := twoTeamMatch()
-			svc := matchService(m, p, &fakeScoreDB{scores: tc.scores})
+			p.scores = tc.scores
+			svc := matchService(m, p, &fakeScoreDB{})
 
 			err := svc.RemoveParticipant(context.Background(), matchID, playerA)
 			if !errors.Is(err, ErrConflict) {
