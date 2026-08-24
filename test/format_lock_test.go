@@ -78,7 +78,7 @@ func TestChangingAScoredMatchsFormatIsRefused(t *testing.T) {
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
 		t.Fatalf("want 409, got %v", err)
 	}
-	if apiErr.Message != "That match has scores. Reset it before changing its format." {
+	if apiErr.Message != "That match has scores. Reset it before changing its course, tees or format." {
 		t.Errorf("message = %q", apiErr.Message)
 	}
 

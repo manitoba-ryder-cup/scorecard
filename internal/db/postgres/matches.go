@@ -40,14 +40,9 @@ func (m *MatchesDB) CreateMatch(ctx context.Context, in golf.CreateMatchInput) (
 	})
 }
 
-// UpdateMatch applies in, having first shown guard the match as it stands and whether it has
-// been scored. The lock is held across both, so the answer guard gives cannot be raced by a
-// score landing before the update.
-func (m *MatchesDB) UpdateMatch(
-	ctx context.Context,
-	in golf.UpdateMatchInput,
-	guard func(current golf.Match, scored bool) error,
-) (*golf.Match, error) {
+// UpdateMatch applies in. A match that has been scored keeps the setup its scores are read
+// against; the lock spans the check and the write, so a score cannot arrive in between.
+func (m *MatchesDB) UpdateMatch(ctx context.Context, in golf.UpdateMatchInput) (*golf.Match, error) {
 	return withTenant(ctx, m.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Match, error) {
 		if err := lockMatchForScoring(ctx, q, in.ID, tenantID); err != nil {
 			return nil, err
@@ -56,12 +51,10 @@ func (m *MatchesDB) UpdateMatch(
 		if err != nil {
 			return nil, fmt.Errorf("reading match %s: %w", in.ID, mapReadErr(err, golf.ErrMatchNotFound))
 		}
-		scored, err := matchHasScores(ctx, q, in.ID, tenantID)
-		if err != nil {
-			return nil, err
-		}
-		if err := guard(toDomainMatch(current), scored); err != nil {
-			return nil, err
+		if in.ChangesSetup(toDomainMatch(current)) {
+			if err := refuseIfScored(ctx, q, in.ID, tenantID, golf.ErrScoredMatchSetup); err != nil {
+				return nil, err
+			}
 		}
 		match, err := q.UpdateMatch(ctx, sqlc.UpdateMatchParams{
 			ID:            in.ID,
