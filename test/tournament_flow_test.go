@@ -26,14 +26,11 @@ const (
 	halved
 )
 
-// TestFullRyderCupCorrectness runs an entire Ryder-Cup-shaped tournament through the
-// public API and checks that the engine's match winners and the Cup winner match a
-// result we know by construction.
+// TestFullRyderCupCorrectness runs a whole Ryder-Cup-shaped tournament through the public API
+// and checks the winners against a result known by construction.
 //
-// It builds a course, a 16-player field (8 per side), four rounds in four different
-// formats (Singles 1v1, then Fourball / Alt Shot / Scramble 2v2), and assigns
-// every player to exactly one match per format. Each match is then driven to a
-// pre-chosen outcome via hole scores, and we assert the API reports that outcome —
+// Sixteen players, four rounds, one in each format, every player in exactly one match per
+// round. Each match is driven to a pre-chosen outcome and the API is asked what it thinks —
 // per match and, once every match is final, for the Cup and the point tally.
 func TestFullRyderCupCorrectness(t *testing.T) {
 	t.Parallel()
@@ -49,13 +46,11 @@ func TestFullRyderCupCorrectness(t *testing.T) {
 	redTeam := teamByColor(t, client, tour.ID, sdk.TeamColorRed)
 	blueTeam := teamByColor(t, client, tour.ID, sdk.TeamColorBlue)
 
-	// One playable course (White tee, 18 holes). We ignore the returned Singles format
-	// id and look formats up by name below, since we need all four.
+	// Formats are looked up by name below, since all four are needed.
 	courseID, teeColorID, _ := playableCourse(t, client)
 	formats := formatsByName(t, client)
 
-	// Build both benches: create each player, enter them in the tournament, draft them
-	// onto their side. Indices are stable, so red[i] and blue[i] are paired opponents.
+	// Indices are stable, so red[i] and blue[i] are paired opponents.
 	red := make([]uuid.UUID, playersPerSide)
 	blue := make([]uuid.UUID, playersPerSide)
 	for i := 0; i < playersPerSide; i++ {
@@ -71,10 +66,7 @@ func TestFullRyderCupCorrectness(t *testing.T) {
 		t.Fatalf("set blue captain: %v", err)
 	}
 
-	// The four rounds. perSide is the match grain (1 = singles, 2 = pairs); the outcomes
-	// slice has one entry per match and must cover every player on each side exactly once
-	// (len == playersPerSide/perSide). The schedule below is engineered so Red wins the
-	// Cup 13-7: 12 match wins to 6, with 2 matches halved.
+	// One entry per match, covering each side once; engineered so Red takes the cup 13-7.
 	rounds := []struct {
 		format   string
 		perSide  int
@@ -138,8 +130,7 @@ func TestFullRyderCupCorrectness(t *testing.T) {
 		t.Fatalf("no Cup winner before play, got %+v", w)
 	}
 
-	// Pass 2: play each match to its intended outcome and check the engine agrees.
-	// Tally the expected point totals from the same outcomes, independently of the API.
+	// Totals are tallied from the same outcomes, independently of the API.
 	var redPts, bluePts float64
 	for _, pl := range plans {
 		playMatch(t, client, pl.id, redTeam, blueTeam, pl.redPs, pl.bluePs, pl.out)
@@ -212,14 +203,12 @@ func TestFullRyderCupCorrectness(t *testing.T) {
 	}
 }
 
-// playMatch drives a match to the given outcome via hole scores. For a decisive
-// result the winning side shoots 3 and the loser 5 on every hole, so the winner takes
-// each hole and closes the match out at hole 10 (10&8) — the earliest a 3-and-1 lead
-// becomes insurmountable. A halved match has both sides shoot 4 for all 18 holes,
-// finishing all square. One designated player posts per team each hole: the engine
-// scores a team by its best ball, so a single score IS the team's score, and this keeps
-// score submissions (the suite's dominant cost) to two calls per hole regardless of
-// format. Best-ball min-of-two partners is covered by the golf unit tests instead.
+// playMatch drives a match to an outcome. A decisive one has the winner shoot 3 to the
+// loser's 5, closing out at hole 10; a halved one has both shoot 4 for all eighteen.
+//
+// One player posts per team each hole. A team is scored by its best ball, so a single score
+// is the team's score, and this keeps submissions — the suite's dominant cost — to two per
+// hole in every format.
 func playMatch(t *testing.T, client *sdk.Client, matchID, redTeam, blueTeam uuid.UUID, redPs, bluePs []uuid.UUID, out outcome) {
 	t.Helper()
 	ctx := context.Background()

@@ -11,12 +11,11 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
-// SeedInput is the contract for the advance setup of a tournament: the event, its roster
-// (with per-tournament tiers), the two captains, and the match schedule. The draft (which
-// player is on which team) and assigning players to matches happen live at the event, so
-// this seeds neither — only the captains get a team. Course, tee color, and formats are
-// referenced by name and must already exist. Players are matched by email (created only
-// if new), so a player recurs across tournaments instead of being duplicated.
+// SeedInput is the advance setup of a tournament: the event, its roster, the two captains
+// and the schedule. The draft and the match lineups happen live, so this seeds neither and
+// only the captains get a team. Course, tee colour and formats are referenced by name and
+// must already exist; players are matched by email, so one recurs across cups rather than
+// being duplicated.
 type SeedInput struct {
 	Tournament SeedTournamentMeta `json:"tournament"`
 	Course     string             `json:"course"`
@@ -61,11 +60,9 @@ type SeedSummary struct {
 
 // SeedTournament validates the setup and writes it.
 //
-// Planning resolves every name and parses every time without touching the database, so a
-// typo in a hand-edited file costs nothing. Writing is one call, and one transaction: the
-// event either exists in full or not at all. Neither half is redundant — planning turns a
-// bad file into a free error, and the transaction covers what planning cannot see, like
-// the connection dropping at match ten.
+// Planning resolves every name without touching the database, so a typo in a hand-edited
+// file costs nothing. Writing is one transaction, covering what planning cannot see — the
+// connection dropping at match ten.
 func SeedTournament(ctx context.Context, svc *Services, in *SeedInput) (*SeedSummary, error) {
 	plan, err := planSeed(ctx, svc, in)
 	if err != nil {

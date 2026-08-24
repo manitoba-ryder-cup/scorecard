@@ -52,8 +52,7 @@ func (m *MatchesDB) UpdateMatch(ctx context.Context, in golf.UpdateMatchInput) (
 			Handicapped:   in.Handicapped,
 		})
 		if err != nil {
-			// An update can fail either way: no row means no such match in this tenant
-			// (404), while an unknown course/tee/format is a client error from the FK.
+			// No row means no such match here; an unknown course or tee is the FK.
 			return nil, fmt.Errorf("updating match %s: %w", in.ID, mapWriteErr(mapReadErr(err)))
 		}
 		dm := toDomainMatch(match)

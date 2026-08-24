@@ -23,8 +23,7 @@ func (r *Router) createTournament(w http.ResponseWriter, req *http.Request) {
 	if !ok {
 		return
 	}
-	// Validate already confirmed the dates parse; the errors here are unreachable in
-	// practice but kept so a future format skew can't silently produce zero dates.
+	// Unreachable while Validate agrees, but a format skew must not yield a zero date.
 	start, err := parseDate(body.StartDate)
 	if err != nil {
 		respondError(req.Context(), w, http.StatusBadRequest, "Invalid start_date (want YYYY-MM-DD)", err)
@@ -60,8 +59,7 @@ func (r *Router) getTournament(w http.ResponseWriter, req *http.Request) {
 		respondDomainError(req.Context(), w, "Failed to get tournament", err)
 		return
 	}
-	// The record carries the cup's phase, so it goes stale on the same schedule as the
-	// leaderboard it is read alongside.
+	// The record carries the phase, so it goes stale with the leaderboard beside it.
 	cacheByPhase(w, tournament.Phase)
 	respondJSON(w, http.StatusOK, toTournamentDTO(*tournament))
 }

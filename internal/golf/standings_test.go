@@ -61,8 +61,7 @@ func TestIsTournamentComplete(t *testing.T) {
 	}{
 		{"every match final", []MatchOutcome{won(teamA), halved()}, true},
 		{"one match outstanding", []MatchOutcome{won(teamA), unplayed()}, false},
-		// A tournament with no matches has not been played, so it is not complete —
-		// otherwise a freshly created Cup would report itself finished.
+		// Otherwise a freshly created cup would report itself finished.
 		{"no matches", nil, false},
 	}
 
@@ -110,8 +109,7 @@ func TestComputeTournamentOutcome(t *testing.T) {
 		// Level on points means nobody wins it outright.
 		{"a tie has no winner", []MatchOutcome{won(teamA), won(teamB)}, true, nil},
 		{"all halved is a tie", []MatchOutcome{halved(), halved()}, true, nil},
-		// No early clinch: the Cup is undecided while any match is outstanding, even
-		// when one side already leads unassailably.
+		// No early clinch: undecided while any match is outstanding, however far ahead.
 		{"leading but unfinished", []MatchOutcome{won(teamA), won(teamA), unplayed()}, false, nil},
 		{"no matches", nil, false, nil},
 	}

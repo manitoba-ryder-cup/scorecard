@@ -125,8 +125,7 @@ func TestTournamentResultsPublishTheScoringWindow(t *testing.T) {
 		t.Errorf("want the window to straddle the tee time, got %s .. %s around %s",
 			r.ScoringOpensAt, r.ScoringClosesAt, r.TeeTime)
 	}
-	// Per match, not per tournament — an afternoon group's window opens after a morning
-	// group's has shut, which is the whole reason it hangs off the tee time.
+	// Per match: an afternoon group's window opens after a morning group's has shut.
 	if got := teeTime.Sub(opens); got != 2*time.Hour {
 		t.Errorf("want the window to open 2h before the tee time, got %s", got)
 	}

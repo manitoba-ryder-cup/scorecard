@@ -71,8 +71,7 @@ func TestToHoleStatusDTO_CarriesPlayerBreakdown(t *testing.T) {
 	if ts.TeamID != teamID || ts.Strokes != 4 {
 		t.Errorf("team score not mapped: %+v", ts)
 	}
-	// The individual scores must survive the mapping — the side's best ball alone can't
-	// tell a client what the other player shot.
+	// The side's best ball alone cannot tell a client what the other player shot.
 	if len(ts.PlayerScores) != 2 ||
 		ts.PlayerScores[0] != (sdk.PlayerHoleScore{PlayerID: p1, Strokes: 4}) ||
 		ts.PlayerScores[1] != (sdk.PlayerHoleScore{PlayerID: p2, Strokes: 6}) {
@@ -81,8 +80,7 @@ func TestToHoleStatusDTO_CarriesPlayerBreakdown(t *testing.T) {
 }
 
 func TestToHoleStatusDTO_OneBallHoleHasNoPlayerScores(t *testing.T) {
-	// Alt shot / scramble: the score belongs to the team, so there is nothing to break
-	// down. It serialises as [] rather than null so clients can iterate unconditionally.
+	// A team-grain score has nothing to break down, and serialises [] so clients can iterate.
 	h := golf.HoleResult{HoleNumber: 1, TeamScores: []golf.TeamHoleScore{{TeamID: uuid.New(), Strokes: 5}}}
 
 	got := toHoleStatusDTO(h)

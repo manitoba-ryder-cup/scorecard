@@ -56,8 +56,7 @@ func SeedSinglesMatchFor(ctx context.Context, conn *pgx.Conn, tenantID uuid.UUID
 	f := &Fixture{TenantID: tenantID}
 	t := f.TenantID
 
-	// Unique per fixture, not the plain 'White' this used to insert: a tenant may hold only
-	// one tee colour of a given name, and fixtures sharing the public tenant collide on it.
+	// Unique per fixture: a tenant may hold only one tee colour of a given name.
 	if err := conn.QueryRow(ctx,
 		`INSERT INTO tee_colors (tenant_id, color) VALUES ($1, $2) RETURNING id`,
 		t, "White "+uuid.NewString()[:8],
@@ -120,8 +119,7 @@ func SeedSinglesMatchFor(ctx context.Context, conn *pgx.Conn, tenantID uuid.UUID
 		return nil, fmt.Errorf("seed blue team: %w", err)
 	}
 
-	// Players must be entered in the tournament (tournament_players) before they can be
-	// drafted onto a team (team_members FK requires it).
+	// Entering precedes drafting: the team_members FK requires it.
 	for _, playerID := range []uuid.UUID{f.RedPlayer, f.BluePlayer} {
 		if _, err := conn.Exec(ctx,
 			`INSERT INTO tournament_players (tournament_id, player_id, tenant_id) VALUES ($1, $2, $3)`,
@@ -144,8 +142,7 @@ func SeedSinglesMatchFor(ctx context.Context, conn *pgx.Conn, tenantID uuid.UUID
 		return nil, fmt.Errorf("seed blue member: %w", err)
 	}
 
-	// Match formats are global seeded reference data, not tenant-scoped — reference the
-	// pre-seeded 'Singles' format rather than inserting one.
+	// Match formats are global reference data, so reference the seeded one.
 	var formatID uuid.UUID
 	if err := conn.QueryRow(ctx,
 		`SELECT id FROM match_formats WHERE name = 'Singles'`,

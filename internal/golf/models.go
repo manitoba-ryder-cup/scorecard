@@ -7,10 +7,7 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
-// The domain layer holds no tenant_id — tenancy is a persistence/RLS concern
-// carried in context by the repositories, never a domain field. Entity IDs are all
-// uuid.UUID (matching the schema); non-ID integers (hole number, par, strokes) stay
-// int. Dates are plain time.Time; the repos map to/from the database driver's types.
+// No tenant_id here: tenancy is an RLS concern the repositories carry in context.
 
 // Player is a golfer's public profile: stable identity plus their all-time record and
 // cups won, both derived on read (0 for a new player). Per-tournament attributes (tier,
@@ -211,13 +208,10 @@ type PlayerStats struct {
 }
 
 // PlayerStatsRows is everything PlayerStats reads, gathered in one call so the aggregates
-// share a single transaction. Fetched separately they each paid their own BEGIN / SET
-// LOCAL app.current_tenant_id / COMMIT, and with the database in another region those
-// round trips — not the queries, which run in well under a millisecond — were nearly the
-// whole response time.
-//
-// It carries rows only. What they mean (points, cups played, which margin is the best
-// win) stays in PlayerStats.
+// share a transaction. Fetched separately each paid its own BEGIN / SET LOCAL / COMMIT, and
+// against a database in another region those round trips were nearly the whole response
+// time — the queries themselves run in well under a millisecond. Rows only: what they mean
+// stays in PlayerStats.
 type PlayerStatsRows struct {
 	ByFormat     []FormatRecord
 	Teammates    []PairRecord
@@ -343,12 +337,10 @@ func (r StoredResult) Winner() *uuid.UUID {
 	return r.LeaderTeamID
 }
 
-// HoleResult is the match-play state after a scored hole. It refers to the two
-// sides by team ID — color ("Red"/"Blue") is a display attribute of the team, not
-// scoring state. LeaderTeamID identifies who is ahead (nil = all square); Lead is
-// the margin in holes (>= 0). Decided means the lead exceeds the holes remaining,
-// so the match is closed out at this hole. Rendering this as text ("AS"/"2 UP"/
-// "3 & 2") is the frontend's concern.
+// HoleResult is the match-play state after a scored hole, by team ID — colour is a display
+// attribute, not scoring state. LeaderTeamID is nil when all square, Lead is the margin in
+// holes, and Decided means the lead exceeds the holes remaining. Rendering it as "3 & 2" is
+// the frontend's concern.
 type HoleResult struct {
 	HoleNumber     int32
 	TeamScores     []TeamHoleScore // the two teams, in the order passed to ComputeMatchProgress

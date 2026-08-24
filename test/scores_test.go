@@ -222,8 +222,7 @@ func TestSubmitScoreRejectsAMatchOutsideItsScoringWindow(t *testing.T) {
 			if err != nil {
 				t.Fatalf("create match: %v", err)
 			}
-			// Both sides: the window is checked before the teams are, so a one-sided match
-			// would fail the accepted cases for the wrong reason.
+			// The window is checked before the teams, so one side would fail for the wrong reason.
 			for _, side := range []struct{ player, team uuid.UUID }{
 				{red, fix.TeamRed}, {fix.BluePlayer, fix.TeamBlue},
 			} {

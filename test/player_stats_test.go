@@ -12,9 +12,7 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/test/_util/request"
 )
 
-// GetPlayerStats was the one endpoint the integration suite never called. The derivation
-// is unit-tested in internal/golf, so what is untested is the rest of the path: the route,
-// the DTO, and the JSON the player page actually receives.
+// The derivation is unit-tested in internal/golf; this covers the route, DTO and JSON.
 
 func TestPlayerStatsAfterAWin(t *testing.T) {
 	t.Parallel()
@@ -35,8 +33,7 @@ func TestPlayerStatsAfterAWin(t *testing.T) {
 		t.Errorf("want 1 cup played, got %d", stats.CupsPlayed)
 	}
 
-	// A match closed out on the 10th is decided early, not a last-hole match. The split
-	// has to account for every match, so the other side must stay empty.
+	// Closed out on the 10th is decided early, so the last-hole side must stay empty.
 	if stats.DecidedEarly.Wins != 1 {
 		t.Errorf("want the win recorded as decided early, got %+v", stats.DecidedEarly)
 	}
@@ -51,8 +48,7 @@ func TestPlayerStatsAfterAWin(t *testing.T) {
 		t.Errorf("want the one opponent faced, got %+v", stats.Opponents)
 	}
 
-	// Best win is the heaviest result; the loser's side of it is where the heaviest loss
-	// belongs, so this player must have none.
+	// The heaviest loss belongs to the loser's side of it, so this player has none.
 	if stats.BestWin == nil {
 		t.Fatal("want a best win after winning a match, got null")
 	}
@@ -110,8 +106,7 @@ func TestPlayerStatsForAPlayerWithNoMatches(t *testing.T) {
 		t.Errorf("want no notable matches, got %+v / %+v", stats.BestWin, stats.HeaviestLoss)
 	}
 
-	// Asserted on the raw body: a nil slice and an empty one are both len 0 once decoded,
-	// so the decoded value cannot tell us which one went over the wire.
+	// Nil and empty are both len 0 once decoded, so only the raw body says which was sent.
 	path := strings.Replace(sdk.RouteV1PlayerStats, "{id}", player.ID.String(), 1)
 	status, body := request.Raw(t, http.MethodGet, path, "", freshToken(t))
 	if status != http.StatusOK {

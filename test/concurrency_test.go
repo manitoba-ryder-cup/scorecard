@@ -8,23 +8,22 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
-// TestConcurrentScoreSubmissionsMaterializeEveryHole covers the live-scoring hot path:
-// holes landing at once, from a retry, a second device, or a backlog going up when signal
-// returns. Each submission persists its hole then recomputes match_results from every
-// score, so unless that pair is serialized per match a submission holding an early
-// snapshot can land last and revert the result to a partial view — every score row
-// present, but standings derived from it wrong. Red wins every hole, so a stale result
-// shows up as a match that is not finished.
+// TestConcurrentScoreSubmissionsMaterializeEveryHole covers the live-scoring hot path: holes
+// landing at once from a retry, a second device, or a backlog going up when signal returns.
+// Each submission persists its hole then recomputes match_results from every score, so unless
+// that pair is serialized per match one holding an early snapshot can land last and revert the
+// result to a partial view. Red wins every hole, so that shows up as a match not finished.
 //
-// Holes 1-10 only: that is the whole match at 10 & 8, and a finished match refuses scores
-// for holes it never reached. Ten is also the earliest the lead can be decided, so no
-// interleaving can finish the match while one of these holes is still unwritten.
+// Holes 1-10 only: that is the whole match at 10 & 8, and a finished match refuses scores for
+// holes it never reached. Ten is also the earliest the lead can be decided, so no interleaving
+// can finish the match while one of these holes is still unwritten.
+//
+//commentcap:allow -- the hole range is a constraint of the test, not an arbitrary choice
 func TestConcurrentScoreSubmissionsMaterializeEveryHole(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	// Several matches: the losing interleaving is timing dependent, so one would be a
-	// coin flip.
+	// The losing interleaving is timing dependent, so one match would be a coin flip.
 	const matches = 8
 
 	for i := range matches {

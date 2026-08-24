@@ -59,8 +59,7 @@ func TestCreateTournamentSeedsBothTeams(t *testing.T) {
 		t.Fatalf("a cup with no matches is upcoming: created %q, read %q", tour.Phase, got.Phase)
 	}
 
-	// Creating the tournament must have seeded exactly its two sides, Red and Blue —
-	// no separate team-creation step exists.
+	// Creating a tournament seeds its two sides; there is no separate creation step.
 	teams, err := client.GetTournamentTeams(ctx, tour.ID)
 	if err != nil {
 		t.Fatalf("get teams: %v", err)

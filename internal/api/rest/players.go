@@ -19,8 +19,7 @@ func (r *Router) listPlayers(w http.ResponseWriter, req *http.Request) {
 
 // POST /v1/players
 func (r *Router) createPlayer(w http.ResponseWriter, req *http.Request) {
-	// The SDK client validates before sending; this guards non-SDK callers. Domain
-	// invariants are enforced separately below.
+	// The SDK client validates before sending; this guards a caller that does not.
 	body, ok := decodeAndValidate[sdk.CreatePlayerRequest](w, req)
 	if !ok {
 		return

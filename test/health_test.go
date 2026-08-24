@@ -22,8 +22,7 @@ func TestHealthReportsOK(t *testing.T) {
 		t.Fatalf("want 200, got %d", resp.StatusCode)
 	}
 
-	// A 200 alone passes on an empty body, so the probe would look healthy while
-	// telling a caller nothing.
+	// A 200 alone passes on an empty body, so the probe would look healthy saying nothing.
 	var body sdk.HealthResponse
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatalf("decode body: %v", err)

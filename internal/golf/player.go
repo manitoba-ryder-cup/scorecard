@@ -132,8 +132,7 @@ func (s *PlayerService) PlayerStats(ctx context.Context, playerID uuid.UUID) (*P
 	if err != nil {
 		return nil, fmt.Errorf("failed to read player stats: %w", err)
 	}
-	// Summed from the format split rather than counted again, so a career total can never
-	// disagree with the rows shown beneath it.
+	// Summed from the format split, so a career total cannot disagree with the rows beneath.
 	var points float64
 	for _, f := range rows.ByFormat {
 		points += PointsFor(f.Record)

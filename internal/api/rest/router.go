@@ -70,9 +70,7 @@ func (r *Router) registerRoutes(mux *http.ServeMux) {
 	// Match formats are global seeded reference data — truly public, no tenant needed.
 	mux.HandleFunc("GET "+sdk.RouteV1MatchFormats, cacheableRead(r.listMatchFormats))
 
-	// public registers a read route with optional authentication: a token's tenant is
-	// used when present, else the configured public tenant (401 if neither). Anonymous
-	// successes are marked edge-cacheable on the way out — see cacheableRead.
+	// public registers a read that falls back to the public tenant when there is no token.
 	public := func(method, route string, handler http.HandlerFunc) {
 		mux.HandleFunc(method+" "+route, cacheableRead(optionalAuth(r.jwtMiddleware, r.PublicTenantID, handler)))
 	}
@@ -136,6 +134,5 @@ func (r *Router) registerRoutes(mux *http.ServeMux) {
 	scoped("PUT", sdk.RouteV1TeamCaptain, sdk.ScopeTournamentsWrite, r.setCaptain)
 	scoped("DELETE", sdk.RouteV1TeamCaptain, sdk.ScopeTournamentsWrite, r.clearCaptain)
 
-	// Global middleware chain. Assembled inner-to-outer, so recoverMiddleware is
-	// outermost (wraps everything) and RequestID runs before ClientIP/UserAgent.
+	// Assembled inner-to-outer, so the last one wrapped is the first to run.
 }
