@@ -71,15 +71,23 @@ func (in UpdateMatchInput) movesTeeSet(current Match) bool {
 		(in.TeeColorID != nil && *in.TeeColorID != current.TeeColorID)
 }
 
+// changesFormat reports whether in names a different format than the match holds.
+func (in UpdateMatchInput) changesFormat(current Match) bool {
+	return in.MatchFormatID != nil && *in.MatchFormatID != current.MatchFormatID
+}
+
 // UpdateMatch is deliberately allowed on a match that already has scores: the case that
 // needs it most is a group that went out late with a hole already entered, and the scoring
-// window is measured from the tee time on every submission. The tee set is the exception —
-// scores read their par and stroke index from it, so moving a scored match would leave them
-// describing a round nobody played.
+// window is measured from the tee time on every submission. The tee set and the format are
+// the exceptions — scores read par and stroke index from the tee set, and the format decides
+// whether they were recorded per player or per side.
 func (s *MatchService) UpdateMatch(ctx context.Context, in UpdateMatchInput) (*Match, error) {
 	match, err := s.MatchDB.UpdateMatch(ctx, in, func(current Match, scored bool) error {
 		if scored && in.movesTeeSet(current) {
 			return fmt.Errorf("%w: match %s", ErrScoredMatchTeeSet, in.ID)
+		}
+		if scored && in.changesFormat(current) {
+			return fmt.Errorf("%w: match %s", ErrScoredMatchFormat, in.ID)
 		}
 		return nil
 	})

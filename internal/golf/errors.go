@@ -38,6 +38,7 @@ var (
 // differs: what a caller has to reset, and what they can do afterwards, is not the same.
 var (
 	ErrScoredMatchDelete   = fmt.Errorf("%w: match is scored, cannot delete", ErrConflict)
+	ErrScoredMatchFormat   = fmt.Errorf("%w: match is scored, cannot change format", ErrConflict)
 	ErrScoredMatchLineup   = fmt.Errorf("%w: match is scored, cannot change lineup", ErrConflict)
 	ErrScoredMatchTeeSet   = fmt.Errorf("%w: match is scored, cannot move tee set", ErrConflict)
 	ErrScoredPlayerUndraft = fmt.Errorf("%w: player has scored matches, cannot undraft", ErrConflict)

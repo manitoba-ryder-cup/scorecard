@@ -705,3 +705,41 @@ func TestAScoredMatchStillTakesATeeTimeChange(t *testing.T) {
 		t.Fatalf("want the tee time editable, got %v", err)
 	}
 }
+
+// The format decides whether a hole was recorded per player or per side, so changing it under
+// a played match reinterprets rows already written.
+
+func TestAScoredMatchRefusesAFormatChange(t *testing.T) {
+	m, _ := twoTeamMatch()
+	m.scored = true
+
+	other := uuid.New()
+	err := updateTo(m, UpdateMatchInput{ID: matchID, MatchFormatID: &other})
+
+	if !errors.Is(err, ErrScoredMatchFormat) {
+		t.Fatalf("err = %v, want ErrScoredMatchFormat", err)
+	}
+	if !errors.Is(err, ErrConflict) {
+		t.Error("want the refusal to still read as a conflict")
+	}
+}
+
+func TestAnUnscoredMatchTakesAFormatChange(t *testing.T) {
+	m, _ := twoTeamMatch()
+
+	other := uuid.New()
+	if err := updateTo(m, UpdateMatchInput{ID: matchID, MatchFormatID: &other}); err != nil {
+		t.Fatalf("want the change allowed, got %v", err)
+	}
+}
+
+func TestResendingAScoredMatchsOwnFormatIsNotAChange(t *testing.T) {
+	m, _ := twoTeamMatch()
+	m.scored = true
+	format := uuid.New()
+	m.match.MatchFormatID = format
+
+	if err := updateTo(m, UpdateMatchInput{ID: matchID, MatchFormatID: &format}); err != nil {
+		t.Fatalf("want the resend allowed, got %v", err)
+	}
+}
