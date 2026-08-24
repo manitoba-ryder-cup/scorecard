@@ -42,6 +42,9 @@ func (m *MatchesDB) CreateMatch(ctx context.Context, in golf.CreateMatchInput) (
 
 func (m *MatchesDB) UpdateMatch(ctx context.Context, in golf.UpdateMatchInput) (*golf.Match, error) {
 	return withTenant(ctx, m.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Match, error) {
+		if err := refuseTeeSetMoveOnScoredMatch(ctx, q, in, tenantID); err != nil {
+			return nil, err
+		}
 		match, err := q.UpdateMatch(ctx, sqlc.UpdateMatchParams{
 			ID:            in.ID,
 			TenantID:      tenantID,
@@ -79,7 +82,7 @@ func (m *MatchesDB) DeleteMatch(ctx context.Context, id uuid.UUID) error {
 			return fmt.Errorf("checking scores for match %s: %w", id, err)
 		}
 		if scored {
-			return fmt.Errorf("%w: match %s has been scored; reset it before deleting it", golf.ErrConflict, id)
+			return fmt.Errorf("%w: match %s", golf.ErrMatchScored, id)
 		}
 		if _, err := q.DeleteMatch(ctx, sqlc.DeleteMatchParams{
 			ID:       id,
@@ -89,6 +92,40 @@ func (m *MatchesDB) DeleteMatch(ctx context.Context, id uuid.UUID) error {
 		}
 		return nil
 	})
+}
+
+// refuseTeeSetMoveOnScoredMatch turns a scored match's tee set into a 409 naming the way
+// through, where the foreign key underneath would answer an unexplained 400.
+//
+// Scores carry the course and tee they were recorded against and read their par and stroke
+// index from that tee set, so moving a scored match would leave them describing a round nobody
+// played.
+func refuseTeeSetMoveOnScoredMatch(ctx context.Context, q *sqlc.Queries, in golf.UpdateMatchInput, tenantID uuid.UUID) error {
+	if in.CourseID == nil && in.TeeColorID == nil {
+		return nil
+	}
+	// Locked before it is read, so a score cannot land between finding the match unscored and
+	// moving the tee set out from under it.
+	if _, err := q.LockMatchForScoring(ctx, sqlc.LockMatchForScoringParams{ID: in.ID, TenantID: tenantID}); err != nil {
+		return fmt.Errorf("locking match %s: %w", in.ID, mapReadErr(err))
+	}
+	current, err := q.GetMatch(ctx, sqlc.GetMatchParams{ID: in.ID, TenantID: tenantID})
+	if err != nil {
+		return fmt.Errorf("reading match %s: %w", in.ID, mapReadErr(err))
+	}
+	moves := (in.CourseID != nil && *in.CourseID != current.CourseID) ||
+		(in.TeeColorID != nil && *in.TeeColorID != current.TeeColorID)
+	if !moves {
+		return nil
+	}
+	scored, err := q.MatchHasScores(ctx, sqlc.MatchHasScoresParams{MatchID: in.ID, TenantID: tenantID})
+	if err != nil {
+		return fmt.Errorf("checking scores for match %s: %w", in.ID, err)
+	}
+	if scored {
+		return fmt.Errorf("%w: match %s", golf.ErrMatchScored, in.ID)
+	}
+	return nil
 }
 
 // GetMatch retrieves a match by ID with tenant isolation

@@ -54,7 +54,7 @@ func (p *ParticipantsDB) DeleteMatchParticipant(ctx context.Context, matchID, pl
 			return fmt.Errorf("checking scores for match %s: %w", matchID, err)
 		}
 		if scored {
-			return fmt.Errorf("%w: match %s has been scored; reset it before changing its lineup", golf.ErrConflict, matchID)
+			return fmt.Errorf("%w: match %s", golf.ErrMatchScored, matchID)
 		}
 		rows, err := q.DeleteMatchParticipant(ctx, sqlc.DeleteMatchParticipantParams{
 			MatchID:  matchID,

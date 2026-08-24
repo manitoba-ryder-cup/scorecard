@@ -56,7 +56,7 @@ func (t *TeamMembersDB) DeleteTeamMember(ctx context.Context, teamID, playerID u
 			return fmt.Errorf("checking scored matches for player %s: %w", playerID, err)
 		}
 		if scored {
-			return fmt.Errorf("%w: player %s has been scored in a match; reset it before undrafting them", golf.ErrConflict, playerID)
+			return fmt.Errorf("%w: player %s", golf.ErrMatchScored, playerID)
 		}
 		rows, err := q.DeleteTeamMember(ctx, sqlc.DeleteTeamMemberParams{
 			TeamID:   teamID,

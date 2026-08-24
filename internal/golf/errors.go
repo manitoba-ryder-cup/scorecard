@@ -1,6 +1,9 @@
 package golf
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 // Sentinel errors let the API layer translate domain failures to HTTP status codes
 // without knowing the domain's internals: invalid input -> 400, conflict -> 409.
@@ -15,4 +18,7 @@ var (
 	// the tenant). Repositories translate the driver's no-rows error into this so the
 	// API can return 404 rather than mistaking a missing row for an internal failure.
 	ErrNotFound = errors.New("resource not found")
+	// ErrMatchScored marks a write refused because the match it touches has scores. It wraps
+	// ErrConflict, so a layer that does not distinguish it still answers 409.
+	ErrMatchScored = fmt.Errorf("%w: match has been scored", ErrConflict)
 )

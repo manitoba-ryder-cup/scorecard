@@ -104,6 +104,9 @@ func (r *Router) undraftPlayer(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if err := r.RosterService.UndraftPlayer(req.Context(), teamID, playerID); err != nil {
+		if refusedForScores(req.Context(), w, "That player has been scored in a match. Reset it before undrafting them.", err) {
+			return
+		}
 		respondDomainError(req.Context(), w, "Failed to undraft player", err)
 		return
 	}

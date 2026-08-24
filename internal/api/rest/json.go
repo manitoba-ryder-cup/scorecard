@@ -68,6 +68,19 @@ func respondError(ctx context.Context, writer http.ResponseWriter, status int, m
 	respondJSON(writer, status, sdk.ErrorResponse{Error: message})
 }
 
+// refusedForScores answers a write refused because a match has scores, and reports whether it
+// answered.
+//
+// The sentence is a caller's rather than the domain's because the remedy depends on what was
+// being attempted.
+func refusedForScores(ctx context.Context, writer http.ResponseWriter, message string, err error) bool {
+	if !errors.Is(err, golf.ErrMatchScored) {
+		return false
+	}
+	respondError(ctx, writer, http.StatusConflict, message, err)
+	return true
+}
+
 // respondDomainError maps a domain sentinel to the right HTTP status: not found -> 404,
 // invalid input -> 400, conflict -> 409, anything else -> 500. Keeps handlers from
 // re-deriving the mapping and keeps status semantics in one place.

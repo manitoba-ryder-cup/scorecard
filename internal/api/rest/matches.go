@@ -73,6 +73,9 @@ func (r *Router) updateMatch(w http.ResponseWriter, req *http.Request) {
 	}
 	match, err := r.MatchService.UpdateMatch(req.Context(), in)
 	if err != nil {
+		if refusedForScores(req.Context(), w, "That match has scores. Reset it before changing its tee set.", err) {
+			return
+		}
 		respondDomainError(req.Context(), w, "Failed to update match", err)
 		return
 	}
@@ -164,6 +167,9 @@ func (r *Router) removeParticipant(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if err := r.MatchService.RemoveParticipant(req.Context(), id, playerID); err != nil {
+		if refusedForScores(req.Context(), w, "That match has scores. Reset it before changing its lineup.", err) {
+			return
+		}
 		respondDomainError(req.Context(), w, "Failed to remove participant", err)
 		return
 	}
@@ -227,6 +233,9 @@ func (r *Router) deleteMatch(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if err := r.MatchService.DeleteMatch(req.Context(), id); err != nil {
+		if refusedForScores(req.Context(), w, "That match has scores. Reset it before deleting it.", err) {
+			return
+		}
 		respondDomainError(req.Context(), w, "Failed to delete match", err)
 		return
 	}
