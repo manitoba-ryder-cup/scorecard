@@ -231,11 +231,26 @@ func ownLineOffsets(src []byte) map[int]bool {
 	return own
 }
 
+// divider reports a rule drawn in punctuation. It separates sections rather than saying
+// anything, so counting it would charge a banner three lines for one word of content.
+func divider(line string) bool {
+	if len(line) < 3 {
+		return false
+	}
+	for _, r := range line {
+		if r != rune(line[0]) {
+			return false
+		}
+	}
+	return !(('a' <= line[0] && line[0] <= 'z') || ('A' <= line[0] && line[0] <= 'Z') || ('0' <= line[0] && line[0] <= '9'))
+}
+
 // prose counts the lines a reader reads. Delimiters are not prose: counting /** and */ leaves
 // a two-line budget no room for a comment at all.
 func prose(text string) int {
 	if !strings.HasPrefix(text, "/*") {
-		if strings.TrimSpace(strings.TrimPrefix(text, "//")) == "" {
+		line := strings.TrimSpace(strings.TrimPrefix(text, "//"))
+		if line == "" || divider(line) {
 			return 0
 		}
 		return 1
@@ -246,7 +261,7 @@ func prose(text string) int {
 		line = strings.TrimPrefix(line, "/*")
 		line = strings.TrimSuffix(line, "*/")
 		line = strings.TrimSpace(strings.TrimPrefix(line, "*"))
-		if line != "" {
+		if line != "" && !divider(line) {
 			n++
 		}
 	}
