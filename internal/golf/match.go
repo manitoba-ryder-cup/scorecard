@@ -114,9 +114,16 @@ func (s *MatchService) AddParticipant(ctx context.Context, matchID, playerID, te
 	return participant, nil
 }
 
-// RemoveParticipant removes a player from a match. ErrParticipantNotFound if they weren't in it.
+// RemoveParticipant removes a player from a match. ErrParticipantNotFound if they weren't in
+// it, and a scored match is refused — its scores are recorded against the lineup that played.
 func (s *MatchService) RemoveParticipant(ctx context.Context, matchID, playerID uuid.UUID) error {
-	if err := s.ParticipantDB.DeleteMatchParticipant(ctx, matchID, playerID); err != nil {
+	err := s.ParticipantDB.DeleteMatchParticipant(ctx, matchID, playerID, func(scored bool) error {
+		if scored {
+			return fmt.Errorf("%w: match %s", ErrScoredMatchLineup, matchID)
+		}
+		return nil
+	})
+	if err != nil {
 		return fmt.Errorf("failed to remove participant: %w", err)
 	}
 	return nil
@@ -268,9 +275,16 @@ func (s *MatchService) ListMatchHoles(ctx context.Context, matchID uuid.UUID) ([
 	return holes, nil
 }
 
-// DeleteMatch removes a match and its lineup.
+// DeleteMatch removes a match and its lineup. A scored match is refused — losing results is a
+// decision, not a side effect of tidying up.
 func (s *MatchService) DeleteMatch(ctx context.Context, matchID uuid.UUID) error {
-	if err := s.MatchDB.DeleteMatch(ctx, matchID); err != nil {
+	err := s.MatchDB.DeleteMatch(ctx, matchID, func(scored bool) error {
+		if scored {
+			return fmt.Errorf("%w: match %s", ErrScoredMatchDelete, matchID)
+		}
+		return nil
+	})
+	if err != nil {
 		return fmt.Errorf("failed to delete match: %w", err)
 	}
 	return nil

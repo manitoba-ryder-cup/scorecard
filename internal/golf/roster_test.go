@@ -2,6 +2,7 @@ package golf
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -112,12 +113,16 @@ func (f *fakeTeamDB) ClearCaptain(ctx context.Context, teamID uuid.UUID) error {
 
 type fakeTeamMemberDB struct {
 	undrafted []uuid.UUID
+	scored    bool // what DeleteTeamMember's guard is told
 }
 
 func (f *fakeTeamMemberDB) CreateTeamMember(ctx context.Context, teamID, playerID, tournamentID uuid.UUID) (*TeamMember, error) {
 	return nil, nil
 }
-func (f *fakeTeamMemberDB) DeleteTeamMember(ctx context.Context, teamID, playerID uuid.UUID) error {
+func (f *fakeTeamMemberDB) DeleteTeamMember(ctx context.Context, teamID, playerID uuid.UUID, guard func(bool) error) error {
+	if err := guard(f.scored); err != nil {
+		return err
+	}
 	f.undrafted = append(f.undrafted, playerID)
 	return nil
 }
@@ -132,5 +137,21 @@ func TestUndraftPlayer_AllowedBeforeTheyHaveBeenScored(t *testing.T) {
 	}
 	if len(db.undrafted) != 1 || db.undrafted[0] != playerA {
 		t.Errorf("undrafted = %v, want the player", db.undrafted)
+	}
+}
+
+// Undrafting takes the player's match participation with it, and their scores are recorded
+// against that — so a player who has been scored cannot be undrafted.
+func TestUndraftPlayer_RefusedOnceTheyHaveBeenScored(t *testing.T) {
+	db := &fakeTeamMemberDB{scored: true}
+	svc := &RosterService{TeamMemberDB: db, TeamDB: &fakeTeamDB{}}
+
+	err := svc.UndraftPlayer(context.Background(), teamA, playerA)
+
+	if !errors.Is(err, ErrScoredPlayerUndraft) {
+		t.Fatalf("err = %v, want ErrScoredPlayerUndraft", err)
+	}
+	if len(db.undrafted) != 0 {
+		t.Errorf("the player was undrafted anyway: %v", db.undrafted)
 	}
 }

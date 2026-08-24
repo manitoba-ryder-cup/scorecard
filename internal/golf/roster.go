@@ -110,9 +110,17 @@ func (s *RosterService) DraftPlayer(ctx context.Context, teamID, playerID uuid.U
 	return member, nil
 }
 
-// UndraftPlayer removes a player from a team. ErrTeamMemberNotFound if they weren't on it
+// UndraftPlayer removes a player from a team. ErrTeamMemberNotFound if they weren't on it,
+// and a player with scored matches is refused — undrafting takes their match participation
+// with it, and their scores are recorded against that.
 func (s *RosterService) UndraftPlayer(ctx context.Context, teamID, playerID uuid.UUID) error {
-	if err := s.TeamMemberDB.DeleteTeamMember(ctx, teamID, playerID); err != nil {
+	err := s.TeamMemberDB.DeleteTeamMember(ctx, teamID, playerID, func(scored bool) error {
+		if scored {
+			return fmt.Errorf("%w: player %s", ErrScoredPlayerUndraft, playerID)
+		}
+		return nil
+	})
+	if err != nil {
 		return fmt.Errorf("failed to undraft player: %w", err)
 	}
 	// A player who leaves the team can't remain its captain.

@@ -105,26 +105,18 @@ func matchHasScores(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid
 	return scored, nil
 }
 
-// refuseIfScored returns refusal if the match has scores.
-func refuseIfScored(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid.UUID, refusal error) error {
-	scored, err := matchHasScores(ctx, q, matchID, tenantID)
-	if err != nil {
-		return err
-	}
-	if scored {
-		return fmt.Errorf("%w: match %s", refusal, matchID)
-	}
-	return nil
-}
-
-// DeleteMatch removes a match, taking its lineup with it. Refused for a match that has been
-// scored: losing results is a decision, not a side effect of tidying up.
-func (m *MatchesDB) DeleteMatch(ctx context.Context, id uuid.UUID) error {
+// DeleteMatch removes a match, taking its lineup with it. guard is shown whether the match
+// has been scored, under the lock, so its answer cannot be raced by a score arriving first.
+func (m *MatchesDB) DeleteMatch(ctx context.Context, id uuid.UUID, guard func(scored bool) error) error {
 	return withTenantExec(ctx, m.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
 		if err := lockMatchForScoring(ctx, q, id, tenantID); err != nil {
 			return err
 		}
-		if err := refuseIfScored(ctx, q, id, tenantID, golf.ErrScoredMatchDelete); err != nil {
+		scored, err := matchHasScores(ctx, q, id, tenantID)
+		if err != nil {
+			return err
+		}
+		if err := guard(scored); err != nil {
 			return err
 		}
 		if _, err := q.DeleteMatch(ctx, sqlc.DeleteMatchParams{

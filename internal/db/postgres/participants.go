@@ -38,12 +38,20 @@ func (p *ParticipantsDB) CreateMatchParticipant(ctx context.Context, tournamentI
 }
 
 // DeleteMatchParticipant removes a player from a match. ErrParticipantNotFound if they weren't in it.
-func (p *ParticipantsDB) DeleteMatchParticipant(ctx context.Context, matchID, playerID uuid.UUID) error {
+func (p *ParticipantsDB) DeleteMatchParticipant(
+	ctx context.Context,
+	matchID, playerID uuid.UUID,
+	guard func(scored bool) error,
+) error {
 	return withTenantExec(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
 		if err := lockMatchForScoring(ctx, q, matchID, tenantID); err != nil {
 			return err
 		}
-		if err := refuseIfScored(ctx, q, matchID, tenantID, golf.ErrScoredMatchLineup); err != nil {
+		scored, err := matchHasScores(ctx, q, matchID, tenantID)
+		if err != nil {
+			return err
+		}
+		if err := guard(scored); err != nil {
 			return err
 		}
 		rows, err := q.DeleteMatchParticipant(ctx, sqlc.DeleteMatchParticipantParams{

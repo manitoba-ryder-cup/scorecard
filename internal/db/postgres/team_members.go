@@ -38,7 +38,11 @@ func (t *TeamMembersDB) CreateTeamMember(ctx context.Context, teamID, playerID, 
 }
 
 // DeleteTeamMember undrafts a player from a team. ErrTeamMemberNotFound if they weren't a member.
-func (t *TeamMembersDB) DeleteTeamMember(ctx context.Context, teamID, playerID uuid.UUID) error {
+func (t *TeamMembersDB) DeleteTeamMember(
+	ctx context.Context,
+	teamID, playerID uuid.UUID,
+	guard func(scored bool) error,
+) error {
 	return withTenantExec(ctx, t.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
 		if _, err := q.LockPlayerMatchesForScoring(ctx, sqlc.LockPlayerMatchesForScoringParams{
 			TeamID:   teamID,
@@ -55,8 +59,8 @@ func (t *TeamMembersDB) DeleteTeamMember(ctx context.Context, teamID, playerID u
 		if err != nil {
 			return fmt.Errorf("checking scored matches for player %s: %w", playerID, err)
 		}
-		if scored {
-			return fmt.Errorf("%w: player %s", golf.ErrScoredPlayerUndraft, playerID)
+		if err := guard(scored); err != nil {
+			return err
 		}
 		rows, err := q.DeleteTeamMember(ctx, sqlc.DeleteTeamMemberParams{
 			TeamID:   teamID,

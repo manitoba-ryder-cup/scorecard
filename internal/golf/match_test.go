@@ -45,7 +45,10 @@ func (f *fakeMatchDB) UpdateMatch(ctx context.Context, in UpdateMatchInput, guar
 	return f.match, nil
 }
 
-func (f *fakeMatchDB) DeleteMatch(ctx context.Context, id uuid.UUID) error {
+func (f *fakeMatchDB) DeleteMatch(ctx context.Context, id uuid.UUID, guard func(bool) error) error {
+	if err := guard(f.scored); err != nil {
+		return err
+	}
 	f.deleted = &id
 	return f.deleteErr
 }
@@ -55,6 +58,7 @@ type fakeParticipantDB struct {
 	withPlayers  []MatchParticipantPlayer
 	deleteErr    error       // returned by DeleteMatchParticipant
 	deleted      []uuid.UUID // player ids passed to DeleteMatchParticipant
+	scored       bool        // what DeleteMatchParticipant's guard is told
 }
 
 func (f *fakeParticipantDB) ListMatchParticipants(ctx context.Context, matchID uuid.UUID) ([]MatchParticipant, error) {
@@ -66,7 +70,10 @@ func (f *fakeParticipantDB) ListParticipantsWithPlayersByTournament(ctx context.
 func (f *fakeParticipantDB) CreateMatchParticipant(ctx context.Context, tournamentID, matchID, playerID, teamID uuid.UUID) (*MatchParticipant, error) {
 	return nil, nil
 }
-func (f *fakeParticipantDB) DeleteMatchParticipant(ctx context.Context, matchID, playerID uuid.UUID) error {
+func (f *fakeParticipantDB) DeleteMatchParticipant(ctx context.Context, matchID, playerID uuid.UUID, guard func(bool) error) error {
+	if err := guard(f.scored); err != nil {
+		return err
+	}
 	f.deleted = append(f.deleted, playerID)
 	return f.deleteErr
 }
@@ -703,5 +710,47 @@ func TestAScoredMatchStillTakesATeeTimeChange(t *testing.T) {
 	later := teeOff.Add(90 * time.Minute)
 	if err := updateTo(m, UpdateMatchInput{ID: matchID, TeeTime: &later}); err != nil {
 		t.Fatalf("want the tee time editable, got %v", err)
+	}
+}
+
+// The two refusals that keep a played match describable. Both were only reachable through
+// the API before the rule moved out of the repository.
+
+func TestAScoredMatchRefusesToBeDeleted(t *testing.T) {
+	m, p := twoTeamMatch()
+	m.scored = true
+
+	err := matchService(m, p, &fakeScoreDB{}).DeleteMatch(context.Background(), matchID)
+
+	if !errors.Is(err, ErrScoredMatchDelete) {
+		t.Fatalf("err = %v, want ErrScoredMatchDelete", err)
+	}
+	if m.deleted != nil {
+		t.Error("the match was deleted anyway")
+	}
+}
+
+func TestAnUnscoredMatchCanBeDeleted(t *testing.T) {
+	m, p := twoTeamMatch()
+
+	if err := matchService(m, p, &fakeScoreDB{}).DeleteMatch(context.Background(), matchID); err != nil {
+		t.Fatalf("want the delete allowed, got %v", err)
+	}
+	if m.deleted == nil {
+		t.Error("the match was not deleted")
+	}
+}
+
+func TestAScoredMatchRefusesALineupChange(t *testing.T) {
+	m, p := twoTeamMatch()
+	p.scored = true
+
+	err := matchService(m, p, &fakeScoreDB{}).RemoveParticipant(context.Background(), matchID, playerA)
+
+	if !errors.Is(err, ErrScoredMatchLineup) {
+		t.Fatalf("err = %v, want ErrScoredMatchLineup", err)
+	}
+	if len(p.deleted) != 0 {
+		t.Errorf("the participant was removed anyway: %v", p.deleted)
 	}
 }
