@@ -35,6 +35,7 @@ var scopedRoutes = []struct {
 	{"POST", sdk.RouteV1Tournaments, sdk.ScopeTournamentsWrite},
 	{"POST", sdk.RouteV1TournamentMatches, sdk.ScopeTournamentsWrite},
 	{"PUT", sdk.RouteV1Match, sdk.ScopeTournamentsWrite},
+	{"DELETE", sdk.RouteV1Match, sdk.ScopeTournamentsWrite},
 	{"POST", sdk.RouteV1MatchParticipants, sdk.ScopeTournamentsWrite},
 	{"DELETE", sdk.RouteV1MatchParticipant, sdk.ScopeTournamentsWrite},
 	{"POST", sdk.RouteV1TournamentPlayers, sdk.ScopeTournamentsWrite},
@@ -58,8 +59,8 @@ func concretePath(route string) string {
 func TestEveryWriteRequiresItsOwnScope(t *testing.T) {
 	t.Parallel()
 
-	if len(scopedRoutes) != 18 {
-		t.Fatalf("the table lists %d routes; router.go registers 18 scoped writes, so one "+
+	if len(scopedRoutes) != 19 {
+		t.Fatalf("the table lists %d routes; router.go registers 19 scoped writes, so one "+
 			"side has gained a route the other has not", len(scopedRoutes))
 	}
 

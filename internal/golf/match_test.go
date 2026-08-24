@@ -13,9 +13,11 @@ import (
 // --- fakes ---
 
 type fakeMatchDB struct {
-	match   *Match
-	details []MatchDetail
-	updated *UpdateMatchInput // what UpdateMatch was last handed
+	match     *Match
+	details   []MatchDetail
+	updated   *UpdateMatchInput // what UpdateMatch was last handed
+	deleted   *uuid.UUID        // what DeleteMatch was last handed
+	deleteErr error
 }
 
 func (f *fakeMatchDB) GetMatch(ctx context.Context, id uuid.UUID) (*Match, error) {
@@ -33,6 +35,11 @@ func (f *fakeMatchDB) CreateMatch(ctx context.Context, in CreateMatchInput) (*Ma
 func (f *fakeMatchDB) UpdateMatch(ctx context.Context, in UpdateMatchInput) (*Match, error) {
 	f.updated = &in
 	return f.match, nil
+}
+
+func (f *fakeMatchDB) DeleteMatch(ctx context.Context, id uuid.UUID) error {
+	f.deleted = &id
+	return f.deleteErr
 }
 
 type fakeParticipantDB struct {

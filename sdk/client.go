@@ -223,6 +223,10 @@ func (c *Client) UpdateMatch(ctx context.Context, matchID uuid.UUID, req UpdateM
 	return &out, c.do(ctx, http.MethodPut, pathID(RouteV1Match, matchID), req, &out)
 }
 
+func (c *Client) DeleteMatch(ctx context.Context, matchID uuid.UUID) error {
+	return c.do(ctx, http.MethodDelete, pathID(RouteV1Match, matchID), nil, nil)
+}
+
 func (c *Client) ListParticipants(ctx context.Context, matchID uuid.UUID) ([]MatchParticipant, error) {
 	var out []MatchParticipant
 	return out, c.do(ctx, http.MethodGet, pathID(RouteV1MatchParticipants, matchID), nil, &out)

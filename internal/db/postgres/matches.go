@@ -60,6 +60,37 @@ func (m *MatchesDB) UpdateMatch(ctx context.Context, in golf.UpdateMatchInput) (
 	})
 }
 
+// DeleteMatch removes a match, taking its lineup with it. Refused for a match that has been
+// scored: losing results is a decision, not a side effect of tidying up.
+func (m *MatchesDB) DeleteMatch(ctx context.Context, id uuid.UUID) error {
+	return withTenantExec(ctx, m.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
+		// Taken before the check, so a submission cannot land between it and the delete.
+		if _, err := q.LockMatchForScoring(ctx, sqlc.LockMatchForScoringParams{
+			ID:       id,
+			TenantID: tenantID,
+		}); err != nil {
+			return fmt.Errorf("locking match %s: %w", id, mapReadErr(err))
+		}
+		scored, err := q.MatchHasScores(ctx, sqlc.MatchHasScoresParams{
+			MatchID:  id,
+			TenantID: tenantID,
+		})
+		if err != nil {
+			return fmt.Errorf("checking scores for match %s: %w", id, err)
+		}
+		if scored {
+			return fmt.Errorf("%w: match %s has been scored; reset it before deleting it", golf.ErrConflict, id)
+		}
+		if _, err := q.DeleteMatch(ctx, sqlc.DeleteMatchParams{
+			ID:       id,
+			TenantID: tenantID,
+		}); err != nil {
+			return fmt.Errorf("deleting match %s: %w", id, mapWriteErr(err))
+		}
+		return nil
+	})
+}
+
 // GetMatch retrieves a match by ID with tenant isolation
 func (m *MatchesDB) GetMatch(ctx context.Context, id uuid.UUID) (*golf.Match, error) {
 	return withTenant(ctx, m.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Match, error) {

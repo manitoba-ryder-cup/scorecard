@@ -58,3 +58,6 @@ JOIN match_participants mp ON mp.match_id = m.id AND mp.tenant_id = m.tenant_id
 WHERE mp.team_id = @team_id AND mp.player_id = @player_id AND mp.tenant_id = @tenant_id
 ORDER BY m.id
 FOR UPDATE OF m;
+
+-- name: DeleteMatch :execrows
+DELETE FROM matches WHERE id = @id AND tenant_id = @tenant_id;

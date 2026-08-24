@@ -218,6 +218,21 @@ func (r *Router) submitScore(w http.ResponseWriter, req *http.Request) {
 	respondJSON(w, http.StatusOK, toMatchStatusDTO(result))
 }
 
+// DELETE /v1/matches/{id}
+// Removes a match and its lineup. A match that has been scored is refused rather than
+// taking its results with it; reset it first.
+func (r *Router) deleteMatch(w http.ResponseWriter, req *http.Request) {
+	id, ok := pathUUIDOr400(w, req, "id", "match")
+	if !ok {
+		return
+	}
+	if err := r.MatchService.DeleteMatch(req.Context(), id); err != nil {
+		respondDomainError(req.Context(), w, "Failed to delete match", err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // DELETE /v1/matches/{id}/scores
 // A match with nothing to clear is a 204, not a 404, so a repeated reset is harmless.
 func (r *Router) resetMatch(w http.ResponseWriter, req *http.Request) {
