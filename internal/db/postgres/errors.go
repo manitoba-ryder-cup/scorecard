@@ -44,8 +44,7 @@ func mapWriteErr(err error) error {
 		case pgUniqueViolation:
 			return fmt.Errorf("%w: %s", golf.ErrConflict, pgErr.ConstraintName)
 		case pgForeignKeyViolation:
-			// A body field references a row that doesn't exist (e.g. an unknown
-			// tee_color_id or player_id) — a client error, not a server fault.
+			// A body field naming a row that does not exist is a client error, not a fault.
 			return fmt.Errorf("%w: %s", golf.ErrInvalidInput, pgErr.ConstraintName)
 		case pgStringTooLong:
 			// Backstop for a length the SDK's Validate did not cap.

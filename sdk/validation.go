@@ -15,8 +15,7 @@ import (
 // DateFormat is the wire format for date-only fields (ISO-8601 calendar date).
 const DateFormat = "2006-01-02"
 
-// Shape validation lives on the SDK types so it is defined once and runs at every boundary,
-// the client included. Anything needing stored state is a domain invariant, not this.
+// On the SDK types so it runs at every boundary; stored-state rules are domain invariants.
 
 var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 
@@ -63,8 +62,7 @@ func (r CreateCourseRequest) Validate(ctx context.Context) error {
 	if err := validateMaxLen(r.Name, "name", maxTitleLen); err != nil {
 		return err
 	}
-	// An unreadable zone would resolve to UTC when a tee time is entered against it,
-	// silently shifting every one of that course's rounds.
+	// An unreadable zone resolves to UTC and silently shifts every round at that course.
 	if r.TimeZone != "" {
 		if _, err := time.LoadLocation(r.TimeZone); err != nil {
 			return fmt.Errorf("time_zone must be an IANA name such as America/Winnipeg")
@@ -108,8 +106,7 @@ func (r UpdateTournamentPlayerRequest) Validate(ctx context.Context) error {
 		return fmt.Errorf("no fields to update")
 	}
 	if r.Tier != nil {
-		// A present tier must name one: blanking it would leave an entry with no flight,
-		// which entering a player is not even allowed to do.
+		// Blanking a tier would leave an entry with no flight, which entering one cannot do.
 		if strings.TrimSpace(*r.Tier) == "" {
 			return fmt.Errorf("tier must not be empty")
 		}
@@ -132,8 +129,7 @@ func (r CreateMatchRequest) Validate(ctx context.Context) error {
 	if r.MatchFormatID == uuid.Nil {
 		return fmt.Errorf("match_format_id is required")
 	}
-	// Required: the tee time is what a match's scoring window is measured from, so a
-	// match without one could never be scored. Enter a placeholder and update it later.
+	// The scoring window is measured from the tee time, so one without it cannot be scored.
 	if strings.TrimSpace(r.TeeTime) == "" {
 		return fmt.Errorf("tee_time is required")
 	}
@@ -239,8 +235,7 @@ func (r UpdatePlayerRequest) Validate(ctx context.Context) error {
 	if r.FirstName == nil && r.LastName == nil && r.Email == nil && r.PhotoPath == nil {
 		return fmt.Errorf("at least one field must be set")
 	}
-	// A name can be corrected but not removed; a photo can be cleared, which is how one
-	// is taken down.
+	// A name can be corrected but not removed; clearing a photo is how one is taken down.
 	if r.FirstName != nil {
 		if err := validateRequired(*r.FirstName, "first_name"); err != nil {
 			return err
@@ -334,8 +329,7 @@ func (r ScoreSubmission) Validate(ctx context.Context) error {
 	if len(r.Scores) == 0 {
 		return fmt.Errorf("scores must not be empty")
 	}
-	// Two scores for the same competitor would silently resolve to whichever the write
-	// applied last, so it is rejected rather than picked between.
+	// Two scores for one competitor would resolve to whichever landed last, so it is refused.
 	seen := make(map[uuid.UUID]bool, len(r.Scores))
 	for _, s := range r.Scores {
 		if s.Strokes < 1 {

@@ -172,8 +172,7 @@ func TestUpdateMatchLeavesUnmentionedFieldsAlone(t *testing.T) {
 	if !got.Equal(want) {
 		t.Errorf("tee_time: want %s, got %s", moved, updated.TeeTime)
 	}
-	// The point of the COALESCEs: a caller who mentioned only the tee time must not have
-	// silently blanked everything else.
+	// A caller who mentioned only the tee time must not have blanked everything else.
 	if updated.CourseID != courseID || updated.TeeColorID != teeColorID || updated.MatchFormatID != formatID {
 		t.Errorf("unmentioned references changed: %+v", updated)
 	}

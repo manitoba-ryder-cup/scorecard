@@ -23,8 +23,7 @@ func TestConcurrentScoreSubmissionsMaterializeEveryHole(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	// Several matches: the losing interleaving is timing dependent, so one would be a
-	// coin flip.
+	// The losing interleaving is timing dependent, so one match would be a coin flip.
 	const matches = 8
 
 	for i := range matches {

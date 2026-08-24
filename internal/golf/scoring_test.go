@@ -46,8 +46,7 @@ func TestComputeMatchProgress_HalvedHoleIsAllSquare(t *testing.T) {
 }
 
 func TestComputeMatchProgress_ClosesOutAndStops(t *testing.T) {
-	// Team A wins every hole. It's decided at hole 10 (lead 10 with 8 to play),
-	// so the progression stops there even though 18 holes were scored.
+	// Decided at hole 10, so the progression stops there though 18 holes were scored.
 	var scores []Score
 	for h := int32(1); h <= 18; h++ {
 		scores = append(scores, Score{TeamID: teamA, HoleNumber: h, Strokes: 4})
@@ -86,8 +85,7 @@ func TestComputeMatchProgress_FourballUsesBestBall(t *testing.T) {
 }
 
 func TestComputeMatchProgress_PlayerScoresAreOrderedByPlayerID(t *testing.T) {
-	// Scores come back from the store ordered by hole only, so the per-player breakdown
-	// is sorted by player id to keep the response stable between reads.
+	// The store orders by hole only, so the breakdown sorts by player id to stay stable.
 	scores := []Score{
 		{TeamID: teamA, PlayerID: pUUID(playerA2), HoleNumber: 1, Strokes: 4},
 		{TeamID: teamA, PlayerID: pUUID(playerA), HoleNumber: 1, Strokes: 5},
@@ -114,16 +112,14 @@ func TestComputeMatchProgress_OneBallTeamScore(t *testing.T) {
 	if len(got) != 1 || got[0].Lead != 1 || *got[0].LeaderTeamID != teamA {
 		t.Errorf("want lead 1 leader A, got %+v", got[0])
 	}
-	// No player recorded the score, so there is no breakdown to report — the team score
-	// is the whole truth for a one-ball format.
+	// A one-ball format records no player, so the team score is the whole truth.
 	if got[0].TeamScores[0].PlayerScores != nil {
 		t.Errorf("want no player breakdown for a one-ball format, got %+v", got[0].TeamScores[0].PlayerScores)
 	}
 }
 
 func TestComputeMatchProgress_SinglesPlayerScoreMatchesTeamScore(t *testing.T) {
-	// One player per side: the breakdown names the player behind the team's score, which
-	// is what lets a client re-open a scored hole with the right value per player.
+	// The breakdown names the player behind the score, so a client can re-open the hole.
 	scores := []Score{
 		{TeamID: teamA, PlayerID: pUUID(playerA), HoleNumber: 1, Strokes: 4},
 		{TeamID: teamB, PlayerID: pUUID(playerB), HoleNumber: 1, Strokes: 5},
@@ -141,8 +137,7 @@ func TestComputeMatchProgress_SinglesPlayerScoreMatchesTeamScore(t *testing.T) {
 }
 
 func TestComputeMatchProgress_LeadChangesHands(t *testing.T) {
-	// A wins hole 1, then B wins holes 2 and 3: the lead crosses zero and the leader
-	// flips from A to B — a swing the monotonic tests never exercise.
+	// The lead crosses zero and the leader flips, which the monotonic tests never exercise.
 	scores := []Score{
 		{TeamID: teamA, HoleNumber: 1, Strokes: 4}, {TeamID: teamB, HoleNumber: 1, Strokes: 5}, // A 1 up
 		{TeamID: teamA, HoleNumber: 2, Strokes: 5}, {TeamID: teamB, HoleNumber: 2, Strokes: 4}, // all square
@@ -166,8 +161,7 @@ func TestComputeMatchProgress_LeadChangesHands(t *testing.T) {
 }
 
 func TestComputeMatchProgress_DormieThenClosesOut(t *testing.T) {
-	// Dormie is not decided — 2 up with 2 to play can still be halved — so this walks the
-	// exact boundary, where the lead first exceeds the holes remaining.
+	// Dormie is not decided: 2 up with 2 to play can still be halved.
 	var scores []Score
 	for h := int32(1); h <= 14; h++ {
 		scores = append(scores, Score{TeamID: teamA, HoleNumber: h, Strokes: 4})
@@ -194,8 +188,7 @@ func TestComputeMatchProgress_DormieThenClosesOut(t *testing.T) {
 }
 
 func TestComputeMatchProgress_EighteenHolesIsDecided(t *testing.T) {
-	// Halve holes 1-17, then A wins 18. The lead never exceeds the holes remaining, so
-	// nothing closes out early — but the match is over once the 18th is played.
+	// The lead never exceeds the holes remaining, yet the 18th still ends the match.
 	var scores []Score
 	for h := int32(1); h <= 17; h++ {
 		scores = append(scores, Score{TeamID: teamA, HoleNumber: h, Strokes: 4})

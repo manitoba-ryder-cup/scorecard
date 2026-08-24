@@ -13,8 +13,7 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/test/_util/request"
 )
 
-// The tiers are unit-tested in isolation; nothing there checks a real cup reaches the phase it
-// is in. Read anonymously, which is the only path that can be cached at all.
+// The tiers are unit-tested in isolation; nothing there checks a real cup reaches its phase.
 
 // publicFixture seeds a singles match under the public tenant so an anonymous read can
 // see it, and returns the fixture with a client authenticated for that same tenant.
@@ -53,8 +52,7 @@ func TestLiveTournamentReadsAreNotCached(t *testing.T) {
 	client, fix := publicFixture(t)
 	playHole(t, client, fix, 1, 4, 5) // one hole in: the cup is being played
 
-	// A spectator is polling both of these every twenty seconds. Caching either would
-	// answer two polls in three from a copy taken before the score they are waiting for.
+	// Polled every twenty seconds, so a minute of caching answers two polls in three stale.
 	for _, path := range []string{
 		strings.Replace(sdk.RouteV1TournamentResults, "{id}", fix.TournamentID.String(), 1),
 		strings.Replace(sdk.RouteV1TournamentTeams, "{id}", fix.TournamentID.String(), 1),

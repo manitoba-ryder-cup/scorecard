@@ -41,8 +41,7 @@ func ComputeMatchProgress(scores []Score, teamAID, teamBID uuid.UUID) []HoleResu
 		n := i + 1 // scored holes counted so far
 		holesRemaining := 18 - n
 		lead := abs(signed)
-		// Over either because the lead can no longer be caught, or because there is no
-		// hole left to play — an all-square 18th is a halved match, which is still over.
+		// An all-square 18th is a halved match, which is still over.
 		decided := lead > holesRemaining || n == 18
 
 		var leader *uuid.UUID

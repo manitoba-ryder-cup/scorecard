@@ -66,8 +66,7 @@ func TestEnterUpdateAndListTournamentPlayers(t *testing.T) {
 		t.Fatalf("unexpected update: %+v", updated)
 	}
 
-	// The reason the update is partial: a biography is usually written by someone with no
-	// reason to know the handicap, and a full replacement would zero it.
+	// A biography is written by someone with no reason to know the handicap.
 	newBio := "Rewritten later, by someone who never saw a handicap."
 	again, err := client.UpdateTournamentPlayer(ctx, tournamentID, playerID, sdk.UpdateTournamentPlayerRequest{
 		Biography: &newBio,
@@ -302,8 +301,7 @@ func TestUndraftClearsCaptaincy(t *testing.T) {
 		t.Fatalf("set captain: %v", err)
 	}
 
-	// Undrafting the captain must also strip their captaincy — a team can't keep a captain
-	// who is no longer on it (otherwise the team name derived from the captain goes stale).
+	// A team cannot keep a captain who is no longer on it; its name derives from them.
 	if err := client.UndraftPlayer(ctx, redTeam, playerID); err != nil {
 		t.Fatalf("undraft: %v", err)
 	}

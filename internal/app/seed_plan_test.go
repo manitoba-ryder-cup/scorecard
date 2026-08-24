@@ -8,8 +8,7 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
-// These errors used to surface only after the tournament, the roster and both captains were
-// written. What matters is that they are reached at all.
+// These used to surface only after the roster was written; what matters is they are reached.
 
 func TestPlanRoster(t *testing.T) {
 	t.Run("keys the roster by lowercased email", func(t *testing.T) {
@@ -67,8 +66,7 @@ func TestPlanCaptains(t *testing.T) {
 		}
 	})
 
-	// A tournament only ever has these two sides, so a third colour is a typo that would
-	// otherwise be found after the roster was already committed.
+	// A third colour is a typo, otherwise found after the roster was already committed.
 	t.Run("rejects a colour that is not one of the two sides", func(t *testing.T) {
 		_, err := planCaptains(map[string]string{"Green": "jon@example.com"}, roster)
 		if err == nil || !strings.Contains(err.Error(), "Green") {

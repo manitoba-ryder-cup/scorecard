@@ -63,8 +63,7 @@ func TestCreatePlayer_Valid(t *testing.T) {
 }
 
 func TestPlayerStats_PointsAreHalvesAndWins(t *testing.T) {
-	// A half is worth half a point, which is the whole reason points and W-L-T are
-	// different numbers: 5-3-2 is six points, not five.
+	// A half is half a point, which is why points and W-L-T differ: 5-3-2 is six, not five.
 	db := &fakePlayerDB{
 		byFormat: []FormatRecord{
 			{FormatName: "Singles", Record: PlayerRecord{Wins: 3, Losses: 2, Ties: 1}},
@@ -87,8 +86,7 @@ func TestPlayerStats_PointsAreHalvesAndWins(t *testing.T) {
 }
 
 func TestPlayerStats_PointsMatchTheRowsBeneathThem(t *testing.T) {
-	// Summed from the same split the page renders, so a total can never disagree with the
-	// rows under it.
+	// Summed from the split the page renders, so the total cannot disagree with it.
 	db := &fakePlayerDB{byFormat: []FormatRecord{
 		{FormatName: "Singles", Record: PlayerRecord{Wins: 1, Losses: 0, Ties: 1}},
 	}}
@@ -105,8 +103,7 @@ func TestPlayerStats_PointsMatchTheRowsBeneathThem(t *testing.T) {
 }
 
 func TestPlayerStats_ClosenessSplitAccountsForEveryMatch(t *testing.T) {
-	// The buckets partition the finished matches, so they must total the same W-L-T as the
-	// format split. A half can only land in the last-hole bucket.
+	// The buckets partition the finished matches; a half can only land in the last-hole one.
 	db := &fakePlayerDB{
 		byFormat: []FormatRecord{
 			{FormatName: "Singles", Record: PlayerRecord{Wins: 5, Losses: 4, Ties: 1}},
@@ -131,8 +128,7 @@ func TestPlayerStats_ClosenessSplitAccountsForEveryMatch(t *testing.T) {
 }
 
 func TestCreatePlayer_TrimsNames(t *testing.T) {
-	// The boundary trimmed before checking for blank, then stored what was typed, so
-	// "Graydon " saved with its space and printed as a double space.
+	// Trimming before the blank check but storing what was typed saved "Graydon " as typed.
 	db := &fakePlayerDB{}
 	svc := &PlayerService{PlayerDB: db}
 

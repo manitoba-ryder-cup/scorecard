@@ -171,8 +171,7 @@ func (s *MatchService) SubmitHoleScores(ctx context.Context, matchID uuid.UUID, 
 	if err != nil {
 		return zero, fmt.Errorf("failed to get match: %w", err)
 	}
-	// A match months out is being poked at and one from a past cup is history: the same
-	// question, which the tee time answers on its own.
+	// A match months out is being poked at, and one from a past cup is history.
 	if !scoringOpen(s.now(), match.TeeTime) {
 		opens, closes := ScoringWindow(match.TeeTime)
 		return zero, fmt.Errorf("%w: match %s tees off at %s; scores can only be recorded from %s to %s",
@@ -180,8 +179,7 @@ func (s *MatchService) SubmitHoleScores(ctx context.Context, matchID uuid.UUID, 
 			opens.Format(time.RFC3339), closes.Format(time.RFC3339))
 	}
 
-	// Reject scores for a team that isn't actually playing this match. This needs the
-	// match's participants, so it's a domain invariant, not boundary shape validation.
+	// Needs the match's participants, so it is a domain invariant rather than shape.
 	teamA, teamB, ok, err := s.matchTeams(ctx, matchID)
 	if err != nil {
 		return zero, err
@@ -203,8 +201,7 @@ func (s *MatchService) SubmitHoleScores(ctx context.Context, matchID uuid.UUID, 
 		}
 	}
 
-	// Handed to the repo so the check, the writes and the recompute share one transaction.
-	// Run here, concurrent submissions would race it.
+	// Handed to the repo so the check and the writes share a transaction; here they race.
 	guard := func(before []Score) error {
 		if ComputeStoredResult(before, teamA, teamB).Finished && !holeIsScored(before, hole) {
 			return fmt.Errorf("%w: match %s is complete; hole %d cannot be scored", ErrConflict, matchID, hole)

@@ -147,8 +147,7 @@ func TestAMatchClearedOutsideTheWindowIsRecoverable(t *testing.T) {
 	}
 	playHole(t, client, fix, 1, 5, 4)
 
-	// Tee time derives the scoring window, so a match left on the time it was re-entered at
-	// is misscheduled for good. UpdateMatch has no window of its own.
+	// Tee time derives the scoring window, so a re-entered time misschedules the match.
 	if _, err := client.UpdateMatch(ctx, fix.MatchID, sdk.UpdateMatchRequest{TeeTime: &lastYear}); err != nil {
 		t.Fatalf("restore the tee time: %v", err)
 	}

@@ -208,8 +208,7 @@ func TestSubmitScore_RejectsTeamNotInMatch(t *testing.T) {
 }
 
 func TestSubmitHoleScores_WritesNothingWhenOneEntryIsInvalid(t *testing.T) {
-	// The point of taking a hole as a unit: a bad entry anywhere in it rejects the whole
-	// hole, so a client cannot leave one side scored and the other not.
+	// A bad entry rejects the whole hole, so one side cannot be left scored and the other not.
 	m, p := twoTeamMatch()
 	sdb := &fakeScoreDB{}
 	svc := matchService(m, p, sdb)
@@ -228,8 +227,7 @@ func TestSubmitHoleScores_WritesNothingWhenOneEntryIsInvalid(t *testing.T) {
 }
 
 func TestSubmitHoleScores_WritesTheWholeHoleAndRecomputesOnce(t *testing.T) {
-	// One recompute for the hole, not one per score — the result the caller gets back
-	// reflects every score in the request.
+	// One recompute per hole, so the result returned reflects every score in the request.
 	m, p := twoTeamMatch()
 	sdb := &fakeScoreDB{}
 	svc := matchService(m, p, sdb)
@@ -255,8 +253,7 @@ func TestSubmitHoleScores_WritesTheWholeHoleAndRecomputesOnce(t *testing.T) {
 }
 
 func TestSubmitHoleScores_RejectsAWriteOutsideTheScoringWindow(t *testing.T) {
-	// The window is measured from the tee time, so it is per-match and needs no timezone:
-	// a match months out and one from a past cup are refused by the same comparison.
+	// Measured from the tee time, so it is per-match and needs no timezone.
 	for _, tc := range []struct {
 		name string
 		now  time.Time
@@ -340,8 +337,7 @@ func TestScoringWindowStraddlesTheTeeTime(t *testing.T) {
 }
 
 func TestSubmitHoleScores_ScoresEachMatchOnItsOwnTeeTime(t *testing.T) {
-	// A morning group's window is shut long before the afternoon group's opens, so the
-	// tournament-wide window this replaced no longer lets one be scored from the other.
+	// A morning group's window shuts long before the afternoon group's opens.
 	m, p := twoTeamMatch()
 	m.match.TeeTime = teeOff.Add(20 * time.Hour) // out tomorrow morning
 	sdb := &fakeScoreDB{}
@@ -370,8 +366,7 @@ func decidedMatch() []Score {
 }
 
 func TestSubmitScore_ReturnsTheRecomputedStatus(t *testing.T) {
-	// The caller gets the new state back, so a client never has to re-derive the
-	// close-out rule to know the score it just entered ended the match.
+	// The caller gets the new state back, so a client never re-derives the close-out rule.
 	m, p := twoTeamMatch()
 	sdb := &fakeScoreDB{scores: decidedMatch()[:18]} // holes 1-9, teamA 9 up with 9 to play
 	svc := matchService(m, p, sdb)
@@ -403,8 +398,7 @@ func TestSubmitScore_RejectsANewHoleOnAFinishedMatch(t *testing.T) {
 }
 
 func TestSubmitScore_AllowsCorrectingAScoredHoleOnAFinishedMatch(t *testing.T) {
-	// A typo can be what closed the match out early, so the holes that were played stay
-	// correctable — otherwise the bad score is the reason it can't be fixed.
+	// A typo can be what closed the match out, so the holes it reached stay correctable.
 	m, p := twoTeamMatch()
 	sdb := &fakeScoreDB{scores: decidedMatch()}
 	svc := matchService(m, p, sdb)

@@ -97,8 +97,7 @@ func TestSeedTournamentEntersRosterSetsCaptainsAndSchedulesMatches(t *testing.T)
 		}
 	}
 
-	// The whole roster is entered; only the two captains are drafted onto a team, the
-	// rest await the live draft.
+	// The whole roster is entered; only the captains are drafted, the rest await the draft.
 	roster, err := svc.Roster.ListPlayers(ctx, summary.TournamentID)
 	if err != nil {
 		t.Fatalf("list roster: %v", err)
@@ -155,8 +154,7 @@ func TestSeedTournamentRejectsCaptainNotInRoster(t *testing.T) {
 		t.Fatal("want an error when a captain isn't in the roster, got nil")
 	}
 
-	// This used to fail only after the tournament and its roster were committed, so a typo
-	// left an event behind and a rerun made a second one.
+	// This used to fail only after the roster was committed, leaving an event behind.
 	tournaments, err := svc.Tournament.ListTournaments(ctx)
 	if err != nil {
 		t.Fatalf("list tournaments: %v", err)
@@ -219,8 +217,7 @@ func TestSeedWritesAreOneTransaction(t *testing.T) {
 		t.Fatal("want the seed to fail on the unknown match format")
 	}
 
-	// Nothing may survive: not the tournament, not its teams, not the roster, and not the
-	// first match that did insert successfully.
+	// Nothing may survive, including the first match that did insert successfully.
 	tournaments, err := svc.Tournament.ListTournaments(ctx)
 	if err != nil {
 		t.Fatalf("list tournaments: %v", err)
@@ -236,8 +233,7 @@ func TestSeedWritesAreOneTransaction(t *testing.T) {
 		t.Fatalf("want the players rolled back, found %d", len(players))
 	}
 
-	// The roster and the match that did insert cleanly have to go too — those are the
-	// rows a per-call transaction would leave orphaned behind a failed run.
+	// These are the rows a per-call transaction would leave orphaned behind a failed run.
 	for _, tour := range tournaments {
 		entries, err := svc.Roster.ListPlayers(ctx, tour.ID)
 		if err != nil {

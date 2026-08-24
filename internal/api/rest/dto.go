@@ -9,8 +9,7 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
-// Handlers must never serialize a domain struct directly: the wire format is the SDK's
-// contract, and internal fields such as tenant_id are dropped here.
+// Handlers must never serialize a domain struct: the SDK's shape is the contract.
 
 // mapSlice converts a slice by applying f to each element — used to lift a per-item
 // DTO mapper over a list without a bespoke loop per type.

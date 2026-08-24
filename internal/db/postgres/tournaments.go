@@ -18,8 +18,7 @@ func NewTournamentsDB(db *DB) *TournamentsDB {
 }
 
 func (t *TournamentsDB) CreateTournamentWithTeams(ctx context.Context, in golf.CreateTournamentInput, teamColors []string) (*golf.Tournament, error) {
-	// A single withTenant closure is one transaction, so the tournament and its teams
-	// commit together or not at all — no tournament ever exists half-created.
+	// One transaction, so a tournament and its teams never exist half-created.
 	return withTenant(ctx, t.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Tournament, error) {
 		return createTournamentWithTeams(ctx, q, tenantID, in, teamColors)
 	})

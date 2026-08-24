@@ -6,8 +6,7 @@ import (
 )
 
 func TestParseTeeTime(t *testing.T) {
-	// 08:00 on a September morning in Manitoba is 13:00Z. Stored as 08:00Z it reads back
-	// as a 3am tee time, which is what the imported history did.
+	// 08:00 in Manitoba is 13:00Z; stored as 08:00Z it reads back as a 3am tee time.
 	t.Run("a bare wall clock is read in the tournament's zone", func(t *testing.T) {
 		got, err := parseTeeTime("2026-09-18T08:00", "America/Winnipeg")
 		if err != nil {

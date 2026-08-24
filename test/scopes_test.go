@@ -72,8 +72,7 @@ func TestEveryWriteRequiresItsOwnScope(t *testing.T) {
 				t.Fatalf("no token: want 401, got %d (%s)", status, body)
 			}
 
-			// A token carrying one of these is an ordinary caller with different privileges,
-			// not an attacker — the confusion a mis-registered route creates.
+			// A token carrying one of these is an ordinary caller, not an attacker.
 			for _, other := range writeScopes {
 				if other == r.scope {
 					continue
@@ -84,8 +83,7 @@ func TestEveryWriteRequiresItsOwnScope(t *testing.T) {
 				}
 			}
 
-			// What the handler makes of an empty body is not this test's business, only that
-			// the refusal is no longer about authorization.
+			// Only that the refusal is no longer about authorization.
 			token := testjwt.MintAccessToken(t, uuid.New(), uuid.New(), r.scope)
 			status, body := request.Raw(t, r.method, path, "{}", token)
 			if status == http.StatusUnauthorized || status == http.StatusForbidden {

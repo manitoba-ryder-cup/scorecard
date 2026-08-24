@@ -42,8 +42,7 @@ func (s *ScoresDB) SaveScoresAndRecompute(
 			return mapSlice(rows, toDomainScore), nil
 		}
 
-		// Before the write, so the guard and recompute below both see a committed,
-		// complete set — and so the guard's decision can't be raced by another writer.
+		// Before the write, so the guard's decision cannot be raced by another writer.
 		if _, err := q.LockMatchForScoring(ctx, sqlc.LockMatchForScoringParams{
 			ID:       matchID,
 			TenantID: tenantID,

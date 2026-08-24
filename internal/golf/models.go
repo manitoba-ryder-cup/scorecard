@@ -7,8 +7,7 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
-// No tenant_id here: tenancy is an RLS concern the repositories carry in context, never a
-// domain field.
+// No tenant_id here: tenancy is an RLS concern the repositories carry in context.
 
 // Player is a golfer's public profile: stable identity plus their all-time record and
 // cups won, both derived on read (0 for a new player). Per-tournament attributes (tier,

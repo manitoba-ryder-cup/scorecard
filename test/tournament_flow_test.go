@@ -46,13 +46,11 @@ func TestFullRyderCupCorrectness(t *testing.T) {
 	redTeam := teamByColor(t, client, tour.ID, sdk.TeamColorRed)
 	blueTeam := teamByColor(t, client, tour.ID, sdk.TeamColorBlue)
 
-	// One playable course (White tee, 18 holes). We ignore the returned Singles format
-	// id and look formats up by name below, since we need all four.
+	// Formats are looked up by name below, since all four are needed.
 	courseID, teeColorID, _ := playableCourse(t, client)
 	formats := formatsByName(t, client)
 
-	// Build both benches: create each player, enter them in the tournament, draft them
-	// onto their side. Indices are stable, so red[i] and blue[i] are paired opponents.
+	// Indices are stable, so red[i] and blue[i] are paired opponents.
 	red := make([]uuid.UUID, playersPerSide)
 	blue := make([]uuid.UUID, playersPerSide)
 	for i := 0; i < playersPerSide; i++ {
@@ -68,8 +66,7 @@ func TestFullRyderCupCorrectness(t *testing.T) {
 		t.Fatalf("set blue captain: %v", err)
 	}
 
-	// perSide is the match grain, and outcomes needs one entry per match, covering each side's
-	// players exactly once. Engineered so Red takes the cup 13-7.
+	// One entry per match, covering each side once; engineered so Red takes the cup 13-7.
 	rounds := []struct {
 		format   string
 		perSide  int
@@ -133,8 +130,7 @@ func TestFullRyderCupCorrectness(t *testing.T) {
 		t.Fatalf("no Cup winner before play, got %+v", w)
 	}
 
-	// Pass 2: play each match to its intended outcome and check the engine agrees.
-	// Tally the expected point totals from the same outcomes, independently of the API.
+	// Totals are tallied from the same outcomes, independently of the API.
 	var redPts, bluePts float64
 	for _, pl := range plans {
 		playMatch(t, client, pl.id, redTeam, blueTeam, pl.redPs, pl.bluePs, pl.out)

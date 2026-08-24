@@ -11,8 +11,7 @@ import (
 	util "github.com/manitoba-ryder-cup/scorecard/test/_util"
 )
 
-// Both routes that could take a player out of a scored match are refused: the delete reaches
-// the scores and nothing recomputes the stored result they leave behind.
+// Both routes that could take a player out of a scored match are refused.
 
 func TestRemovingAParticipantFromAScoredMatchIsRefused(t *testing.T) {
 	t.Parallel()
@@ -118,8 +117,7 @@ func TestTheDatabaseRefusesToOrphanAScoredParticipant(t *testing.T) {
 	_, err = conn.Exec(ctx,
 		"DELETE FROM match_participants WHERE match_id = $1 AND player_id = $2 AND tenant_id = $3",
 		fix.MatchID, fix.RedPlayer, fix.TenantID)
-	// Named, not merely non-nil: RLS refusing the row, or a typo in the statement, would
-	// otherwise read as the constraint doing its job.
+	// Named, not merely non-nil: RLS refusing the row would read as the constraint working.
 	if err == nil || !strings.Contains(err.Error(), "fk__scores__match_id_player_id__match_participants") {
 		t.Fatalf("want the scores foreign key to refuse the delete, got %v", err)
 	}

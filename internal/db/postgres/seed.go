@@ -37,8 +37,7 @@ func (s *SeedDB) SeedTournament(ctx context.Context, plan golf.SeedPlan) (*golf.
 			return nil, err
 		}
 
-		// Existing players keyed by email, so someone who plays every year is one player
-		// rather than a new one each September.
+		// Keyed by email, so someone who plays every year is one player, not one a year.
 		existing, err := seedPlayersByEmail(ctx, q, tenantID)
 		if err != nil {
 			return nil, err
@@ -72,8 +71,7 @@ func (s *SeedDB) SeedTournament(ctx context.Context, plan golf.SeedPlan) (*golf.
 			summary.PlayersEntered++
 		}
 
-		// Only the captains are drafted. The rest of the field is picked live at the
-		// event, but a side needs a captain before it can pick.
+		// Only captains: the field is picked live, but a side needs a captain to pick.
 		for color, email := range plan.Captains {
 			teamID, ok := teamsByColor[color]
 			if !ok {

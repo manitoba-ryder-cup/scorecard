@@ -33,8 +33,7 @@ func TestCreatePlayerAndReadBack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get player: %v", err)
 	}
-	// Email is write-only (see TestPlayerEmailIsNeverReturned), so identity round-trips
-	// on the name.
+	// Email is write-only, so identity round-trips on the name.
 	if got.ID != created.ID || got.FirstName != "Dustin" || got.LastName != "Johnson" {
 		t.Fatalf("round-trip mismatch: %+v", got)
 	}
@@ -125,8 +124,7 @@ func TestUpdatePlayerEmail(t *testing.T) {
 		t.Fatalf("update email: %v", err)
 	}
 
-	// Email is write-only on reads, so a second player claiming the old address is what
-	// shows the change landed.
+	// Email is write-only, so a second player claiming the old address shows it landed.
 	if _, err := client.CreatePlayer(ctx, sdk.CreatePlayerRequest{
 		FirstName: "Someone", LastName: "Else", Email: &old,
 	}); err != nil {
