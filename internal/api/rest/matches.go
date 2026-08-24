@@ -16,7 +16,7 @@ func (r *Router) listMatches(w http.ResponseWriter, req *http.Request) {
 	}
 	matches, err := r.MatchService.ListMatches(req.Context(), tournamentID)
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to list matches", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusOK, mapSlice(matches, toMatchDTO))
@@ -43,7 +43,7 @@ func (r *Router) createMatch(w http.ResponseWriter, req *http.Request) {
 		Handicapped:   body.Handicapped,
 	})
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to create match", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusCreated, toMatchDTO(*match))
@@ -73,7 +73,7 @@ func (r *Router) updateMatch(w http.ResponseWriter, req *http.Request) {
 	}
 	match, err := r.MatchService.UpdateMatch(req.Context(), in)
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to update match", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toMatchDTO(*match))
@@ -99,7 +99,7 @@ func (r *Router) listResults(w http.ResponseWriter, req *http.Request) {
 	}
 	results, phase, err := r.MatchService.ListResults(req.Context(), tournamentID)
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to list results", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	cacheByPhase(w, phase)
@@ -114,7 +114,7 @@ func (r *Router) getMatchHoles(w http.ResponseWriter, req *http.Request) {
 	}
 	holes, err := r.MatchService.ListMatchHoles(req.Context(), id)
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to list match holes", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusOK, mapSlice(holes, toHoleDTO))
@@ -128,7 +128,7 @@ func (r *Router) listParticipants(w http.ResponseWriter, req *http.Request) {
 	}
 	participants, err := r.MatchService.ListParticipants(req.Context(), id)
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to list participants", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusOK, mapSlice(participants, toMatchParticipantDTO))
@@ -146,7 +146,7 @@ func (r *Router) addParticipant(w http.ResponseWriter, req *http.Request) {
 	}
 	participant, err := r.MatchService.AddParticipant(req.Context(), id, body.PlayerID, body.TeamID)
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to add participant", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusCreated, toMatchParticipantDTO(*participant))
@@ -164,7 +164,7 @@ func (r *Router) removeParticipant(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if err := r.MatchService.RemoveParticipant(req.Context(), id, playerID); err != nil {
-		respondDomainError(req.Context(), w, "Failed to remove participant", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -188,7 +188,7 @@ func (r *Router) getMatchScores(w http.ResponseWriter, req *http.Request) {
 	}
 	scores, err := r.MatchService.CalculateMatchScores(req.Context(), id)
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to calculate match scores", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusOK, mapSlice(scores, toHoleStatusDTO))
@@ -212,7 +212,7 @@ func (r *Router) submitScore(w http.ResponseWriter, req *http.Request) {
 	// Shape is validated above; the domain still owns its own invariants.
 	result, err := r.MatchService.SubmitHoleScores(req.Context(), id, body.HoleNumber, entries)
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to submit score", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toMatchStatusDTO(result))
@@ -227,7 +227,7 @@ func (r *Router) deleteMatch(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if err := r.MatchService.DeleteMatch(req.Context(), id); err != nil {
-		respondDomainError(req.Context(), w, "Failed to delete match", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -241,7 +241,7 @@ func (r *Router) resetMatch(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if err := r.MatchService.ResetMatch(req.Context(), id); err != nil {
-		respondDomainError(req.Context(), w, "Failed to reset match", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -258,7 +258,7 @@ func (r *Router) getMatchStatus(w http.ResponseWriter, req *http.Request) {
 	}
 	status, err := r.MatchService.MatchStatus(req.Context(), id)
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to get match status", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toMatchStatusDTO(status))

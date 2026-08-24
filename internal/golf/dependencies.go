@@ -25,7 +25,7 @@ type matchDB interface {
 	ListMatchesByTournament(ctx context.Context, tournamentID uuid.UUID) ([]Match, error)
 	ListMatchDetailsByTournament(ctx context.Context, tournamentID uuid.UUID) ([]MatchDetail, error)
 	CreateMatch(ctx context.Context, in CreateMatchInput) (*Match, error)
-	UpdateMatch(ctx context.Context, in UpdateMatchInput) (*Match, error)
+	UpdateMatch(ctx context.Context, in UpdateMatchInput, guard func(current Match, scored bool) error) (*Match, error)
 	DeleteMatch(ctx context.Context, id uuid.UUID) error
 }
 
@@ -71,7 +71,7 @@ type teamDB interface {
 	SetTeamCaptain(ctx context.Context, teamID, captainID uuid.UUID) (*Team, error)
 	// ClearCaptainForPlayer clears the player as a team's captain if they are it (no-op otherwise).
 	ClearCaptainForPlayer(ctx context.Context, teamID, playerID uuid.UUID) error
-	// ClearCaptain unsets a team's captain outright; ErrNotFound if the team doesn't exist.
+	// ClearCaptain unsets a team's captain outright; ErrTeamNotFound if the team doesn't exist.
 	ClearCaptain(ctx context.Context, teamID uuid.UUID) error
 }
 
@@ -79,7 +79,7 @@ type teamDB interface {
 type teamMemberDB interface {
 	// CreateTeamMember drafts a player onto a team (the tournament is the team's).
 	CreateTeamMember(ctx context.Context, teamID, playerID, tournamentID uuid.UUID) (*TeamMember, error)
-	// DeleteTeamMember undrafts a player; ErrNotFound if they weren't on the team.
+	// DeleteTeamMember undrafts a player; ErrTeamMemberNotFound if they weren't on the team.
 	DeleteTeamMember(ctx context.Context, teamID, playerID uuid.UUID) error
 }
 

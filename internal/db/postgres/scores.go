@@ -47,7 +47,7 @@ func (s *ScoresDB) SaveScoresAndRecompute(
 			ID:       matchID,
 			TenantID: tenantID,
 		}); err != nil {
-			return zero, fmt.Errorf("locking match %s: %w", matchID, mapReadErr(err))
+			return zero, fmt.Errorf("locking match %s: %w", matchID, mapReadErr(err, golf.ErrMatchNotFound))
 		}
 
 		before, err := list()
@@ -91,7 +91,7 @@ func (s *ScoresDB) ResetMatch(ctx context.Context, matchID uuid.UUID) error {
 			ID:       matchID,
 			TenantID: tenantID,
 		}); err != nil {
-			return fmt.Errorf("locking match %s: %w", matchID, mapReadErr(err))
+			return fmt.Errorf("locking match %s: %w", matchID, mapReadErr(err, golf.ErrMatchNotFound))
 		}
 		if _, err := q.DeleteScoresByMatch(ctx, sqlc.DeleteScoresByMatchParams{
 			MatchID:  matchID,

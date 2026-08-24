@@ -15,7 +15,7 @@ func (r *Router) listTournamentPlayers(w http.ResponseWriter, req *http.Request)
 	}
 	players, err := r.RosterService.ListPlayers(req.Context(), tournamentID)
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to list tournament players", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusOK, mapSlice(players, toTournamentPlayerDTO))
@@ -39,7 +39,7 @@ func (r *Router) enterPlayer(w http.ResponseWriter, req *http.Request) {
 		Hdcp:         body.Hdcp,
 	})
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to enter tournament player", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusCreated, toTournamentPlayerDTO(*entry))
@@ -67,7 +67,7 @@ func (r *Router) updateTournamentPlayer(w http.ResponseWriter, req *http.Request
 		Hdcp:         body.Hdcp,
 	})
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to update tournament player", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toTournamentPlayerDTO(*entry))
@@ -86,7 +86,7 @@ func (r *Router) draftPlayer(w http.ResponseWriter, req *http.Request) {
 	}
 	member, err := r.RosterService.DraftPlayer(req.Context(), teamID, body.PlayerID)
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to draft player", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusCreated, toTeamMemberDTO(*member))
@@ -104,7 +104,7 @@ func (r *Router) undraftPlayer(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if err := r.RosterService.UndraftPlayer(req.Context(), teamID, playerID); err != nil {
-		respondDomainError(req.Context(), w, "Failed to undraft player", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -118,7 +118,7 @@ func (r *Router) listTeamMembers(w http.ResponseWriter, req *http.Request) {
 	}
 	members, err := r.RosterService.ListTeamMembers(req.Context(), teamID)
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to list team members", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusOK, mapSlice(members, toTournamentPlayerDTO))

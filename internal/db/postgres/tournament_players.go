@@ -49,8 +49,8 @@ func (t *TournamentPlayersDB) UpdateTournamentPlayer(ctx context.Context, in gol
 			Biography:    in.Biography,
 			Hdcp:         in.Hdcp,
 		}); err != nil {
-			// No row means the player was never entered -> ErrNotFound (404).
-			return nil, fmt.Errorf("updating tournament player: %w", mapReadErr(err))
+			// The update matches on the entry, so no row means the player was never entered.
+			return nil, fmt.Errorf("updating tournament player: %w", mapReadErr(err, golf.ErrTournamentPlayerNotFound))
 		}
 		row, err := q.GetTournamentPlayer(ctx, sqlc.GetTournamentPlayerParams{
 			TournamentID: in.TournamentID,
@@ -58,7 +58,7 @@ func (t *TournamentPlayersDB) UpdateTournamentPlayer(ctx context.Context, in gol
 			TenantID:     tenantID,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("reading back tournament player: %w", mapReadErr(err))
+			return nil, fmt.Errorf("reading back tournament player: %w", mapReadErr(err, golf.ErrTournamentPlayerNotFound))
 		}
 		tp := toTournamentPlayer(row.TournamentID, row.PlayerID, row.Tier, row.Biography, row.Hdcp,
 			row.FirstName, row.LastName, row.PhotoPath, row.TeamID)

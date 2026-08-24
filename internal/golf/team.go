@@ -13,7 +13,7 @@ type TeamService struct {
 }
 
 // SetCaptain assigns a team's captain. The captain must be an existing player (enforced
-// by the FK): an unknown team surfaces as ErrNotFound, an unknown player as
+// by the FK): an unknown team surfaces as ErrTeamNotFound, an unknown player as
 // ErrInvalidInput.
 func (s *TeamService) SetCaptain(ctx context.Context, teamID, captainID uuid.UUID) (*Team, error) {
 	team, err := s.TeamDB.SetTeamCaptain(ctx, teamID, captainID)
@@ -23,7 +23,7 @@ func (s *TeamService) SetCaptain(ctx context.Context, teamID, captainID uuid.UUI
 	return team, nil
 }
 
-// ClearCaptain unsets a team's captain (used to reassign). ErrNotFound if no such team.
+// ClearCaptain unsets a team's captain (used to reassign). ErrTeamNotFound if no such team.
 func (s *TeamService) ClearCaptain(ctx context.Context, teamID uuid.UUID) error {
 	if err := s.TeamDB.ClearCaptain(ctx, teamID); err != nil {
 		return fmt.Errorf("failed to clear captain: %w", err)

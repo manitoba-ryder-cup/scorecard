@@ -50,9 +50,9 @@ func respondJSON(writer http.ResponseWriter, status int, data any) {
 	}
 }
 
-// serverFault is all a caller is told when the fault is ours. Handlers describe the
-// operation that failed — "Failed to list players" — which is worth having in the log and
-// misleading on the wire: it reads as a verdict on the request rather than a fault here.
+// serverFault is all a caller is told when the fault is ours. The operation that failed is
+// worth having in the log and misleading on the wire, where it reads as a verdict on the
+// request rather than a fault here.
 const serverFault = "Sorry, something went wrong. Please try again later."
 
 // respondError sends the SDK's error envelope. A 4xx logs at Warn so a bad request does not
@@ -68,18 +68,43 @@ func respondError(ctx context.Context, writer http.ResponseWriter, status int, m
 	respondJSON(writer, status, sdk.ErrorResponse{Error: message})
 }
 
-// respondDomainError maps a domain sentinel to the right HTTP status: not found -> 404,
-// invalid input -> 400, conflict -> 409, anything else -> 500. Keeps handlers from
-// re-deriving the mapping and keeps status semantics in one place.
-func respondDomainError(ctx context.Context, writer http.ResponseWriter, message string, err error) {
-	switch {
-	case errors.Is(err, golf.ErrNotFound):
-		respondError(ctx, writer, http.StatusNotFound, message, err)
-	case errors.Is(err, golf.ErrInvalidInput):
-		respondError(ctx, writer, http.StatusBadRequest, message, err)
-	case errors.Is(err, golf.ErrConflict):
-		respondError(ctx, writer, http.StatusConflict, message, err)
-	default:
-		respondError(ctx, writer, http.StatusInternalServerError, message, err)
+// domainAnswers is ordered, and the first sentinel that matches wins. A specific sentinel
+// wraps its generic, so each must sit above the generic it wraps or it never answers for
+// itself. Order is the load-bearing part of this list, not an accident of how it was typed.
+var domainAnswers = []struct {
+	name    string // the sentinel's own name, so the tests can check the list is complete
+	err     error
+	status  int
+	message string
+}{
+	{"ErrCourseNotFound", golf.ErrCourseNotFound, http.StatusNotFound, "Course not found."},
+	{"ErrMatchNotFound", golf.ErrMatchNotFound, http.StatusNotFound, "Match not found."},
+	{"ErrParticipantNotFound", golf.ErrParticipantNotFound, http.StatusNotFound, "That player isn't in this match."},
+	{"ErrPlayerNotFound", golf.ErrPlayerNotFound, http.StatusNotFound, "Player not found."},
+	{"ErrTeamMemberNotFound", golf.ErrTeamMemberNotFound, http.StatusNotFound, "That player isn't on this team."},
+	{"ErrTeamNotFound", golf.ErrTeamNotFound, http.StatusNotFound, "Team not found."},
+	{"ErrTournamentNotFound", golf.ErrTournamentNotFound, http.StatusNotFound, "Tournament not found."},
+	{"ErrTournamentPlayerNotFound", golf.ErrTournamentPlayerNotFound, http.StatusNotFound, "That player isn't entered in this tournament."},
+
+	{"ErrScoredMatchDelete", golf.ErrScoredMatchDelete, http.StatusConflict, "That match has scores. Reset it before deleting it."},
+	{"ErrScoredMatchLineup", golf.ErrScoredMatchLineup, http.StatusConflict, "That match has scores. Reset it before changing its lineup."},
+	{"ErrScoredMatchTeeSet", golf.ErrScoredMatchTeeSet, http.StatusConflict, "That match has scores. Reset it before changing its tee set."},
+	{"ErrScoredPlayerUndraft", golf.ErrScoredPlayerUndraft, http.StatusConflict, "That player has been scored in a match. Reset it before undrafting them."},
+
+	{"ErrNotFound", golf.ErrNotFound, http.StatusNotFound, "Not found."},
+	{"ErrInvalidInput", golf.ErrInvalidInput, http.StatusBadRequest, "That request wasn't valid."},
+	{"ErrConflict", golf.ErrConflict, http.StatusConflict, "That conflicts with something that already exists."},
+}
+
+// respondDomainError answers a domain failure. The sentinel decides both the status and the
+// sentence, so the wording lives here rather than at each call site, and the operation that
+// failed is already in the error's wrapped chain, which is what reaches the log.
+func respondDomainError(ctx context.Context, writer http.ResponseWriter, err error) {
+	for _, answer := range domainAnswers {
+		if errors.Is(err, answer.err) {
+			respondError(ctx, writer, answer.status, answer.message, err)
+			return
+		}
 	}
+	respondError(ctx, writer, http.StatusInternalServerError, "Request failed", err)
 }

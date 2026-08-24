@@ -40,8 +40,29 @@ func (m *MatchesDB) CreateMatch(ctx context.Context, in golf.CreateMatchInput) (
 	})
 }
 
-func (m *MatchesDB) UpdateMatch(ctx context.Context, in golf.UpdateMatchInput) (*golf.Match, error) {
+// UpdateMatch applies in, having first shown guard the match as it stands and whether it has
+// been scored. The lock is held across both, so the answer guard gives cannot be raced by a
+// score landing before the update.
+func (m *MatchesDB) UpdateMatch(
+	ctx context.Context,
+	in golf.UpdateMatchInput,
+	guard func(current golf.Match, scored bool) error,
+) (*golf.Match, error) {
 	return withTenant(ctx, m.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Match, error) {
+		if err := lockMatchForScoring(ctx, q, in.ID, tenantID); err != nil {
+			return nil, err
+		}
+		current, err := q.GetMatch(ctx, sqlc.GetMatchParams{ID: in.ID, TenantID: tenantID})
+		if err != nil {
+			return nil, fmt.Errorf("reading match %s: %w", in.ID, mapReadErr(err, golf.ErrMatchNotFound))
+		}
+		scored, err := matchHasScores(ctx, q, in.ID, tenantID)
+		if err != nil {
+			return nil, err
+		}
+		if err := guard(toDomainMatch(current), scored); err != nil {
+			return nil, err
+		}
 		match, err := q.UpdateMatch(ctx, sqlc.UpdateMatchParams{
 			ID:            in.ID,
 			TenantID:      tenantID,
@@ -53,33 +74,58 @@ func (m *MatchesDB) UpdateMatch(ctx context.Context, in golf.UpdateMatchInput) (
 		})
 		if err != nil {
 			// No row means no such match here; an unknown course or tee is the FK.
-			return nil, fmt.Errorf("updating match %s: %w", in.ID, mapWriteErr(mapReadErr(err)))
+			return nil, fmt.Errorf("updating match %s: %w", in.ID, mapWriteErr(mapReadErr(err, golf.ErrMatchNotFound)))
 		}
 		dm := toDomainMatch(match)
 		return &dm, nil
 	})
 }
 
+// lockMatchForScoring takes the match's FOR UPDATE lock. Held before the first read, so a
+// score cannot land between a guard deciding the match is unscored and the write acting on
+// that decision.
+func lockMatchForScoring(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid.UUID) error {
+	if _, err := q.LockMatchForScoring(ctx, sqlc.LockMatchForScoringParams{
+		ID:       matchID,
+		TenantID: tenantID,
+	}); err != nil {
+		return fmt.Errorf("locking match %s: %w", matchID, mapReadErr(err, golf.ErrMatchNotFound))
+	}
+	return nil
+}
+
+func matchHasScores(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid.UUID) (bool, error) {
+	scored, err := q.MatchHasScores(ctx, sqlc.MatchHasScoresParams{
+		MatchID:  matchID,
+		TenantID: tenantID,
+	})
+	if err != nil {
+		return false, fmt.Errorf("checking scores for match %s: %w", matchID, err)
+	}
+	return scored, nil
+}
+
+// refuseIfScored returns refusal if the match has scores.
+func refuseIfScored(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid.UUID, refusal error) error {
+	scored, err := matchHasScores(ctx, q, matchID, tenantID)
+	if err != nil {
+		return err
+	}
+	if scored {
+		return fmt.Errorf("%w: match %s", refusal, matchID)
+	}
+	return nil
+}
+
 // DeleteMatch removes a match, taking its lineup with it. Refused for a match that has been
 // scored: losing results is a decision, not a side effect of tidying up.
 func (m *MatchesDB) DeleteMatch(ctx context.Context, id uuid.UUID) error {
 	return withTenantExec(ctx, m.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
-		// Taken before the check, so a submission cannot land between it and the delete.
-		if _, err := q.LockMatchForScoring(ctx, sqlc.LockMatchForScoringParams{
-			ID:       id,
-			TenantID: tenantID,
-		}); err != nil {
-			return fmt.Errorf("locking match %s: %w", id, mapReadErr(err))
+		if err := lockMatchForScoring(ctx, q, id, tenantID); err != nil {
+			return err
 		}
-		scored, err := q.MatchHasScores(ctx, sqlc.MatchHasScoresParams{
-			MatchID:  id,
-			TenantID: tenantID,
-		})
-		if err != nil {
-			return fmt.Errorf("checking scores for match %s: %w", id, err)
-		}
-		if scored {
-			return fmt.Errorf("%w: match %s has been scored; reset it before deleting it", golf.ErrConflict, id)
+		if err := refuseIfScored(ctx, q, id, tenantID, golf.ErrScoredMatchDelete); err != nil {
+			return err
 		}
 		if _, err := q.DeleteMatch(ctx, sqlc.DeleteMatchParams{
 			ID:       id,
@@ -96,7 +142,7 @@ func (m *MatchesDB) GetMatch(ctx context.Context, id uuid.UUID) (*golf.Match, er
 	return withTenant(ctx, m.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Match, error) {
 		match, err := q.GetMatch(ctx, sqlc.GetMatchParams{ID: id, TenantID: tenantID})
 		if err != nil {
-			return nil, fmt.Errorf("getting match %s: %w", id, mapReadErr(err))
+			return nil, fmt.Errorf("getting match %s: %w", id, mapReadErr(err, golf.ErrMatchNotFound))
 		}
 		dm := toDomainMatch(match)
 		return &dm, nil

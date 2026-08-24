@@ -12,7 +12,7 @@ import (
 func (r *Router) listMatchFormats(w http.ResponseWriter, req *http.Request) {
 	formats, err := r.FormatService.ListFormats(req.Context())
 	if err != nil {
-		respondError(req.Context(), w, http.StatusInternalServerError, "Failed to list match formats", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusOK, mapSlice(formats, toMatchFormatDTO))

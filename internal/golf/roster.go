@@ -63,8 +63,8 @@ type UpdateRosterEntryInput struct {
 	Hdcp         *float32
 }
 
-// UpdatePlayer updates an entered player's attributes. ErrNotFound if the player has
-// not been entered in the tournament.
+// UpdatePlayer updates an entered player's attributes. ErrTournamentPlayerNotFound if
+// the player has not been entered in the tournament.
 func (s *RosterService) UpdatePlayer(ctx context.Context, in UpdateRosterEntryInput) (*TournamentPlayer, error) {
 	entry, err := s.TournamentPlayerDB.UpdateTournamentPlayer(ctx, in)
 	if err != nil {
@@ -110,7 +110,7 @@ func (s *RosterService) DraftPlayer(ctx context.Context, teamID, playerID uuid.U
 	return member, nil
 }
 
-// UndraftPlayer removes a player from a team. ErrNotFound if they weren't on it
+// UndraftPlayer removes a player from a team. ErrTeamMemberNotFound if they weren't on it
 func (s *RosterService) UndraftPlayer(ctx context.Context, teamID, playerID uuid.UUID) error {
 	if err := s.TeamMemberDB.DeleteTeamMember(ctx, teamID, playerID); err != nil {
 		return fmt.Errorf("failed to undraft player: %w", err)

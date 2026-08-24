@@ -46,7 +46,7 @@ type UpdatePlayerInput struct {
 	PhotoPath *string
 }
 
-// UpdatePlayer changes a player's attributes. ErrNotFound if there is no such player.
+// UpdatePlayer changes a player's attributes. ErrPlayerNotFound if there is no such player.
 func (s *PlayerService) UpdatePlayer(ctx context.Context, in UpdatePlayerInput) (*Player, error) {
 	player, err := s.PlayerDB.UpdatePlayer(ctx, in)
 	if err != nil {

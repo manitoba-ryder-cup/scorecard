@@ -18,6 +18,7 @@ type fakeMatchDB struct {
 	updated   *UpdateMatchInput // what UpdateMatch was last handed
 	deleted   *uuid.UUID        // what DeleteMatch was last handed
 	deleteErr error
+	scored    bool // what UpdateMatch's guard is told about the stored match
 }
 
 func (f *fakeMatchDB) GetMatch(ctx context.Context, id uuid.UUID) (*Match, error) {
@@ -32,8 +33,15 @@ func (f *fakeMatchDB) ListMatchDetailsByTournament(ctx context.Context, tourname
 func (f *fakeMatchDB) CreateMatch(ctx context.Context, in CreateMatchInput) (*Match, error) {
 	return nil, nil
 }
-func (f *fakeMatchDB) UpdateMatch(ctx context.Context, in UpdateMatchInput) (*Match, error) {
+func (f *fakeMatchDB) UpdateMatch(ctx context.Context, in UpdateMatchInput, guard func(Match, bool) error) (*Match, error) {
 	f.updated = &in
+	current := Match{}
+	if f.match != nil {
+		current = *f.match
+	}
+	if err := guard(current, f.scored); err != nil {
+		return nil, err
+	}
 	return f.match, nil
 }
 
@@ -639,5 +647,61 @@ func TestRemoveParticipant_AllowedWhileTheMatchIsUnscored(t *testing.T) {
 	}
 	if len(p.deleted) != 1 || p.deleted[0] != playerA {
 		t.Errorf("removed = %v, want the player", p.deleted)
+	}
+}
+
+// The tee set rule, which the repository used to hold. Scores read their par and stroke
+// index from the tee set, so these four cases are what keeps a played round describable.
+
+func updateTo(m *fakeMatchDB, in UpdateMatchInput) error {
+	_, err := matchService(m, &fakeParticipantDB{}, &fakeScoreDB{}).UpdateMatch(context.Background(), in)
+	return err
+}
+
+func TestAScoredMatchRefusesATeeSetMove(t *testing.T) {
+	m, _ := twoTeamMatch()
+	m.scored = true
+
+	other := uuid.New()
+	err := updateTo(m, UpdateMatchInput{ID: matchID, TeeColorID: &other})
+
+	if !errors.Is(err, ErrScoredMatchTeeSet) {
+		t.Fatalf("err = %v, want ErrScoredMatchTeeSet", err)
+	}
+	if !errors.Is(err, ErrConflict) {
+		t.Error("want the refusal to still read as a conflict")
+	}
+}
+
+func TestAnUnscoredMatchTakesATeeSetMove(t *testing.T) {
+	m, _ := twoTeamMatch()
+
+	other := uuid.New()
+	if err := updateTo(m, UpdateMatchInput{ID: matchID, TeeColorID: &other}); err != nil {
+		t.Fatalf("want the move allowed, got %v", err)
+	}
+}
+
+// Re-sending what a match already has is what a form that submits every field does, and it
+// changes nothing — so it is not a move.
+func TestResendingAScoredMatchsOwnTeeSetIsNotAMove(t *testing.T) {
+	m, _ := twoTeamMatch()
+	m.scored = true
+
+	err := updateTo(m, UpdateMatchInput{ID: matchID, CourseID: &courseID, TeeColorID: &teeColorID})
+
+	if err != nil {
+		t.Fatalf("want the resend allowed, got %v", err)
+	}
+}
+
+// The case the rule exists to permit: a group that went out late, with a hole already in.
+func TestAScoredMatchStillTakesATeeTimeChange(t *testing.T) {
+	m, _ := twoTeamMatch()
+	m.scored = true
+
+	later := teeOff.Add(90 * time.Minute)
+	if err := updateTo(m, UpdateMatchInput{ID: matchID, TeeTime: &later}); err != nil {
+		t.Fatalf("want the tee time editable, got %v", err)
 	}
 }

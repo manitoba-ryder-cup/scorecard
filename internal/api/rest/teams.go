@@ -16,9 +16,8 @@ func (r *Router) setCaptain(w http.ResponseWriter, req *http.Request) {
 	if !ok {
 		return
 	}
-	// Unknown team -> 404, unknown player -> 400 (FK), both via respondDomainError.
 	if _, err := r.TeamService.SetCaptain(req.Context(), teamID, body.CaptainID); err != nil {
-		respondDomainError(req.Context(), w, "Failed to set team captain", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -32,7 +31,7 @@ func (r *Router) clearCaptain(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if err := r.TeamService.ClearCaptain(req.Context(), teamID); err != nil {
-		respondDomainError(req.Context(), w, "Failed to clear team captain", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

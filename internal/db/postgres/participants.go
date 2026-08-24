@@ -37,24 +37,14 @@ func (p *ParticipantsDB) CreateMatchParticipant(ctx context.Context, tournamentI
 	})
 }
 
-// DeleteMatchParticipant removes a player from a match. ErrNotFound if they weren't in it.
+// DeleteMatchParticipant removes a player from a match. ErrParticipantNotFound if they weren't in it.
 func (p *ParticipantsDB) DeleteMatchParticipant(ctx context.Context, matchID, playerID uuid.UUID) error {
 	return withTenantExec(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
-		if _, err := q.LockMatchForScoring(ctx, sqlc.LockMatchForScoringParams{
-			ID:       matchID,
-			TenantID: tenantID,
-		}); err != nil {
-			return fmt.Errorf("locking match %s: %w", matchID, mapReadErr(err))
+		if err := lockMatchForScoring(ctx, q, matchID, tenantID); err != nil {
+			return err
 		}
-		scored, err := q.MatchHasScores(ctx, sqlc.MatchHasScoresParams{
-			MatchID:  matchID,
-			TenantID: tenantID,
-		})
-		if err != nil {
-			return fmt.Errorf("checking scores for match %s: %w", matchID, err)
-		}
-		if scored {
-			return fmt.Errorf("%w: match %s has been scored; reset it before changing its lineup", golf.ErrConflict, matchID)
+		if err := refuseIfScored(ctx, q, matchID, tenantID, golf.ErrScoredMatchLineup); err != nil {
+			return err
 		}
 		rows, err := q.DeleteMatchParticipant(ctx, sqlc.DeleteMatchParticipantParams{
 			MatchID:  matchID,
@@ -65,7 +55,7 @@ func (p *ParticipantsDB) DeleteMatchParticipant(ctx context.Context, matchID, pl
 			return fmt.Errorf("deleting match participant: %w", mapWriteErr(err))
 		}
 		if rows == 0 {
-			return fmt.Errorf("deleting match participant: %w", golf.ErrNotFound)
+			return fmt.Errorf("deleting match participant: %w", golf.ErrParticipantNotFound)
 		}
 		return nil
 	})

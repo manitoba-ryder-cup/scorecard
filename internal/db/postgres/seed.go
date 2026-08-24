@@ -115,7 +115,7 @@ func seedTeamsByColor(ctx context.Context, q *sqlc.Queries, tenantID, tournament
 		TournamentID: tournamentID, TenantID: tenantID,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("listing teams: %w", mapReadErr(err))
+		return nil, fmt.Errorf("listing teams: %w", err)
 	}
 	out := make(map[string]uuid.UUID, len(rows))
 	for _, r := range rows {
@@ -129,7 +129,7 @@ func seedTeamsByColor(ctx context.Context, q *sqlc.Queries, tenantID, tournament
 func seedPlayersByEmail(ctx context.Context, q *sqlc.Queries, tenantID uuid.UUID) (map[string]uuid.UUID, error) {
 	rows, err := q.PlayerRecords(ctx, sqlc.PlayerRecordsParams{TenantID: tenantID})
 	if err != nil {
-		return nil, fmt.Errorf("listing players: %w", mapReadErr(err))
+		return nil, fmt.Errorf("listing players: %w", err)
 	}
 	out := make(map[string]uuid.UUID, len(rows))
 	for _, r := range rows {

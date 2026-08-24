@@ -7,33 +7,79 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
-
-	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 )
 
-func TestRespondDomainError_StatusMapping(t *testing.T) {
-	cases := []struct {
-		name string
-		err  error
-		want int
-	}{
-		{"not found", golf.ErrNotFound, http.StatusNotFound},
-		{"invalid input", golf.ErrInvalidInput, http.StatusBadRequest},
-		{"conflict", golf.ErrConflict, http.StatusConflict},
-		// The sentinel is matched through wrapping, as repos/services wrap it.
-		{"wrapped not found", fmt.Errorf("getting player 5: %w", golf.ErrNotFound), http.StatusNotFound},
-		{"unknown error", errors.New("connection reset"), http.StatusInternalServerError},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+// Order is what the lookup runs on, so this walks the real table and asks each entry to
+// answer for itself. A specific sentinel sitting below the generic it wraps answers as the
+// generic, and the entry's own message is what no longer comes back.
+func TestRespondDomainError_AnswersEverySentinel(t *testing.T) {
+	for _, answer := range domainAnswers {
+		t.Run(answer.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			respondDomainError(context.Background(), rec, "message", tc.err)
-			if rec.Code != tc.want {
-				t.Fatalf("want status %d, got %d", tc.want, rec.Code)
+			// Wrapped, because a repository and a service each wrap before this is reached.
+			respondDomainError(context.Background(), rec, fmt.Errorf("doing the thing: %w", answer.err))
+			if rec.Code != answer.status {
+				t.Errorf("want status %d, got %d", answer.status, rec.Code)
+			}
+			if got := bodyOf(t, rec); got != answer.message {
+				t.Errorf("got %q, want %q", got, answer.message)
 			}
 		})
+	}
+}
+
+// A sentinel with no row of its own answers as its generic, which reads as a working 404
+// while telling the caller nothing. Go cannot enumerate a package's vars, so the declarations
+// are read from source and matched by name against the rows meant to cover them.
+func TestRespondDomainError_TableCoversEverySentinel(t *testing.T) {
+	src, err := os.ReadFile(filepath.Join("..", "..", "golf", "errors.go"))
+	if err != nil {
+		t.Fatalf("read domain errors: %v", err)
+	}
+	declared := regexp.MustCompile(`(?m)^\t(Err\w+)\s*=`).FindAllStringSubmatch(string(src), -1)
+	if len(declared) == 0 {
+		t.Fatal("no sentinels found; the declaration shape changed")
+	}
+	covered := map[string]bool{}
+	for _, answer := range domainAnswers {
+		covered[answer.name] = true
+	}
+	for _, m := range declared {
+		if !covered[m[1]] {
+			t.Errorf("golf.%s has no row in domainAnswers, so it answers as its generic and nothing pins it", m[1])
+		}
+		delete(covered, m[1])
+	}
+	for name := range covered {
+		t.Errorf("domainAnswers has a row for %q, which the domain does not declare", name)
+	}
+}
+
+// A row naming one sentinel while pointing at another passes the coverage check by name, and
+// leaves the sentinel it claims to cover unreached. Two rows on one error is that mistake.
+func TestRespondDomainError_NoSentinelIsAnsweredTwice(t *testing.T) {
+	seen := map[error]string{}
+	for _, answer := range domainAnswers {
+		if first, dup := seen[answer.err]; dup {
+			t.Errorf("%s and %s are rows on the same error; the second can never be reached", first, answer.name)
+		}
+		seen[answer.err] = answer.name
+	}
+}
+
+func TestRespondDomainError_UnknownErrorIsAFault(t *testing.T) {
+	rec := httptest.NewRecorder()
+	respondDomainError(context.Background(), rec, errors.New("connection reset"))
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("want 500, got %d", rec.Code)
+	}
+	if got := bodyOf(t, rec); got != serverFault {
+		t.Errorf("got %q, want the one fault message", got)
 	}
 }
 

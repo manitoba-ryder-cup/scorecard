@@ -258,6 +258,17 @@ scores, runs the domain's `guard`, writes, re-reads, and upserts the `recompute`
 reason. The result row is deleted rather than zeroed — its existence is what marks a match
 started.
 
+Three paths take `LockMatchForScoring` without writing a score — `DeleteMatch`,
+`UpdateMatch` and `DeleteMatchParticipant` — and hold it to refuse rather than to recompute:
+the lock is what keeps "this match is unscored" true between the check and the write. The two
+deletes refuse in the repository through `refuseIfScored`, beside the delete they guard.
+`UpdateMatch` instead holds the lock and hands `MatchService` a `guard`, the same shape
+`SaveScoresAndRecompute` uses, because *what a scored match may still change* is a rule
+rather than a storage concern — `internal/golf` is where it is written down, and the four
+cases that pin it are unit tests there rather than round trips. `DeleteTeamMember` fits
+neither shape, because undrafting reaches matches through the player
+(`LockPlayerMatchesForScoring`).
+
 **Nothing else may delete a score.** `scores` referenced `match_participants` with
 `ON DELETE CASCADE`, which let two routes destroy a played match without anything
 recomputing what was left behind — removing a participant, and undrafting a player, which
@@ -266,7 +277,7 @@ scores were gone, so one cup read as finished and never-played at once depending
 endpoint. Both are refused now, in two places that do not cover the same ground:
 
 - `ParticipantsDB.DeleteMatchParticipant` and `TeamMembersDB.DeleteTeamMember` refuse with
-  `ErrConflict`, and are the complete rule — they hold for every scoring grain. The check
+  `ErrScoredMatchLineup` and `ErrScoredPlayerUndraft`, and are the complete rule — they hold for every scoring grain. The check
   sits in the repository beside the delete, inside one transaction and behind the lock the
   score write path takes: asked from the service and then deleted separately, a score landing
   in between would be orphaned.

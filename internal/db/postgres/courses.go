@@ -32,7 +32,7 @@ func (c *CoursesDB) GetCourse(ctx context.Context, id uuid.UUID) (*golf.Course, 
 	return withTenant(ctx, c.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Course, error) {
 		course, err := q.GetCourse(ctx, sqlc.GetCourseParams{ID: id, TenantID: tenantID})
 		if err != nil {
-			return nil, fmt.Errorf("getting course %s: %w", id, mapReadErr(err))
+			return nil, fmt.Errorf("getting course %s: %w", id, mapReadErr(err, golf.ErrCourseNotFound))
 		}
 		cs := toDomainCourse(course)
 		return &cs, nil
