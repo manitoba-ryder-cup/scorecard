@@ -12,53 +12,30 @@ import (
 	"regexp"
 	"strings"
 	"testing"
-
-	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 )
 
-// Every sentinel, with the answer a caller gets. The specific sentinels wrap the generic
-// ones, so a case placed below its generic would silently fall through to it — pinning the
-// sentence, not just the status, is what makes that fail here.
-var domainAnswers = map[string]struct {
-	err     error
-	status  int
-	message string
-}{
-	"ErrInvalidInput":             {golf.ErrInvalidInput, http.StatusBadRequest, "That request wasn't valid."},
-	"ErrConflict":                 {golf.ErrConflict, http.StatusConflict, "That conflicts with something that already exists."},
-	"ErrNotFound":                 {golf.ErrNotFound, http.StatusNotFound, "Not found."},
-	"ErrCourseNotFound":           {golf.ErrCourseNotFound, http.StatusNotFound, "Course not found."},
-	"ErrMatchNotFound":            {golf.ErrMatchNotFound, http.StatusNotFound, "Match not found."},
-	"ErrParticipantNotFound":      {golf.ErrParticipantNotFound, http.StatusNotFound, "That player isn't in this match."},
-	"ErrPlayerNotFound":           {golf.ErrPlayerNotFound, http.StatusNotFound, "Player not found."},
-	"ErrTeamMemberNotFound":       {golf.ErrTeamMemberNotFound, http.StatusNotFound, "That player isn't on this team."},
-	"ErrTeamNotFound":             {golf.ErrTeamNotFound, http.StatusNotFound, "Team not found."},
-	"ErrTournamentNotFound":       {golf.ErrTournamentNotFound, http.StatusNotFound, "Tournament not found."},
-	"ErrTournamentPlayerNotFound": {golf.ErrTournamentPlayerNotFound, http.StatusNotFound, "That player isn't entered in this tournament."},
-	"ErrScoredMatchDelete":        {golf.ErrScoredMatchDelete, http.StatusConflict, "That match has scores. Reset it before deleting it."},
-	"ErrScoredMatchLineup":        {golf.ErrScoredMatchLineup, http.StatusConflict, "That match has scores. Reset it before changing its lineup."},
-	"ErrScoredMatchTeeSet":        {golf.ErrScoredMatchTeeSet, http.StatusConflict, "That match has scores. Reset it before changing its tee set."},
-	"ErrScoredPlayerUndraft":      {golf.ErrScoredPlayerUndraft, http.StatusConflict, "That player has been scored in a match. Reset it before undrafting them."},
-}
-
+// Order is what the lookup runs on, so this walks the real table and asks each entry to
+// answer for itself. A specific sentinel sitting below the generic it wraps answers as the
+// generic, and the entry's own message is what no longer comes back.
 func TestRespondDomainError_AnswersEverySentinel(t *testing.T) {
-	for name, want := range domainAnswers {
-		t.Run(name, func(t *testing.T) {
+	for _, answer := range domainAnswers {
+		t.Run(answer.err.Error(), func(t *testing.T) {
 			rec := httptest.NewRecorder()
 			// Wrapped, because a repository and a service each wrap before this is reached.
-			respondDomainError(context.Background(), rec, fmt.Errorf("doing the thing: %w", want.err))
-			if rec.Code != want.status {
-				t.Errorf("want status %d, got %d", want.status, rec.Code)
+			respondDomainError(context.Background(), rec, fmt.Errorf("doing the thing: %w", answer.err))
+			if rec.Code != answer.status {
+				t.Errorf("want status %d, got %d", answer.status, rec.Code)
 			}
-			if got := bodyOf(t, rec); got != want.message {
-				t.Errorf("got %q, want %q", got, want.message)
+			if got := bodyOf(t, rec); got != answer.message {
+				t.Errorf("got %q, want %q", got, answer.message)
 			}
 		})
 	}
 }
 
-// A sentinel with no case of its own answers as its generic, which reads as a working 404
-// while telling the caller nothing. The table above is only a guard if it stays complete.
+// A sentinel with no row of its own answers as its generic, which reads as a working 404
+// while telling the caller nothing. Go cannot enumerate a package's vars, so this counts the
+// declarations against the table that has to cover them.
 func TestRespondDomainError_TableCoversEverySentinel(t *testing.T) {
 	src, err := os.ReadFile(filepath.Join("..", "..", "golf", "errors.go"))
 	if err != nil {
@@ -68,10 +45,13 @@ func TestRespondDomainError_TableCoversEverySentinel(t *testing.T) {
 	if len(declared) == 0 {
 		t.Fatal("no sentinels found; the declaration shape changed")
 	}
-	for _, m := range declared {
-		if _, ok := domainAnswers[m[1]]; !ok {
-			t.Errorf("golf.%s has no entry in domainAnswers, so nothing pins what a caller is told", m[1])
+	if len(declared) != len(domainAnswers) {
+		names := make([]string, len(declared))
+		for i, m := range declared {
+			names[i] = m[1]
 		}
+		t.Errorf("the domain declares %d sentinels but domainAnswers has %d rows; declared: %v",
+			len(declared), len(domainAnswers), names)
 	}
 }
 

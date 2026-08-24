@@ -68,46 +68,42 @@ func respondError(ctx context.Context, writer http.ResponseWriter, status int, m
 	respondJSON(writer, status, sdk.ErrorResponse{Error: message})
 }
 
+// domainAnswers is ordered, and the first sentinel that matches wins. A specific sentinel
+// wraps its generic, so each must sit above the generic it wraps or it never answers for
+// itself. Order is the load-bearing part of this list, not an accident of how it was typed.
+var domainAnswers = []struct {
+	err     error
+	status  int
+	message string
+}{
+	{golf.ErrCourseNotFound, http.StatusNotFound, "Course not found."},
+	{golf.ErrMatchNotFound, http.StatusNotFound, "Match not found."},
+	{golf.ErrParticipantNotFound, http.StatusNotFound, "That player isn't in this match."},
+	{golf.ErrPlayerNotFound, http.StatusNotFound, "Player not found."},
+	{golf.ErrTeamMemberNotFound, http.StatusNotFound, "That player isn't on this team."},
+	{golf.ErrTeamNotFound, http.StatusNotFound, "Team not found."},
+	{golf.ErrTournamentNotFound, http.StatusNotFound, "Tournament not found."},
+	{golf.ErrTournamentPlayerNotFound, http.StatusNotFound, "That player isn't entered in this tournament."},
+
+	{golf.ErrScoredMatchDelete, http.StatusConflict, "That match has scores. Reset it before deleting it."},
+	{golf.ErrScoredMatchLineup, http.StatusConflict, "That match has scores. Reset it before changing its lineup."},
+	{golf.ErrScoredMatchTeeSet, http.StatusConflict, "That match has scores. Reset it before changing its tee set."},
+	{golf.ErrScoredPlayerUndraft, http.StatusConflict, "That player has been scored in a match. Reset it before undrafting them."},
+
+	{golf.ErrNotFound, http.StatusNotFound, "Not found."},
+	{golf.ErrInvalidInput, http.StatusBadRequest, "That request wasn't valid."},
+	{golf.ErrConflict, http.StatusConflict, "That conflicts with something that already exists."},
+}
+
 // respondDomainError answers a domain failure. The sentinel decides both the status and the
 // sentence, so the wording lives here rather than at each call site, and the operation that
 // failed is already in the error's wrapped chain, which is what reaches the log.
-//
-// The specific sentinels wrap the generic ones, so each must be matched before its generic.
 func respondDomainError(ctx context.Context, writer http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, golf.ErrCourseNotFound):
-		respondError(ctx, writer, http.StatusNotFound, "Course not found.", err)
-	case errors.Is(err, golf.ErrMatchNotFound):
-		respondError(ctx, writer, http.StatusNotFound, "Match not found.", err)
-	case errors.Is(err, golf.ErrParticipantNotFound):
-		respondError(ctx, writer, http.StatusNotFound, "That player isn't in this match.", err)
-	case errors.Is(err, golf.ErrPlayerNotFound):
-		respondError(ctx, writer, http.StatusNotFound, "Player not found.", err)
-	case errors.Is(err, golf.ErrTeamMemberNotFound):
-		respondError(ctx, writer, http.StatusNotFound, "That player isn't on this team.", err)
-	case errors.Is(err, golf.ErrTeamNotFound):
-		respondError(ctx, writer, http.StatusNotFound, "Team not found.", err)
-	case errors.Is(err, golf.ErrTournamentNotFound):
-		respondError(ctx, writer, http.StatusNotFound, "Tournament not found.", err)
-	case errors.Is(err, golf.ErrTournamentPlayerNotFound):
-		respondError(ctx, writer, http.StatusNotFound, "That player isn't entered in this tournament.", err)
-
-	case errors.Is(err, golf.ErrScoredMatchDelete):
-		respondError(ctx, writer, http.StatusConflict, "That match has scores. Reset it before deleting it.", err)
-	case errors.Is(err, golf.ErrScoredMatchLineup):
-		respondError(ctx, writer, http.StatusConflict, "That match has scores. Reset it before changing its lineup.", err)
-	case errors.Is(err, golf.ErrScoredMatchTeeSet):
-		respondError(ctx, writer, http.StatusConflict, "That match has scores. Reset it before changing its tee set.", err)
-	case errors.Is(err, golf.ErrScoredPlayerUndraft):
-		respondError(ctx, writer, http.StatusConflict, "That player has been scored in a match. Reset it before undrafting them.", err)
-
-	case errors.Is(err, golf.ErrNotFound):
-		respondError(ctx, writer, http.StatusNotFound, "Not found.", err)
-	case errors.Is(err, golf.ErrInvalidInput):
-		respondError(ctx, writer, http.StatusBadRequest, "That request wasn't valid.", err)
-	case errors.Is(err, golf.ErrConflict):
-		respondError(ctx, writer, http.StatusConflict, "That conflicts with something that already exists.", err)
-	default:
-		respondError(ctx, writer, http.StatusInternalServerError, "Request failed", err)
+	for _, answer := range domainAnswers {
+		if errors.Is(err, answer.err) {
+			respondError(ctx, writer, answer.status, answer.message, err)
+			return
+		}
 	}
+	respondError(ctx, writer, http.StatusInternalServerError, "Request failed", err)
 }

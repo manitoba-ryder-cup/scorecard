@@ -63,26 +63,44 @@ func (m *MatchesDB) UpdateMatch(ctx context.Context, in golf.UpdateMatchInput) (
 	})
 }
 
+// lockMatchForScoring takes the match's FOR UPDATE lock. Held before the first read, so a
+// score cannot land between a guard deciding the match is unscored and the write acting on
+// that decision.
+func lockMatchForScoring(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid.UUID) error {
+	if _, err := q.LockMatchForScoring(ctx, sqlc.LockMatchForScoringParams{
+		ID:       matchID,
+		TenantID: tenantID,
+	}); err != nil {
+		return fmt.Errorf("locking match %s: %w", matchID, mapReadErr(err, golf.ErrMatchNotFound))
+	}
+	return nil
+}
+
+// refuseIfScored returns refusal if the match has scores. Kept apart from the lock because a
+// tee set move has to read the match and decide the write moves it before this applies.
+func refuseIfScored(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid.UUID, refusal error) error {
+	scored, err := q.MatchHasScores(ctx, sqlc.MatchHasScoresParams{
+		MatchID:  matchID,
+		TenantID: tenantID,
+	})
+	if err != nil {
+		return fmt.Errorf("checking scores for match %s: %w", matchID, err)
+	}
+	if scored {
+		return fmt.Errorf("%w: match %s", refusal, matchID)
+	}
+	return nil
+}
+
 // DeleteMatch removes a match, taking its lineup with it. Refused for a match that has been
 // scored: losing results is a decision, not a side effect of tidying up.
 func (m *MatchesDB) DeleteMatch(ctx context.Context, id uuid.UUID) error {
 	return withTenantExec(ctx, m.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
-		// Taken before the check, so a submission cannot land between it and the delete.
-		if _, err := q.LockMatchForScoring(ctx, sqlc.LockMatchForScoringParams{
-			ID:       id,
-			TenantID: tenantID,
-		}); err != nil {
-			return fmt.Errorf("locking match %s: %w", id, mapReadErr(err, golf.ErrMatchNotFound))
+		if err := lockMatchForScoring(ctx, q, id, tenantID); err != nil {
+			return err
 		}
-		scored, err := q.MatchHasScores(ctx, sqlc.MatchHasScoresParams{
-			MatchID:  id,
-			TenantID: tenantID,
-		})
-		if err != nil {
-			return fmt.Errorf("checking scores for match %s: %w", id, err)
-		}
-		if scored {
-			return fmt.Errorf("%w: match %s", golf.ErrScoredMatchDelete, id)
+		if err := refuseIfScored(ctx, q, id, tenantID, golf.ErrScoredMatchDelete); err != nil {
+			return err
 		}
 		if _, err := q.DeleteMatch(ctx, sqlc.DeleteMatchParams{
 			ID:       id,
@@ -104,10 +122,8 @@ func refuseTeeSetMoveOnScoredMatch(ctx context.Context, q *sqlc.Queries, in golf
 	if in.CourseID == nil && in.TeeColorID == nil {
 		return nil
 	}
-	// Locked before it is read, so a score cannot land between finding the match unscored and
-	// moving the tee set out from under it.
-	if _, err := q.LockMatchForScoring(ctx, sqlc.LockMatchForScoringParams{ID: in.ID, TenantID: tenantID}); err != nil {
-		return fmt.Errorf("locking match %s: %w", in.ID, mapReadErr(err, golf.ErrMatchNotFound))
+	if err := lockMatchForScoring(ctx, q, in.ID, tenantID); err != nil {
+		return err
 	}
 	current, err := q.GetMatch(ctx, sqlc.GetMatchParams{ID: in.ID, TenantID: tenantID})
 	if err != nil {
@@ -118,14 +134,7 @@ func refuseTeeSetMoveOnScoredMatch(ctx context.Context, q *sqlc.Queries, in golf
 	if !moves {
 		return nil
 	}
-	scored, err := q.MatchHasScores(ctx, sqlc.MatchHasScoresParams{MatchID: in.ID, TenantID: tenantID})
-	if err != nil {
-		return fmt.Errorf("checking scores for match %s: %w", in.ID, err)
-	}
-	if scored {
-		return fmt.Errorf("%w: match %s", golf.ErrScoredMatchTeeSet, in.ID)
-	}
-	return nil
+	return refuseIfScored(ctx, q, in.ID, tenantID, golf.ErrScoredMatchTeeSet)
 }
 
 // GetMatch retrieves a match by ID with tenant isolation
