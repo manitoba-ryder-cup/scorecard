@@ -41,8 +41,10 @@ type Match struct {
 }
 
 type MatchFormat struct {
-	ID   uuid.UUID `json:"id"`
-	Name string    `json:"name"`
+	ID              uuid.UUID `json:"id"`
+	Name            string    `json:"name"`
+	PlayersPerSide  int32     `json:"players_per_side"`
+	ScoresPerPlayer bool      `json:"scores_per_player"`
 }
 
 type MatchParticipant struct {

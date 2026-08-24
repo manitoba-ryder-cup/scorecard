@@ -25,7 +25,7 @@ func (m *MatchFormatsDB) ListMatchFormats(ctx context.Context) ([]golf.MatchForm
 	}
 	result := make([]golf.MatchFormat, len(formats))
 	for i, f := range formats {
-		result[i] = golf.MatchFormat{ID: f.ID, Name: f.Name}
+		result[i] = golf.MatchFormat{ID: f.ID, Name: f.Name, PlayersPerSide: f.PlayersPerSide, ScoresPerPlayer: f.ScoresPerPlayer}
 	}
 	return result, nil
 }

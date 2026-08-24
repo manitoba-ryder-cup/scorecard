@@ -19,5 +19,5 @@ func (r *Router) listMatchFormats(w http.ResponseWriter, req *http.Request) {
 }
 
 func toMatchFormatDTO(f golf.MatchFormat) sdk.MatchFormat {
-	return sdk.MatchFormat{ID: f.ID, Name: f.Name}
+	return sdk.MatchFormat{ID: f.ID, Name: f.Name, PlayersPerSide: f.PlayersPerSide, ScoresPerPlayer: f.ScoresPerPlayer}
 }

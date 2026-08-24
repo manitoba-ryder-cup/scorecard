@@ -140,8 +140,11 @@ type CourseTeeSet struct {
 
 // MatchFormat represents the type of match
 type MatchFormat struct {
-	ID   uuid.UUID
-	Name string
+	ID             uuid.UUID
+	Name           string
+	PlayersPerSide int32
+	// False is one ball for the side, not an absence of scores.
+	ScoresPerPlayer bool
 }
 
 // TeamMember is the draft outcome: a player assigned to a team for a tournament.

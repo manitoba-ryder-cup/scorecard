@@ -79,8 +79,10 @@ type CreateCourseRequest struct {
 // MatchFormat is a code-defined scoring format (e.g. Singles, Fourball). Global,
 // seeded reference data — read-only over the API.
 type MatchFormat struct {
-	ID   uuid.UUID `json:"id"`
-	Name string    `json:"name"`
+	ID              uuid.UUID `json:"id"`
+	Name            string    `json:"name"`
+	PlayersPerSide  int32     `json:"players_per_side"`
+	ScoresPerPlayer bool      `json:"scores_per_player"`
 }
 
 // Hole is one hole's setup for a tee: par, stroke index (hdcp), and yardage.
