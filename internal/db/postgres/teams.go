@@ -23,7 +23,7 @@ func (t *TeamsDB) GetTeam(ctx context.Context, id uuid.UUID) (*golf.Team, error)
 	return withTenant(ctx, t.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Team, error) {
 		team, err := q.GetTeam(ctx, sqlc.GetTeamParams{ID: id, TenantID: tenantID})
 		if err != nil {
-			return nil, fmt.Errorf("getting team %s: %w", id, mapReadErr(err))
+			return nil, fmt.Errorf("getting team %s: %w", id, mapReadErr(err, golf.ErrTeamNotFound))
 		}
 		td := toDomainTeam(team)
 		return &td, nil
@@ -43,7 +43,7 @@ func (t *TeamsDB) ListTeamsByTournament(ctx context.Context, tournamentID uuid.U
 	})
 }
 
-// SetTeamCaptain assigns a team's captain. An unknown team yields no rows (ErrNotFound);
+// SetTeamCaptain assigns a team's captain. An unknown team yields no rows (ErrTeamNotFound);
 // an unknown player trips the captain_id FK (ErrInvalidInput).
 func (t *TeamsDB) SetTeamCaptain(ctx context.Context, teamID, captainID uuid.UUID) (*golf.Team, error) {
 	return withTenant(ctx, t.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Team, error) {
@@ -54,7 +54,7 @@ func (t *TeamsDB) SetTeamCaptain(ctx context.Context, teamID, captainID uuid.UUI
 		})
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
-				return nil, fmt.Errorf("setting captain for team %s: %w", teamID, mapReadErr(err))
+				return nil, fmt.Errorf("setting captain for team %s: %w", teamID, mapReadErr(err, golf.ErrTeamNotFound))
 			}
 			return nil, fmt.Errorf("setting captain for team %s: %w", teamID, mapWriteErr(err))
 		}
@@ -78,7 +78,7 @@ func (t *TeamsDB) ClearCaptainForPlayer(ctx context.Context, teamID, playerID uu
 	})
 }
 
-// ClearCaptain unsets a team's captain outright. ErrNotFound if the team doesn't exist.
+// ClearCaptain unsets a team's captain outright. ErrTeamNotFound if the team doesn't exist.
 func (t *TeamsDB) ClearCaptain(ctx context.Context, teamID uuid.UUID) error {
 	rows, err := withTenant(ctx, t.db, func(q *sqlc.Queries, tenantID uuid.UUID) (int64, error) {
 		return q.ClearTeamCaptain(ctx, sqlc.ClearTeamCaptainParams{ID: teamID, TenantID: tenantID})
@@ -87,7 +87,7 @@ func (t *TeamsDB) ClearCaptain(ctx context.Context, teamID uuid.UUID) error {
 		return fmt.Errorf("clearing captain for team %s: %w", teamID, err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("clearing captain for team %s: %w", teamID, golf.ErrNotFound)
+		return fmt.Errorf("clearing captain for team %s: %w", teamID, golf.ErrTeamNotFound)
 	}
 	return nil
 }

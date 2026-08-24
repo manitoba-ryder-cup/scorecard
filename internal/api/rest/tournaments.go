@@ -11,7 +11,7 @@ import (
 func (r *Router) listTournaments(w http.ResponseWriter, req *http.Request) {
 	tournaments, err := r.TournamentService.ListTournaments(req.Context())
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to list tournaments", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusOK, mapSlice(tournaments, toTournamentDTO))
@@ -41,7 +41,7 @@ func (r *Router) createTournament(w http.ResponseWriter, req *http.Request) {
 		Location:  body.Location,
 	})
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to create tournament", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusCreated, toTournamentDTO(*tournament))
@@ -55,8 +55,7 @@ func (r *Router) getTournament(w http.ResponseWriter, req *http.Request) {
 	}
 	tournament, err := r.TournamentService.GetTournament(req.Context(), id)
 	if err != nil {
-		// ErrNotFound -> 404; a real DB failure -> 500 (not masked as "not found").
-		respondDomainError(req.Context(), w, "Failed to get tournament", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	// The record carries the phase, so it goes stale with the leaderboard beside it.
@@ -72,7 +71,7 @@ func (r *Router) getTournamentTeams(w http.ResponseWriter, req *http.Request) {
 	}
 	teams, phase, err := r.TournamentService.GetTeamsData(req.Context(), id)
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to get teams data", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	cacheByPhase(w, phase)
@@ -87,7 +86,7 @@ func (r *Router) getTournamentWinner(w http.ResponseWriter, req *http.Request) {
 	}
 	outcome, err := r.TournamentService.GetOutcome(req.Context(), id)
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to get tournament winner", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusOK, sdk.WinnerResponse{Finished: outcome.Finished, WinnerTeamID: outcome.WinnerTeamID})
@@ -101,7 +100,7 @@ func (r *Router) getTournamentStatus(w http.ResponseWriter, req *http.Request) {
 	}
 	outcome, err := r.TournamentService.GetOutcome(req.Context(), id)
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to check tournament status", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusOK, sdk.FinishedResponse{Finished: outcome.Finished})

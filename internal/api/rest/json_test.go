@@ -7,33 +7,82 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 )
 
-func TestRespondDomainError_StatusMapping(t *testing.T) {
-	cases := []struct {
-		name string
-		err  error
-		want int
-	}{
-		{"not found", golf.ErrNotFound, http.StatusNotFound},
-		{"invalid input", golf.ErrInvalidInput, http.StatusBadRequest},
-		{"conflict", golf.ErrConflict, http.StatusConflict},
-		// The sentinel is matched through wrapping, as repos/services wrap it.
-		{"wrapped not found", fmt.Errorf("getting player 5: %w", golf.ErrNotFound), http.StatusNotFound},
-		{"unknown error", errors.New("connection reset"), http.StatusInternalServerError},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+// Every sentinel, with the answer a caller gets. The specific sentinels wrap the generic
+// ones, so a case placed below its generic would silently fall through to it — pinning the
+// sentence, not just the status, is what makes that fail here.
+var domainAnswers = map[string]struct {
+	err     error
+	status  int
+	message string
+}{
+	"ErrInvalidInput":             {golf.ErrInvalidInput, http.StatusBadRequest, "That request wasn't valid."},
+	"ErrConflict":                 {golf.ErrConflict, http.StatusConflict, "That conflicts with something that already exists."},
+	"ErrNotFound":                 {golf.ErrNotFound, http.StatusNotFound, "Not found."},
+	"ErrCourseNotFound":           {golf.ErrCourseNotFound, http.StatusNotFound, "Course not found."},
+	"ErrMatchNotFound":            {golf.ErrMatchNotFound, http.StatusNotFound, "Match not found."},
+	"ErrParticipantNotFound":      {golf.ErrParticipantNotFound, http.StatusNotFound, "That player isn't in this match."},
+	"ErrPlayerNotFound":           {golf.ErrPlayerNotFound, http.StatusNotFound, "Player not found."},
+	"ErrTeamMemberNotFound":       {golf.ErrTeamMemberNotFound, http.StatusNotFound, "That player isn't on this team."},
+	"ErrTeamNotFound":             {golf.ErrTeamNotFound, http.StatusNotFound, "Team not found."},
+	"ErrTournamentNotFound":       {golf.ErrTournamentNotFound, http.StatusNotFound, "Tournament not found."},
+	"ErrTournamentPlayerNotFound": {golf.ErrTournamentPlayerNotFound, http.StatusNotFound, "That player isn't entered in this tournament."},
+	"ErrScoredMatchDelete":        {golf.ErrScoredMatchDelete, http.StatusConflict, "That match has scores. Reset it before deleting it."},
+	"ErrScoredMatchLineup":        {golf.ErrScoredMatchLineup, http.StatusConflict, "That match has scores. Reset it before changing its lineup."},
+	"ErrScoredMatchTeeSet":        {golf.ErrScoredMatchTeeSet, http.StatusConflict, "That match has scores. Reset it before changing its tee set."},
+	"ErrScoredPlayerUndraft":      {golf.ErrScoredPlayerUndraft, http.StatusConflict, "That player has been scored in a match. Reset it before undrafting them."},
+}
+
+func TestRespondDomainError_AnswersEverySentinel(t *testing.T) {
+	for name, want := range domainAnswers {
+		t.Run(name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			respondDomainError(context.Background(), rec, "message", tc.err)
-			if rec.Code != tc.want {
-				t.Fatalf("want status %d, got %d", tc.want, rec.Code)
+			// Wrapped, because a repository and a service each wrap before this is reached.
+			respondDomainError(context.Background(), rec, fmt.Errorf("doing the thing: %w", want.err))
+			if rec.Code != want.status {
+				t.Errorf("want status %d, got %d", want.status, rec.Code)
+			}
+			if got := bodyOf(t, rec); got != want.message {
+				t.Errorf("got %q, want %q", got, want.message)
 			}
 		})
+	}
+}
+
+// A sentinel with no case of its own answers as its generic, which reads as a working 404
+// while telling the caller nothing. The table above is only a guard if it stays complete.
+func TestRespondDomainError_TableCoversEverySentinel(t *testing.T) {
+	src, err := os.ReadFile(filepath.Join("..", "..", "golf", "errors.go"))
+	if err != nil {
+		t.Fatalf("read domain errors: %v", err)
+	}
+	declared := regexp.MustCompile(`(?m)^\t(Err\w+)\s*=`).FindAllStringSubmatch(string(src), -1)
+	if len(declared) == 0 {
+		t.Fatal("no sentinels found; the declaration shape changed")
+	}
+	for _, m := range declared {
+		if _, ok := domainAnswers[m[1]]; !ok {
+			t.Errorf("golf.%s has no entry in domainAnswers, so nothing pins what a caller is told", m[1])
+		}
+	}
+}
+
+func TestRespondDomainError_UnknownErrorIsAFault(t *testing.T) {
+	rec := httptest.NewRecorder()
+	respondDomainError(context.Background(), rec, errors.New("connection reset"))
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("want 500, got %d", rec.Code)
+	}
+	if got := bodyOf(t, rec); got != serverFault {
+		t.Errorf("got %q, want the one fault message", got)
 	}
 }
 

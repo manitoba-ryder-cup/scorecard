@@ -17,15 +17,15 @@ const (
 )
 
 // mapReadErr translates a single-row read error into a domain sentinel: the driver's
-// no-rows error becomes golf.ErrNotFound so the API returns 404 instead of 500. Only
-// for queries where a missing row means "not found" — not optional-row lookups, which
-// handle pgx.ErrNoRows themselves by returning nil.
-func mapReadErr(err error) error {
+// no-rows error becomes missing, which names the row that was not there so the API can
+// say which one. Only for queries where a missing row means "not found" — not
+// optional-row lookups, which handle pgx.ErrNoRows themselves by returning nil.
+func mapReadErr(err, missing error) error {
 	if err == nil {
 		return nil
 	}
 	if errors.Is(err, pgx.ErrNoRows) {
-		return golf.ErrNotFound
+		return missing
 	}
 	return err
 }

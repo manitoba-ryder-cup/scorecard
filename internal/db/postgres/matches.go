@@ -56,7 +56,7 @@ func (m *MatchesDB) UpdateMatch(ctx context.Context, in golf.UpdateMatchInput) (
 		})
 		if err != nil {
 			// No row means no such match here; an unknown course or tee is the FK.
-			return nil, fmt.Errorf("updating match %s: %w", in.ID, mapWriteErr(mapReadErr(err)))
+			return nil, fmt.Errorf("updating match %s: %w", in.ID, mapWriteErr(mapReadErr(err, golf.ErrMatchNotFound)))
 		}
 		dm := toDomainMatch(match)
 		return &dm, nil
@@ -72,7 +72,7 @@ func (m *MatchesDB) DeleteMatch(ctx context.Context, id uuid.UUID) error {
 			ID:       id,
 			TenantID: tenantID,
 		}); err != nil {
-			return fmt.Errorf("locking match %s: %w", id, mapReadErr(err))
+			return fmt.Errorf("locking match %s: %w", id, mapReadErr(err, golf.ErrMatchNotFound))
 		}
 		scored, err := q.MatchHasScores(ctx, sqlc.MatchHasScoresParams{
 			MatchID:  id,
@@ -82,7 +82,7 @@ func (m *MatchesDB) DeleteMatch(ctx context.Context, id uuid.UUID) error {
 			return fmt.Errorf("checking scores for match %s: %w", id, err)
 		}
 		if scored {
-			return fmt.Errorf("%w: match %s", golf.ErrMatchScored, id)
+			return fmt.Errorf("%w: match %s", golf.ErrScoredMatchDelete, id)
 		}
 		if _, err := q.DeleteMatch(ctx, sqlc.DeleteMatchParams{
 			ID:       id,
@@ -107,11 +107,11 @@ func refuseTeeSetMoveOnScoredMatch(ctx context.Context, q *sqlc.Queries, in golf
 	// Locked before it is read, so a score cannot land between finding the match unscored and
 	// moving the tee set out from under it.
 	if _, err := q.LockMatchForScoring(ctx, sqlc.LockMatchForScoringParams{ID: in.ID, TenantID: tenantID}); err != nil {
-		return fmt.Errorf("locking match %s: %w", in.ID, mapReadErr(err))
+		return fmt.Errorf("locking match %s: %w", in.ID, mapReadErr(err, golf.ErrMatchNotFound))
 	}
 	current, err := q.GetMatch(ctx, sqlc.GetMatchParams{ID: in.ID, TenantID: tenantID})
 	if err != nil {
-		return fmt.Errorf("reading match %s: %w", in.ID, mapReadErr(err))
+		return fmt.Errorf("reading match %s: %w", in.ID, mapReadErr(err, golf.ErrMatchNotFound))
 	}
 	moves := (in.CourseID != nil && *in.CourseID != current.CourseID) ||
 		(in.TeeColorID != nil && *in.TeeColorID != current.TeeColorID)
@@ -123,7 +123,7 @@ func refuseTeeSetMoveOnScoredMatch(ctx context.Context, q *sqlc.Queries, in golf
 		return fmt.Errorf("checking scores for match %s: %w", in.ID, err)
 	}
 	if scored {
-		return fmt.Errorf("%w: match %s", golf.ErrMatchScored, in.ID)
+		return fmt.Errorf("%w: match %s", golf.ErrScoredMatchTeeSet, in.ID)
 	}
 	return nil
 }
@@ -133,7 +133,7 @@ func (m *MatchesDB) GetMatch(ctx context.Context, id uuid.UUID) (*golf.Match, er
 	return withTenant(ctx, m.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Match, error) {
 		match, err := q.GetMatch(ctx, sqlc.GetMatchParams{ID: id, TenantID: tenantID})
 		if err != nil {
-			return nil, fmt.Errorf("getting match %s: %w", id, mapReadErr(err))
+			return nil, fmt.Errorf("getting match %s: %w", id, mapReadErr(err, golf.ErrMatchNotFound))
 		}
 		dm := toDomainMatch(match)
 		return &dm, nil

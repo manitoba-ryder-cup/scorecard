@@ -11,7 +11,7 @@ import (
 func (r *Router) listPlayers(w http.ResponseWriter, req *http.Request) {
 	players, err := r.PlayerService.ListPlayers(req.Context())
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to list players", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusOK, mapSlice(players, toPlayerProfileDTO))
@@ -31,7 +31,7 @@ func (r *Router) createPlayer(w http.ResponseWriter, req *http.Request) {
 		UserID:    body.UserID,
 	})
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to create player", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusCreated, toPlayerDTO(*player))
@@ -56,7 +56,7 @@ func (r *Router) updatePlayer(w http.ResponseWriter, req *http.Request) {
 		PhotoPath: body.PhotoPath,
 	})
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to update player", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toPlayerDTO(*player))
@@ -70,8 +70,7 @@ func (r *Router) getPlayer(w http.ResponseWriter, req *http.Request) {
 	}
 	player, err := r.PlayerService.GetPlayer(req.Context(), id)
 	if err != nil {
-		// ErrNotFound -> 404; a real DB failure -> 500 (not masked as "not found").
-		respondDomainError(req.Context(), w, "Failed to get player", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toPlayerProfileDTO(*player))
@@ -85,7 +84,7 @@ func (r *Router) getPlayerStats(w http.ResponseWriter, req *http.Request) {
 	}
 	stats, err := r.PlayerService.PlayerStats(req.Context(), id)
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to load player stats", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toPlayerStatsDTO(*stats))
@@ -99,7 +98,7 @@ func (r *Router) listPlayerTournaments(w http.ResponseWriter, req *http.Request)
 	}
 	history, err := r.PlayerService.ListPlayerTournaments(req.Context(), id)
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to list player tournaments", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusOK, mapSlice(history, toPlayerTournamentHistoryDTO))

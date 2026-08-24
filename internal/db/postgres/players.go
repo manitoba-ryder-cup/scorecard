@@ -54,7 +54,7 @@ func (p *PlayersDB) UpdatePlayer(ctx context.Context, in golf.UpdatePlayerInput)
 		})
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
-				return nil, fmt.Errorf("updating player %s: %w", in.ID, golf.ErrNotFound)
+				return nil, fmt.Errorf("updating player %s: %w", in.ID, golf.ErrPlayerNotFound)
 			}
 			// A duplicate address is the caller's doing: two players cannot share one.
 			return nil, fmt.Errorf("updating player %s: %w", in.ID, mapWriteErr(err))
@@ -72,7 +72,7 @@ func (p *PlayersDB) GetPlayer(ctx context.Context, id uuid.UUID) (*golf.Player, 
 			return nil, fmt.Errorf("getting player %s: %w", id, err)
 		}
 		if len(rows) == 0 {
-			return nil, fmt.Errorf("getting player %s: %w", id, golf.ErrNotFound)
+			return nil, fmt.Errorf("getting player %s: %w", id, golf.ErrPlayerNotFound)
 		}
 		pl := toDomainPlayerRecord(rows[0])
 		return &pl, nil

@@ -50,9 +50,9 @@ func respondJSON(writer http.ResponseWriter, status int, data any) {
 	}
 }
 
-// serverFault is all a caller is told when the fault is ours. Handlers describe the
-// operation that failed — "Failed to list players" — which is worth having in the log and
-// misleading on the wire: it reads as a verdict on the request rather than a fault here.
+// serverFault is all a caller is told when the fault is ours. The operation that failed is
+// worth having in the log and misleading on the wire, where it reads as a verdict on the
+// request rather than a fault here.
 const serverFault = "Sorry, something went wrong. Please try again later."
 
 // respondError sends the SDK's error envelope. A 4xx logs at Warn so a bad request does not
@@ -68,31 +68,46 @@ func respondError(ctx context.Context, writer http.ResponseWriter, status int, m
 	respondJSON(writer, status, sdk.ErrorResponse{Error: message})
 }
 
-// refusedForScores answers a write refused because a match has scores, and reports whether it
-// answered.
+// respondDomainError answers a domain failure. The sentinel decides both the status and the
+// sentence, so the wording lives here rather than at each call site, and the operation that
+// failed is already in the error's wrapped chain, which is what reaches the log.
 //
-// The sentence is a caller's rather than the domain's because the remedy depends on what was
-// being attempted.
-func refusedForScores(ctx context.Context, writer http.ResponseWriter, message string, err error) bool {
-	if !errors.Is(err, golf.ErrMatchScored) {
-		return false
-	}
-	respondError(ctx, writer, http.StatusConflict, message, err)
-	return true
-}
-
-// respondDomainError maps a domain sentinel to the right HTTP status: not found -> 404,
-// invalid input -> 400, conflict -> 409, anything else -> 500. Keeps handlers from
-// re-deriving the mapping and keeps status semantics in one place.
-func respondDomainError(ctx context.Context, writer http.ResponseWriter, message string, err error) {
+// The specific sentinels wrap the generic ones, so each must be matched before its generic.
+func respondDomainError(ctx context.Context, writer http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, golf.ErrCourseNotFound):
+		respondError(ctx, writer, http.StatusNotFound, "Course not found.", err)
+	case errors.Is(err, golf.ErrMatchNotFound):
+		respondError(ctx, writer, http.StatusNotFound, "Match not found.", err)
+	case errors.Is(err, golf.ErrParticipantNotFound):
+		respondError(ctx, writer, http.StatusNotFound, "That player isn't in this match.", err)
+	case errors.Is(err, golf.ErrPlayerNotFound):
+		respondError(ctx, writer, http.StatusNotFound, "Player not found.", err)
+	case errors.Is(err, golf.ErrTeamMemberNotFound):
+		respondError(ctx, writer, http.StatusNotFound, "That player isn't on this team.", err)
+	case errors.Is(err, golf.ErrTeamNotFound):
+		respondError(ctx, writer, http.StatusNotFound, "Team not found.", err)
+	case errors.Is(err, golf.ErrTournamentNotFound):
+		respondError(ctx, writer, http.StatusNotFound, "Tournament not found.", err)
+	case errors.Is(err, golf.ErrTournamentPlayerNotFound):
+		respondError(ctx, writer, http.StatusNotFound, "That player isn't entered in this tournament.", err)
+
+	case errors.Is(err, golf.ErrScoredMatchDelete):
+		respondError(ctx, writer, http.StatusConflict, "That match has scores. Reset it before deleting it.", err)
+	case errors.Is(err, golf.ErrScoredMatchLineup):
+		respondError(ctx, writer, http.StatusConflict, "That match has scores. Reset it before changing its lineup.", err)
+	case errors.Is(err, golf.ErrScoredMatchTeeSet):
+		respondError(ctx, writer, http.StatusConflict, "That match has scores. Reset it before changing its tee set.", err)
+	case errors.Is(err, golf.ErrScoredPlayerUndraft):
+		respondError(ctx, writer, http.StatusConflict, "That player has been scored in a match. Reset it before undrafting them.", err)
+
 	case errors.Is(err, golf.ErrNotFound):
-		respondError(ctx, writer, http.StatusNotFound, message, err)
+		respondError(ctx, writer, http.StatusNotFound, "Not found.", err)
 	case errors.Is(err, golf.ErrInvalidInput):
-		respondError(ctx, writer, http.StatusBadRequest, message, err)
+		respondError(ctx, writer, http.StatusBadRequest, "That request wasn't valid.", err)
 	case errors.Is(err, golf.ErrConflict):
-		respondError(ctx, writer, http.StatusConflict, message, err)
+		respondError(ctx, writer, http.StatusConflict, "That conflicts with something that already exists.", err)
 	default:
-		respondError(ctx, writer, http.StatusInternalServerError, message, err)
+		respondError(ctx, writer, http.StatusInternalServerError, "Request failed", err)
 	}
 }

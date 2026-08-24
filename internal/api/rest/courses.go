@@ -11,7 +11,7 @@ import (
 func (r *Router) listTeeColors(w http.ResponseWriter, req *http.Request) {
 	teeColors, err := r.CourseService.ListTeeColors(req.Context())
 	if err != nil {
-		respondError(req.Context(), w, http.StatusInternalServerError, "Failed to list tee colors", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusOK, mapSlice(teeColors, toTeeColorDTO))
@@ -25,7 +25,7 @@ func (r *Router) createTeeColor(w http.ResponseWriter, req *http.Request) {
 	}
 	teeColor, err := r.CourseService.CreateTeeColor(req.Context(), golf.CreateTeeColorInput{Color: body.Color})
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to create tee color", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusCreated, toTeeColorDTO(*teeColor))
@@ -35,7 +35,7 @@ func (r *Router) createTeeColor(w http.ResponseWriter, req *http.Request) {
 func (r *Router) listCourses(w http.ResponseWriter, req *http.Request) {
 	courses, err := r.CourseService.ListCourses(req.Context())
 	if err != nil {
-		respondError(req.Context(), w, http.StatusInternalServerError, "Failed to list courses", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusOK, mapSlice(courses, toCourseDTO))
@@ -49,7 +49,7 @@ func (r *Router) getCourse(w http.ResponseWriter, req *http.Request) {
 	}
 	course, err := r.CourseService.GetCourse(req.Context(), id)
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to get course", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusOK, toCourseDTO(*course))
@@ -77,7 +77,7 @@ func (r *Router) addTeeSet(w http.ResponseWriter, req *http.Request) {
 		Holes:      holes,
 	})
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to add tee set", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusCreated, toTeeSetDTO(*teeSet))
@@ -92,7 +92,7 @@ func (r *Router) listCourseTeeSets(w http.ResponseWriter, req *http.Request) {
 	}
 	teeSets, err := r.CourseService.ListCourseTeeSets(req.Context(), courseID)
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to list course tee sets", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusOK, mapSlice(teeSets, toCourseTeeSetDTO))
@@ -110,7 +110,7 @@ func (r *Router) createCourse(w http.ResponseWriter, req *http.Request) {
 	}
 	course, err := r.CourseService.CreateCourse(req.Context(), golf.CreateCourseInput{Name: body.Name, TimeZone: timeZone})
 	if err != nil {
-		respondDomainError(req.Context(), w, "Failed to create course", err)
+		respondDomainError(req.Context(), w, err)
 		return
 	}
 	respondJSON(w, http.StatusCreated, toCourseDTO(*course))

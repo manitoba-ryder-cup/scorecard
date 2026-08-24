@@ -100,7 +100,7 @@ func (s *MatchService) AddParticipant(ctx context.Context, matchID, playerID, te
 	return participant, nil
 }
 
-// RemoveParticipant removes a player from a match. ErrNotFound if they weren't in it.
+// RemoveParticipant removes a player from a match. ErrParticipantNotFound if they weren't in it.
 func (s *MatchService) RemoveParticipant(ctx context.Context, matchID, playerID uuid.UUID) error {
 	if err := s.ParticipantDB.DeleteMatchParticipant(ctx, matchID, playerID); err != nil {
 		return fmt.Errorf("failed to remove participant: %w", err)

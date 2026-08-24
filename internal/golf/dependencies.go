@@ -71,7 +71,7 @@ type teamDB interface {
 	SetTeamCaptain(ctx context.Context, teamID, captainID uuid.UUID) (*Team, error)
 	// ClearCaptainForPlayer clears the player as a team's captain if they are it (no-op otherwise).
 	ClearCaptainForPlayer(ctx context.Context, teamID, playerID uuid.UUID) error
-	// ClearCaptain unsets a team's captain outright; ErrNotFound if the team doesn't exist.
+	// ClearCaptain unsets a team's captain outright; ErrTeamNotFound if the team doesn't exist.
 	ClearCaptain(ctx context.Context, teamID uuid.UUID) error
 }
 
@@ -79,7 +79,7 @@ type teamDB interface {
 type teamMemberDB interface {
 	// CreateTeamMember drafts a player onto a team (the tournament is the team's).
 	CreateTeamMember(ctx context.Context, teamID, playerID, tournamentID uuid.UUID) (*TeamMember, error)
-	// DeleteTeamMember undrafts a player; ErrNotFound if they weren't on the team.
+	// DeleteTeamMember undrafts a player; ErrTeamMemberNotFound if they weren't on the team.
 	DeleteTeamMember(ctx context.Context, teamID, playerID uuid.UUID) error
 }
 
