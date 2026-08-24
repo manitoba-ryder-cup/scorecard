@@ -258,11 +258,15 @@ scores, runs the domain's `guard`, writes, re-reads, and upserts the `recompute`
 reason. The result row is deleted rather than zeroed — its existence is what marks a match
 started.
 
-Three paths take `LockMatchForScoring` without writing a score — `DeleteMatch`, the tee set
-guard in `UpdateMatch`, and `DeleteMatchParticipant` — all through `lockMatchForScoring` and
-`refuseIfScored`. They hold it to refuse rather than to recompute: the lock is what keeps
-"this match is unscored" true between the check and the write. `DeleteTeamMember` is the one
-that does not fit the shape, because undrafting reaches matches through the player
+Three paths take `LockMatchForScoring` without writing a score — `DeleteMatch`,
+`UpdateMatch` and `DeleteMatchParticipant` — and hold it to refuse rather than to recompute:
+the lock is what keeps "this match is unscored" true between the check and the write. The two
+deletes refuse in the repository through `refuseIfScored`, beside the delete they guard.
+`UpdateMatch` instead holds the lock and hands `MatchService` a `guard`, the same shape
+`SaveScoresAndRecompute` uses, because *what a scored match may still change* is a rule
+rather than a storage concern — `internal/golf` is where it is written down, and the four
+cases that pin it are unit tests there rather than round trips. `DeleteTeamMember` fits
+neither shape, because undrafting reaches matches through the player
 (`LockPlayerMatchesForScoring`).
 
 **Nothing else may delete a score.** `scores` referenced `match_participants` with

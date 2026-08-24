@@ -25,7 +25,7 @@ type matchDB interface {
 	ListMatchesByTournament(ctx context.Context, tournamentID uuid.UUID) ([]Match, error)
 	ListMatchDetailsByTournament(ctx context.Context, tournamentID uuid.UUID) ([]MatchDetail, error)
 	CreateMatch(ctx context.Context, in CreateMatchInput) (*Match, error)
-	UpdateMatch(ctx context.Context, in UpdateMatchInput) (*Match, error)
+	UpdateMatch(ctx context.Context, in UpdateMatchInput, guard func(current Match, scored bool) error) (*Match, error)
 	DeleteMatch(ctx context.Context, id uuid.UUID) error
 }
 

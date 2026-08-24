@@ -64,11 +64,25 @@ type UpdateMatchInput struct {
 	Handicapped   *bool
 }
 
+// movesTeeSet reports whether in changes the course or tee colour. Re-sending the values a
+// match already has is not a move.
+func (in UpdateMatchInput) movesTeeSet(current Match) bool {
+	return (in.CourseID != nil && *in.CourseID != current.CourseID) ||
+		(in.TeeColorID != nil && *in.TeeColorID != current.TeeColorID)
+}
+
 // UpdateMatch is deliberately allowed on a match that already has scores: the case that
-// needs it most is a group that went out late with a hole already entered. The scoring
-// window is measured from the tee time on every submission, so it moves along with it.
+// needs it most is a group that went out late with a hole already entered, and the scoring
+// window is measured from the tee time on every submission. The tee set is the exception —
+// scores read their par and stroke index from it, so moving a scored match would leave them
+// describing a round nobody played.
 func (s *MatchService) UpdateMatch(ctx context.Context, in UpdateMatchInput) (*Match, error) {
-	match, err := s.MatchDB.UpdateMatch(ctx, in)
+	match, err := s.MatchDB.UpdateMatch(ctx, in, func(current Match, scored bool) error {
+		if scored && in.movesTeeSet(current) {
+			return fmt.Errorf("%w: match %s", ErrScoredMatchTeeSet, in.ID)
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to update match: %w", err)
 	}
