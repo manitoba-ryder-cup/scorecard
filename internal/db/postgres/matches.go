@@ -105,8 +105,7 @@ func matchHasScores(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid
 	return scored, nil
 }
 
-// refuseIfScored returns refusal if the match has scores. Kept apart from the lock because a
-// tee set move has to read the match and decide the write moves it before this applies.
+// refuseIfScored returns refusal if the match has scores.
 func refuseIfScored(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid.UUID, refusal error) error {
 	scored, err := matchHasScores(ctx, q, matchID, tenantID)
 	if err != nil {

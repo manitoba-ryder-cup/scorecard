@@ -72,27 +72,28 @@ func respondError(ctx context.Context, writer http.ResponseWriter, status int, m
 // wraps its generic, so each must sit above the generic it wraps or it never answers for
 // itself. Order is the load-bearing part of this list, not an accident of how it was typed.
 var domainAnswers = []struct {
+	name    string // the sentinel's own name, so the tests can check the list is complete
 	err     error
 	status  int
 	message string
 }{
-	{golf.ErrCourseNotFound, http.StatusNotFound, "Course not found."},
-	{golf.ErrMatchNotFound, http.StatusNotFound, "Match not found."},
-	{golf.ErrParticipantNotFound, http.StatusNotFound, "That player isn't in this match."},
-	{golf.ErrPlayerNotFound, http.StatusNotFound, "Player not found."},
-	{golf.ErrTeamMemberNotFound, http.StatusNotFound, "That player isn't on this team."},
-	{golf.ErrTeamNotFound, http.StatusNotFound, "Team not found."},
-	{golf.ErrTournamentNotFound, http.StatusNotFound, "Tournament not found."},
-	{golf.ErrTournamentPlayerNotFound, http.StatusNotFound, "That player isn't entered in this tournament."},
+	{"ErrCourseNotFound", golf.ErrCourseNotFound, http.StatusNotFound, "Course not found."},
+	{"ErrMatchNotFound", golf.ErrMatchNotFound, http.StatusNotFound, "Match not found."},
+	{"ErrParticipantNotFound", golf.ErrParticipantNotFound, http.StatusNotFound, "That player isn't in this match."},
+	{"ErrPlayerNotFound", golf.ErrPlayerNotFound, http.StatusNotFound, "Player not found."},
+	{"ErrTeamMemberNotFound", golf.ErrTeamMemberNotFound, http.StatusNotFound, "That player isn't on this team."},
+	{"ErrTeamNotFound", golf.ErrTeamNotFound, http.StatusNotFound, "Team not found."},
+	{"ErrTournamentNotFound", golf.ErrTournamentNotFound, http.StatusNotFound, "Tournament not found."},
+	{"ErrTournamentPlayerNotFound", golf.ErrTournamentPlayerNotFound, http.StatusNotFound, "That player isn't entered in this tournament."},
 
-	{golf.ErrScoredMatchDelete, http.StatusConflict, "That match has scores. Reset it before deleting it."},
-	{golf.ErrScoredMatchLineup, http.StatusConflict, "That match has scores. Reset it before changing its lineup."},
-	{golf.ErrScoredMatchTeeSet, http.StatusConflict, "That match has scores. Reset it before changing its tee set."},
-	{golf.ErrScoredPlayerUndraft, http.StatusConflict, "That player has been scored in a match. Reset it before undrafting them."},
+	{"ErrScoredMatchDelete", golf.ErrScoredMatchDelete, http.StatusConflict, "That match has scores. Reset it before deleting it."},
+	{"ErrScoredMatchLineup", golf.ErrScoredMatchLineup, http.StatusConflict, "That match has scores. Reset it before changing its lineup."},
+	{"ErrScoredMatchTeeSet", golf.ErrScoredMatchTeeSet, http.StatusConflict, "That match has scores. Reset it before changing its tee set."},
+	{"ErrScoredPlayerUndraft", golf.ErrScoredPlayerUndraft, http.StatusConflict, "That player has been scored in a match. Reset it before undrafting them."},
 
-	{golf.ErrNotFound, http.StatusNotFound, "Not found."},
-	{golf.ErrInvalidInput, http.StatusBadRequest, "That request wasn't valid."},
-	{golf.ErrConflict, http.StatusConflict, "That conflicts with something that already exists."},
+	{"ErrNotFound", golf.ErrNotFound, http.StatusNotFound, "Not found."},
+	{"ErrInvalidInput", golf.ErrInvalidInput, http.StatusBadRequest, "That request wasn't valid."},
+	{"ErrConflict", golf.ErrConflict, http.StatusConflict, "That conflicts with something that already exists."},
 }
 
 // respondDomainError answers a domain failure. The sentinel decides both the status and the

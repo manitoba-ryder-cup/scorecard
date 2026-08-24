@@ -19,7 +19,7 @@ import (
 // generic, and the entry's own message is what no longer comes back.
 func TestRespondDomainError_AnswersEverySentinel(t *testing.T) {
 	for _, answer := range domainAnswers {
-		t.Run(answer.err.Error(), func(t *testing.T) {
+		t.Run(answer.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
 			// Wrapped, because a repository and a service each wrap before this is reached.
 			respondDomainError(context.Background(), rec, fmt.Errorf("doing the thing: %w", answer.err))
@@ -34,8 +34,8 @@ func TestRespondDomainError_AnswersEverySentinel(t *testing.T) {
 }
 
 // A sentinel with no row of its own answers as its generic, which reads as a working 404
-// while telling the caller nothing. Go cannot enumerate a package's vars, so this counts the
-// declarations against the table that has to cover them.
+// while telling the caller nothing. Go cannot enumerate a package's vars, so the declarations
+// are read from source and matched by name against the rows meant to cover them.
 func TestRespondDomainError_TableCoversEverySentinel(t *testing.T) {
 	src, err := os.ReadFile(filepath.Join("..", "..", "golf", "errors.go"))
 	if err != nil {
@@ -45,13 +45,30 @@ func TestRespondDomainError_TableCoversEverySentinel(t *testing.T) {
 	if len(declared) == 0 {
 		t.Fatal("no sentinels found; the declaration shape changed")
 	}
-	if len(declared) != len(domainAnswers) {
-		names := make([]string, len(declared))
-		for i, m := range declared {
-			names[i] = m[1]
+	covered := map[string]bool{}
+	for _, answer := range domainAnswers {
+		covered[answer.name] = true
+	}
+	for _, m := range declared {
+		if !covered[m[1]] {
+			t.Errorf("golf.%s has no row in domainAnswers, so it answers as its generic and nothing pins it", m[1])
 		}
-		t.Errorf("the domain declares %d sentinels but domainAnswers has %d rows; declared: %v",
-			len(declared), len(domainAnswers), names)
+		delete(covered, m[1])
+	}
+	for name := range covered {
+		t.Errorf("domainAnswers has a row for %q, which the domain does not declare", name)
+	}
+}
+
+// A row naming one sentinel while pointing at another passes the coverage check by name, and
+// leaves the sentinel it claims to cover unreached. Two rows on one error is that mistake.
+func TestRespondDomainError_NoSentinelIsAnsweredTwice(t *testing.T) {
+	seen := map[error]string{}
+	for _, answer := range domainAnswers {
+		if first, dup := seen[answer.err]; dup {
+			t.Errorf("%s and %s are rows on the same error; the second can never be reached", first, answer.name)
+		}
+		seen[answer.err] = answer.name
 	}
 }
 
