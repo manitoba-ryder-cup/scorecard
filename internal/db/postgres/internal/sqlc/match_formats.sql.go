@@ -11,7 +11,7 @@ import (
 
 const listMatchFormats = `-- name: ListMatchFormats :many
 
-SELECT id, name FROM match_formats
+SELECT id, name, players_per_side, scores_per_player FROM match_formats
 ORDER BY name
 `
 
@@ -28,7 +28,12 @@ func (q *Queries) ListMatchFormats(ctx context.Context) ([]MatchFormat, error) {
 	items := []MatchFormat{}
 	for rows.Next() {
 		var i MatchFormat
-		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.PlayersPerSide,
+			&i.ScoresPerPlayer,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
