@@ -260,14 +260,19 @@ started.
 
 Three paths take `LockMatchForScoring` without writing a score — `DeleteMatch`,
 `UpdateMatch` and `DeleteMatchParticipant` — and hold it to refuse rather than to recompute:
-the lock is what keeps "this match is unscored" true between the check and the write. The two
-deletes refuse in the repository through `refuseIfScored`, beside the delete they guard.
-`UpdateMatch` instead holds the lock and hands `MatchService` a `guard`, the same shape
-`SaveScoresAndRecompute` uses, because *what a scored match may still change* is a rule
-rather than a storage concern — `internal/golf` is where it is written down, and the four
-cases that pin it are unit tests there rather than round trips. `DeleteTeamMember` fits
-neither shape, because undrafting reaches matches through the player
-(`LockPlayerMatchesForScoring`).
+the lock is what keeps "this match is unscored" true between the check and the write.
+`DeleteTeamMember` does the same one level out, on `LockPlayerMatchesForScoring`, because
+undrafting reaches matches through the player rather than through one match.
+
+Two of them refuse in the repository through `refuseIfScored`. `UpdateMatch` instead hands
+`MatchService` a `guard`, the shape `SaveScoresAndRecompute` established. **The line between
+them is whether the domain has a decision to make.** `UpdateMatch` has one: it compares the
+incoming course and tee colour against the stored pair to work out whether the write is a
+move, and that comparison cannot leave the transaction the lock is held in. A delete has no
+decision — scored, refuse, nothing to weigh — so a closure passed down to carry a constant
+would be ceremony, and `golf.ErrScoredMatchDelete` already says where the rule belongs.
+Making all four take a guard for symmetry was tried and reverted; don't restore it without a
+decision that needs the transaction.
 
 **Nothing else may delete a score.** `scores` referenced `match_participants` with
 `ON DELETE CASCADE`, which let two routes destroy a played match without anything
@@ -277,10 +282,10 @@ scores were gone, so one cup read as finished and never-played at once depending
 endpoint. Both are refused now, in two places that do not cover the same ground:
 
 - `ParticipantsDB.DeleteMatchParticipant` and `TeamMembersDB.DeleteTeamMember` refuse with
-  `ErrScoredMatchLineup` and `ErrScoredPlayerUndraft`, and are the complete rule — they hold for every scoring grain. The check
-  sits in the repository beside the delete, inside one transaction and behind the lock the
-  score write path takes: asked from the service and then deleted separately, a score landing
-  in between would be orphaned.
+  `ErrScoredMatchLineup` and `ErrScoredPlayerUndraft`, and are the complete rule — they hold
+  for every scoring grain. The check sits in the repository beside the delete, inside one
+  transaction and behind the lock the score write path takes: asked from the service and then
+  deleted separately, a score landing in between would be orphaned.
 - The `ON DELETE RESTRICT` from migration 003 is the backstop, and covers **only per-player
   scores**. A one-ball format records against the team with a null `player_id`, which the
   foreign key skips (`MATCH SIMPLE`), so alt shot and scramble rest on the guard alone.
