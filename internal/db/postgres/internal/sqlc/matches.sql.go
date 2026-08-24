@@ -62,6 +62,23 @@ func (q *Queries) CreateMatch(ctx context.Context, arg CreateMatchParams) (Match
 	return i, err
 }
 
+const deleteMatch = `-- name: DeleteMatch :execrows
+DELETE FROM matches WHERE id = $1 AND tenant_id = $2
+`
+
+type DeleteMatchParams struct {
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+}
+
+func (q *Queries) DeleteMatch(ctx context.Context, arg DeleteMatchParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteMatch, arg.ID, arg.TenantID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getMatch = `-- name: GetMatch :one
 SELECT id, tournament_id, course_id, tee_color_id, match_format_id, tenant_id, tee_time, handicapped, created_at, updated_at FROM matches
 WHERE id = $1 AND tenant_id = $2

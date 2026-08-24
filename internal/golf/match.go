@@ -254,6 +254,14 @@ func (s *MatchService) ListMatchHoles(ctx context.Context, matchID uuid.UUID) ([
 	return holes, nil
 }
 
+// DeleteMatch removes a match and its lineup.
+func (s *MatchService) DeleteMatch(ctx context.Context, matchID uuid.UUID) error {
+	if err := s.MatchDB.DeleteMatch(ctx, matchID); err != nil {
+		return fmt.Errorf("failed to delete match: %w", err)
+	}
+	return nil
+}
+
 // ResetMatch clears a match's scores and stored result, leaving its lineup.
 func (s *MatchService) ResetMatch(ctx context.Context, matchID uuid.UUID) error {
 	if err := s.ScoreDB.ResetMatch(ctx, matchID); err != nil {

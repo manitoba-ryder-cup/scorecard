@@ -119,6 +119,7 @@ func (r *Router) registerRoutes(mux *http.ServeMux) {
 	public("GET", sdk.RouteV1TournamentMatches, r.listMatches)
 	scoped("POST", sdk.RouteV1TournamentMatches, sdk.ScopeTournamentsWrite, r.createMatch)
 	scoped("PUT", sdk.RouteV1Match, sdk.ScopeTournamentsWrite, r.updateMatch)
+	scoped("DELETE", sdk.RouteV1Match, sdk.ScopeTournamentsWrite, r.deleteMatch)
 
 	// Tournament roster routes
 	public("GET", sdk.RouteV1TournamentPlayers, r.listTournamentPlayers)
