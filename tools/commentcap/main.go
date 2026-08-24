@@ -242,7 +242,11 @@ func divider(line string) bool {
 			return false
 		}
 	}
-	return !(('a' <= line[0] && line[0] <= 'z') || ('A' <= line[0] && line[0] <= 'Z') || ('0' <= line[0] && line[0] <= '9'))
+	return !alphanumeric(line[0])
+}
+
+func alphanumeric(b byte) bool {
+	return ('a' <= b && b <= 'z') || ('A' <= b && b <= 'Z') || ('0' <= b && b <= '9')
 }
 
 // prose counts the lines a reader reads. Delimiters are not prose: counting /** and */ leaves
