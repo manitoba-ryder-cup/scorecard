@@ -166,11 +166,8 @@ func TestComputeMatchProgress_LeadChangesHands(t *testing.T) {
 }
 
 func TestComputeMatchProgress_DormieThenClosesOut(t *testing.T) {
-	// Halve holes 1-14, then A wins 15, 16, 17. After 16, A is 2 up with 2 to play —
-	// dormie (lead == holes remaining) is NOT decided; the opponent can still halve. A
-	// wins 17 to go 3 up with 1 to play, which closes it out ("3 & 1"). This exercises
-	// the exact close-out boundary (decided the moment lead first exceeds remaining),
-	// unlike the existing test's wide 10 & 8 margin.
+	// Dormie is not decided — 2 up with 2 to play can still be halved — so this walks the
+	// exact boundary, where the lead first exceeds the holes remaining.
 	var scores []Score
 	for h := int32(1); h <= 14; h++ {
 		scores = append(scores, Score{TeamID: teamA, HoleNumber: h, Strokes: 4})

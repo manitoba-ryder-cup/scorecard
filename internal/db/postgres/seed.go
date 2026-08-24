@@ -19,13 +19,12 @@ func NewSeedDB(db *DB) *SeedDB {
 	return &SeedDB{db: db}
 }
 
-// SeedTournament writes the whole planned setup — the tournament and its two teams, the
-// entered roster, each side's captain, and the match schedule.
+// SeedTournament writes the whole planned setup in one transaction, so roughly eighty
+// statements commit together or not at all.
 //
-// A single withTenant closure is one transaction, so roughly eighty statements commit
-// together or not at all. Spread across separate calls, a failure partway would leave a
-// tournament with half a roster and no matches, and rerunning would create a second one —
-// only the players are matched to something existing, and nothing identifies the event.
+// Spread across separate calls, a failure partway would leave a tournament with half a
+// roster and no matches, and rerunning would create a second one — nothing identifies the
+// event, so only the players would match anything existing.
 func (s *SeedDB) SeedTournament(ctx context.Context, plan golf.SeedPlan) (*golf.SeedSummary, error) {
 	return withTenant(ctx, s.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.SeedSummary, error) {
 		tournament, err := createTournamentWithTeams(ctx, q, tenantID, plan.Tournament, golf.TournamentTeamColors)

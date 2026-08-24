@@ -12,9 +12,8 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/test/_util/request"
 )
 
-// GetPlayerStats was the one endpoint the integration suite never called. The derivation
-// is unit-tested in internal/golf, so what is untested is the rest of the path: the route,
-// the DTO, and the JSON the player page actually receives.
+// The derivation is unit-tested in internal/golf, so what this covers is the rest of the
+// path: the route, the DTO, and the JSON the player page receives.
 
 func TestPlayerStatsAfterAWin(t *testing.T) {
 	t.Parallel()

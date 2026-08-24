@@ -8,9 +8,8 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
-// These are the errors that used to surface only after the tournament, the roster and
-// both captains had been written. They cost nothing now, so the assertion that matters
-// is that they are reached at all.
+// These errors used to surface only after the tournament, the roster and both captains were
+// written. What matters is that they are reached at all.
 
 func TestPlanRoster(t *testing.T) {
 	t.Run("keys the roster by lowercased email", func(t *testing.T) {

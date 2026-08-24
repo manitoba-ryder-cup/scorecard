@@ -142,14 +142,9 @@ const (
 
 // ScoringWindow returns the interval a match's scores can be recorded in.
 //
-// Exported because the API publishes both bounds on every match. The client used to hold
-// its own copy of the constants above and gate its UI on them, which put one rule in two
-// repos with nothing keeping them equal — and the failure was silent and one-sided, since
-// a client stricter than the server offers no way to record a legitimate score.
-//
-// Bounds rather than a yes/no: a boolean is only true at the instant it was computed, and
-// this page is left open on a fairway for hours. Instants let the client keep answering
-// the question itself, against its own clock, exactly as it already does with tee time.
+// Published on every match because a client holding its own copy of the rule put it in two
+// repos with nothing keeping them equal. Bounds rather than a yes/no: a boolean is true only
+// at the instant it was computed, and this page is left open on a fairway for hours.
 func ScoringWindow(teeTime time.Time) (opens, closes time.Time) {
 	return teeTime.Add(-scoringOpensBefore), teeTime.Add(scoringClosesAfter)
 }
@@ -176,9 +171,8 @@ func (s *MatchService) SubmitHoleScores(ctx context.Context, matchID uuid.UUID, 
 	if err != nil {
 		return zero, fmt.Errorf("failed to get match: %w", err)
 	}
-	// A match months out is only ever being poked at, and one from a past cup is history.
-	// Both are the same question — is this match being played around now — which its tee
-	// time answers on its own.
+	// A match months out is being poked at and one from a past cup is history: the same
+	// question, which the tee time answers on its own.
 	if !scoringOpen(s.now(), match.TeeTime) {
 		opens, closes := ScoringWindow(match.TeeTime)
 		return zero, fmt.Errorf("%w: match %s tees off at %s; scores can only be recorded from %s to %s",
@@ -209,10 +203,8 @@ func (s *MatchService) SubmitHoleScores(ctx context.Context, matchID uuid.UUID, 
 		}
 	}
 
-	// A finished match takes corrections to the holes it was played over, but nothing
-	// past them: extending a decided match is only ever a stale client walking forward.
-	// Handed to the repo rather than run here so the check, the writes and the recompute
-	// share one serialized transaction — otherwise concurrent submissions race it.
+	// Handed to the repo so the check, the writes and the recompute share one transaction.
+	// Run here, concurrent submissions would race it.
 	guard := func(before []Score) error {
 		if ComputeStoredResult(before, teamA, teamB).Finished && !holeIsScored(before, hole) {
 			return fmt.Errorf("%w: match %s is complete; hole %d cannot be scored", ErrConflict, matchID, hole)
@@ -273,15 +265,12 @@ func (s *MatchService) ResetMatch(ctx context.Context, matchID uuid.UUID) error 
 	return nil
 }
 
-// ListResults builds every match's outcome for a tournament: the display names, the
-// two sides, and the per-hole/closed-out scoring state. Participants and scores are
-// fetched tournament-wide and grouped by match, so the whole view is a fixed number of
-// queries regardless of match count. It also reports where the cup stands — see
-// GetTeamsData for why the caller wants it.
+// ListResults builds every match's outcome for a tournament, plus where the cup stands.
+// Participants and scores are fetched tournament-wide and grouped by match, so the view
+// costs a fixed number of queries however many matches there are.
 //
-// The phase comes from the stored results rather than the scores already in hand, because
-// the other endpoints that publish it read those, and the two can disagree: removing a
-// participant cascades their scores away and leaves match_results behind.
+// The phase comes from the stored results rather than the scores in hand, because the other
+// endpoints publishing it read those and the two can disagree.
 func (s *MatchService) ListResults(ctx context.Context, tournamentID uuid.UUID) ([]MatchResult, sdk.TournamentPhase, error) {
 	matches, err := s.MatchDB.ListMatchDetailsByTournament(ctx, tournamentID)
 	if err != nil {

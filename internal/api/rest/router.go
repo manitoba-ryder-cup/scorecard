@@ -70,9 +70,8 @@ func (r *Router) registerRoutes(mux *http.ServeMux) {
 	// Match formats are global seeded reference data — truly public, no tenant needed.
 	mux.HandleFunc("GET "+sdk.RouteV1MatchFormats, cacheableRead(r.listMatchFormats))
 
-	// public registers a read route with optional authentication: a token's tenant is
-	// used when present, else the configured public tenant (401 if neither). Anonymous
-	// successes are marked edge-cacheable on the way out — see cacheableRead.
+	// public registers a read with optional authentication: a token's tenant when there is
+	// one, the configured public tenant otherwise, and 401 if neither.
 	public := func(method, route string, handler http.HandlerFunc) {
 		mux.HandleFunc(method+" "+route, cacheableRead(optionalAuth(r.jwtMiddleware, r.PublicTenantID, handler)))
 	}

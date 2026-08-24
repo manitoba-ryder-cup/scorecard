@@ -209,9 +209,8 @@ func (r *Router) submitScore(w http.ResponseWriter, req *http.Request) {
 	entries := mapSlice(body.Scores, func(s sdk.ScoreEntry) golf.ScoreEntry {
 		return golf.ScoreEntry{TeamID: s.TeamID, PlayerID: s.PlayerID, Strokes: s.Strokes}
 	})
-	// Shape is validated above; the domain still enforces its invariants — team not in
-	// the match -> 400, scoring past a finished match -> 409 — while a real failure
-	// (DB, etc.) -> 500.
+	// Shape is validated above; the domain still owns its invariants, so a team not in the
+	// match is a 400 and scoring past a finished one a 409.
 	result, err := r.MatchService.SubmitHoleScores(req.Context(), id, body.HoleNumber, entries)
 	if err != nil {
 		respondDomainError(req.Context(), w, "Failed to submit score", err)

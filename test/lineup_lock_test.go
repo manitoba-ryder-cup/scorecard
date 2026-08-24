@@ -11,10 +11,8 @@ import (
 	util "github.com/manitoba-ryder-cup/scorecard/test/_util"
 )
 
-// A scored match's lineup is what its scores are attributed to. Both routes that could
-// take a player out of one are refused, because the delete reaches the scores and nothing
-// recomputes the stored result they leave behind — the same cup then reads finished from
-// one endpoint and never-played from another.
+// Both routes that could take a player out of a scored match are refused: the delete reaches
+// the scores and nothing recomputes the stored result they leave behind.
 
 func TestRemovingAParticipantFromAScoredMatchIsRefused(t *testing.T) {
 	t.Parallel()
@@ -97,13 +95,11 @@ func TestResetReopensAScoredMatchesLineup(t *testing.T) {
 	}
 }
 
-// The service guard is what returns a clean 409, but it is not what makes the rule true:
-// the foreign key is. Asserted against the database directly, because a test going through
-// the API cannot tell the two apart — exactly why test/isolation exists for RLS.
+// The guard returns the clean 409; the foreign key is what makes the rule true. Asserted
+// against the database directly, since a test through the API cannot tell the two apart.
 //
-// It covers per-player scores only. A one-ball format records against the team with no
-// player, so those rows do not reference the participant at all and the guard above is the
-// only thing standing between them and a cascade.
+// Per-player scores only: a one-ball format records against the team with no player, so the
+// guard is all those rows have.
 func TestTheDatabaseRefusesToOrphanAScoredParticipant(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)

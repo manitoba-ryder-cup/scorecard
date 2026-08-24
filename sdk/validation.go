@@ -15,10 +15,8 @@ import (
 // DateFormat is the wire format for date-only fields (ISO-8601 calendar date).
 const DateFormat = "2006-01-02"
 
-// Request-shape validation lives here, on the SDK types, so it is defined once and
-// invoked at every boundary — the client (before sending), and each server transport
-// (REST now, gRPC later). Only context-free checks belong here; rules that need
-// stored state (does this exist, is it already taken) are domain invariants.
+// Shape validation lives on the SDK types so it is defined once and runs at every boundary,
+// the client included. Anything needing stored state is a domain invariant, not this.
 
 var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 

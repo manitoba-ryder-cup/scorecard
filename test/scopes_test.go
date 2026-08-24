@@ -12,14 +12,14 @@ import (
 )
 
 // The routing table in internal/api/rest/router.go is the only statement of which scope a
-// write needs, and a wrong one there fails silently in both directions: the intended
-// caller starts getting 403s, and a caller holding some other scope quietly gains the
-// endpoint. Twelve of the eighteen writes take scorecard:tournaments:write, so it is
-// also what a copy-paste lands on.
+// write needs, and a wrong one fails silently both ways: the intended caller starts getting
+// 403s, and a caller holding some other scope quietly gains the endpoint. Most writes take
+// scorecard:tournaments:write, so it is also what a copy-paste lands on.
 //
-// This table is deliberately a second, independent copy of that mapping. It is not
-// derived from the server's registration — if it were, the two would agree by
-// construction and prove nothing.
+// This table is deliberately a second, independent copy. Derived from the server's own
+// registration the two would agree by construction and prove nothing.
+//
+//commentcap:allow -- naming why this is a copy is what stops someone deriving it
 var scopedRoutes = []struct {
 	method, route, scope string
 }{
@@ -72,9 +72,8 @@ func TestEveryWriteRequiresItsOwnScope(t *testing.T) {
 				t.Fatalf("no token: want 401, got %d (%s)", status, body)
 			}
 
-			// Every other real scope must be refused. A token carrying one of these is an
-			// ordinary caller with different privileges, not an attacker — which is exactly
-			// the confusion a mis-registered route creates.
+			// A token carrying one of these is an ordinary caller with different privileges,
+			// not an attacker — the confusion a mis-registered route creates.
 			for _, other := range writeScopes {
 				if other == r.scope {
 					continue
@@ -85,9 +84,8 @@ func TestEveryWriteRequiresItsOwnScope(t *testing.T) {
 				}
 			}
 
-			// The declared scope must get past the middleware. What the handler then makes
-			// of an empty body and unknown IDs is not this test's business — only that the
-			// refusal is no longer about authorization.
+			// What the handler makes of an empty body is not this test's business, only that
+			// the refusal is no longer about authorization.
 			token := testjwt.MintAccessToken(t, uuid.New(), uuid.New(), r.scope)
 			status, body := request.Raw(t, r.method, path, "{}", token)
 			if status == http.StatusUnauthorized || status == http.StatusForbidden {

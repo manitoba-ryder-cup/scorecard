@@ -19,16 +19,12 @@ const (
 	noCacheMaxAge = 0
 )
 
-// cacheableRead marks anonymous successful reads as edge-cacheable, and everything else
-// as no-store.
+// cacheableRead marks anonymous successful reads as edge-cacheable, everything else no-store.
 //
-// Authenticated requests are never cached. Only scorers hold a token: they submit a hole
-// and immediately refetch, and serving them their own pre-submission data would be the one
-// genuinely misleading staleness. Spectators carry no token and cannot write.
-//
-// The header is set at WriteHeader so it reflects the real status: a cached 404 or 500
-// would outlive the condition that caused it, and browsers honour Cache-Control on error
-// responses just as readily as on successful ones.
+// Only scorers hold a token, and they refetch straight after submitting a hole, so serving
+// them their own pre-submission data is the one staleness that would mislead. The header is
+// set at WriteHeader to reflect the real status: a cached 404 would outlive its cause, and
+// browsers honour Cache-Control on an error as readily as on a success.
 func cacheableRead(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		next(&cacheWriter{
@@ -39,14 +35,12 @@ func cacheableRead(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// cacheByPhase picks a tier from where the cup stands. Only a cup being played is exempt
-// from caching: a spectator polls it every twenty seconds, and caching it would defeat the
-// poll.
+// cacheByPhase picks a tier from where the cup stands. A cup being played is exempt, since a
+// spectator polls it every twenty seconds and caching would defeat that.
 //
-// A finished cup is cached for an hour rather than a day because resetting a match can
-// unfinish one, and the endpoints publishing a cup disagree until the longest tier expires:
-// /v1/tournaments carries every cup's phase on the default minute, while this one holds the
-// old standing. An hour is what an operator can wait out; a day is not.
+// A finished cup gets an hour rather than a day because resetting a match can unfinish one,
+// and the endpoints publishing a cup disagree until the longest tier expires. An hour is what
+// an operator can wait out; a day is not.
 func cacheByPhase(w http.ResponseWriter, phase sdk.TournamentPhase) {
 	switch phase {
 	case sdk.PhaseLive:

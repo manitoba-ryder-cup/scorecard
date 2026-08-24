@@ -155,9 +155,8 @@ func TestSeedTournamentRejectsCaptainNotInRoster(t *testing.T) {
 		t.Fatal("want an error when a captain isn't in the roster, got nil")
 	}
 
-	// The error must arrive before anything is written. This used to fail only after the
-	// tournament and its whole roster were committed, so a typo left an event behind and
-	// a rerun made a second one.
+	// This used to fail only after the tournament and its roster were committed, so a typo
+	// left an event behind and a rerun made a second one.
 	tournaments, err := svc.Tournament.ListTournaments(ctx)
 	if err != nil {
 		t.Fatalf("list tournaments: %v", err)

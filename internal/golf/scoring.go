@@ -7,21 +7,12 @@ import (
 	"github.com/google/uuid"
 )
 
-// ComputeMatchProgress computes the hole-by-hole match-play state from the
-// recorded scores for a match between teamA and teamB (identified by ID; the
-// caller chooses the order). A team's gross score on a hole is the minimum strokes
-// recorded for that team on that hole, which uniformly covers singles (the one
-// score), fourball (best of two), and one-ball formats (the single team score).
-// Only holes scored by both teams contribute, in hole order, and the sequence ends
-// at the hole where the match is decided.
+// ComputeMatchProgress builds the hole-by-hole match-play state for a match between two
+// teams, in the order the caller passes them.
 //
-// The result is pure, color-free state: per-hole TeamScores tagged by ID, the
-// LeaderTeamID (nil = all square), and the Lead margin. Decided marks the hole the
-// match ended on; whether it ended early is HolesRemaining > 0. Rendering it as text
-// is the frontend's concern.
-//
-// Each TeamScore also carries its per-player breakdown, so a client that recorded a
-// score per player can read back more than the side's best ball.
+// A team's score on a hole is the fewest strokes recorded for it, which covers singles,
+// fourball and the one-ball formats without asking which is which. Only holes both sides
+// scored contribute, and the sequence stops at the hole the match was decided on.
 func ComputeMatchProgress(scores []Score, teamAID, teamBID uuid.UUID) []HoleResult {
 	a := teamScoresByHole(scores, teamAID)
 	b := teamScoresByHole(scores, teamBID)

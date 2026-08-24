@@ -13,14 +13,8 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/test/_util/request"
 )
 
-// The three cache tiers are unit-tested in internal/api/rest/cache_test.go, but only in
-// isolation: nothing there checks that a real cup reaches the phase it is in. Getting that
-// wrong is invisible in the body — a frozen leaderboard is served with the same 200 and the
-// same JSON as a correct one, just a stale copy of it, and only during play.
-//
-// These read the fixture anonymously, which is both the path that gets cached and the
-// only one that can be: cacheableRead marks a response only when the request carries no
-// Authorization header.
+// The tiers are unit-tested in isolation; nothing there checks a real cup reaches the phase it
+// is in. Read anonymously, which is the only path that can be cached at all.
 
 // publicFixture seeds a singles match under the public tenant so an anonymous read can
 // see it, and returns the fixture with a client authenticated for that same tenant.

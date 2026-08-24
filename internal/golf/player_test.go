@@ -105,9 +105,8 @@ func TestPlayerStats_PointsMatchTheRowsBeneathThem(t *testing.T) {
 }
 
 func TestPlayerStats_ClosenessSplitAccountsForEveryMatch(t *testing.T) {
-	// The two buckets partition the finished matches, so together they have to come to
-	// the same W-L-T as the format split. A half can only be in the last-hole bucket: a
-	// match is only halved by playing the 18th.
+	// The buckets partition the finished matches, so they must total the same W-L-T as the
+	// format split. A half can only land in the last-hole bucket.
 	db := &fakePlayerDB{
 		byFormat: []FormatRecord{
 			{FormatName: "Singles", Record: PlayerRecord{Wins: 5, Losses: 4, Ties: 1}},
@@ -132,9 +131,8 @@ func TestPlayerStats_ClosenessSplitAccountsForEveryMatch(t *testing.T) {
 }
 
 func TestCreatePlayer_TrimsNames(t *testing.T) {
-	// The boundary trims before checking a name isn't blank, then stores what was typed —
-	// so "Graydon " passed validation and was saved with the space, printing as a double
-	// space wherever a full name is assembled.
+	// The boundary trimmed before checking for blank, then stored what was typed, so
+	// "Graydon " saved with its space and printed as a double space.
 	db := &fakePlayerDB{}
 	svc := &PlayerService{PlayerDB: db}
 

@@ -50,15 +50,14 @@ func respondJSON(writer http.ResponseWriter, status int, data any) {
 	}
 }
 
-// respondError sends an error response using the SDK's error envelope. Server faults
-// (5xx) log at Error; client errors (4xx) log at Warn, so a bad request or a missing
-// resource doesn't pollute the error stream. Logging uses the *Context variants so the
-// request's tenant/actor/request-id (injected by identity.LogHandler) ride along.
 // serverFault is all a caller is told when the fault is ours. Handlers describe the
 // operation that failed — "Failed to list players" — which is worth having in the log and
 // misleading on the wire: it reads as a verdict on the request rather than a fault here.
 const serverFault = "Sorry, something went wrong. Please try again later."
 
+// respondError sends the SDK's error envelope. A 4xx logs at Warn so a bad request does not
+// pollute the error stream, and the *Context variants carry the request's tenant, actor and
+// request id along with it.
 func respondError(ctx context.Context, writer http.ResponseWriter, status int, message string, err error) {
 	if status >= http.StatusInternalServerError {
 		slog.ErrorContext(ctx, "API error", "message", message, "error", err, "status", status)
