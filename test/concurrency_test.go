@@ -2,9 +2,12 @@ package test
 
 import (
 	"context"
+	"errors"
+	"net/http"
 	"sync"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
@@ -66,6 +69,74 @@ func TestConcurrentScoreSubmissionsMaterializeEveryHole(t *testing.T) {
 		}
 		if status.WinnerTeamID == nil || *status.WinnerTeamID != fix.TeamRed {
 			t.Errorf("match %d: winner = %v, want Red (%s)", i, status.WinnerTeamID, fix.TeamRed)
+		}
+	}
+}
+
+// TestConcurrentAddsCannotOverfillASide is what makes players_per_side a rule rather than a
+// hope. Each add reads the lineup and decides whether one more fits; deciding separately,
+// two requests against a side with one place left both see room and both take it. The
+// repository has to serialize them on the match, and a storage adapter that does not is
+// what this fails against.
+func TestConcurrentAddsCannotOverfillASide(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	// The losing interleaving is timing dependent, so one match would be a coin flip.
+	const matches = 8
+
+	for i := range matches {
+		client, fix := authedClient(t)
+		fourball := formatNamed(t, client, "Fourball")
+		if _, err := client.UpdateMatch(ctx, fix.MatchID, sdk.UpdateMatchRequest{MatchFormatID: &fourball.ID}); err != nil {
+			t.Fatalf("match %d: to fourball: %v", i, err)
+		}
+
+		// Red already holds one, so fourball leaves room for exactly one of these two.
+		first := anotherDraftedPlayer(t, fix, fix.TeamRed)
+		second := anotherDraftedPlayer(t, fix, fix.TeamRed)
+
+		var wg sync.WaitGroup
+		errs := make(chan error, 2)
+		for _, playerID := range []uuid.UUID{first, second} {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				_, err := client.AddParticipant(ctx, fix.MatchID,
+					sdk.AddParticipantRequest{PlayerID: playerID, TeamID: fix.TeamRed})
+				errs <- err
+			}()
+		}
+		wg.Wait()
+		close(errs)
+
+		added := 0
+		for err := range errs {
+			if err == nil {
+				added++
+				continue
+			}
+			var apiErr *sdk.APIError
+			if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
+				t.Fatalf("match %d: want a 409 for the loser, got %v", i, err)
+			}
+		}
+		if added != 1 {
+			t.Errorf("match %d: %d of 2 adds were accepted into one free place", i, added)
+		}
+
+		participants, err := client.ListParticipants(ctx, fix.MatchID)
+		if err != nil {
+			t.Fatalf("match %d: list participants: %v", i, err)
+		}
+		red := 0
+		for _, p := range participants {
+			if p.TeamID == fix.TeamRed {
+				red++
+			}
+		}
+		if red > int(fourball.PlayersPerSide) {
+			t.Errorf("match %d: red has %d players, fourball allows %d", i, red, fourball.PlayersPerSide)
 		}
 	}
 }

@@ -71,7 +71,27 @@ type UpdateMatchInput struct {
 func (in UpdateMatchInput) ChangesSetup(current Match) bool {
 	return (in.CourseID != nil && *in.CourseID != current.CourseID) ||
 		(in.TeeColorID != nil && *in.TeeColorID != current.TeeColorID) ||
-		(in.MatchFormatID != nil && *in.MatchFormatID != current.MatchFormatID)
+		in.ChangesFormat(current)
+}
+
+func (in UpdateMatchInput) ChangesFormat(current Match) bool {
+	return in.MatchFormatID != nil && *in.MatchFormatID != current.MatchFormatID
+}
+
+// SidesFit reports whether every side in participants is within what the format allows a
+// side. Only over-filling is refused: a lineup is built a player at a time, so a side with
+// room left in it is an ordinary half-finished state rather than a broken one.
+func SidesFit(participants []MatchParticipant, playersPerSide int32) bool {
+	perSide := map[uuid.UUID]int{}
+	for _, p := range participants {
+		perSide[p.TeamID]++
+	}
+	for _, n := range perSide {
+		if n > int(playersPerSide) {
+			return false
+		}
+	}
+	return true
 }
 
 // UpdateMatch is deliberately allowed on a match that already has scores: the case that

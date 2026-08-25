@@ -34,11 +34,11 @@ var (
 	ErrTournamentPlayerNotFound = fmt.Errorf("%w: tournament player", ErrNotFound)
 )
 
-// Each names a write the scoring rule refused. Separate sentinels because the answer has to
-// name what the caller was attempting; the reset itself is the same.
 var (
 	ErrScoredMatchDelete   = fmt.Errorf("%w: match is scored, cannot delete", ErrConflict)
 	ErrScoredMatchLineup   = fmt.Errorf("%w: match is scored, cannot change lineup", ErrConflict)
 	ErrScoredMatchSetup    = fmt.Errorf("%w: match is scored, its setup is frozen", ErrConflict)
 	ErrScoredPlayerUndraft = fmt.Errorf("%w: player has scored matches, cannot undraft", ErrConflict)
 )
+
+var ErrLineupOverFormat = fmt.Errorf("%w: lineup would have more a side than the format allows", ErrConflict)

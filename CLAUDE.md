@@ -250,7 +250,7 @@ closure.
 
 `ScoresDB.SaveScoresAndRecompute` is the only writer of `match_results` (`results.go` reads
 only). A whole hole is one unit: it takes every score on that hole, and in one transaction
-takes a `FOR UPDATE` lock on the match (`LockMatchForScoring`), re-reads the committed
+takes a `FOR UPDATE` lock on the match (`LockMatch`), re-reads the committed
 scores, runs the domain's `guard`, writes, re-reads, and upserts the `recompute`d result.
 
 `ScoresDB.ResetMatch` is the only other writer: it deletes a match's scores and its
@@ -258,12 +258,20 @@ scores, runs the domain's `guard`, writes, re-reads, and upserts the `recompute`
 reason. The result row is deleted rather than zeroed — its existence is what marks a match
 started.
 
-Three paths take `LockMatchForScoring` without writing a score — `DeleteMatch`,
-`UpdateMatch` and `DeleteMatchParticipant` — and hold it to refuse rather than to recompute:
-the lock is what keeps "this match is unscored" true between the check and the write. All
-three refuse through `refuseIfScored`, with the sentinel naming what was attempted.
-`DeleteTeamMember` does the same one level out, on `LockPlayerMatchesForScoring`, because
-undrafting reaches matches through the player rather than through one match.
+Four paths take `LockMatch` without writing a score — `DeleteMatch`,
+`UpdateMatch`, `CreateMatchParticipant` and `DeleteMatchParticipant` — and hold it to refuse
+rather than to recompute: the lock is what keeps what they read true between the check and
+the write. The three that answer a scored match refuse through `refuseIfScored`, with the
+sentinel naming what was attempted. `DeleteTeamMember` does the same one level out, on
+`LockPlayerMatchesForScoring`, because undrafting reaches matches through the player rather
+than through one match.
+
+`CreateMatchParticipant` takes the lock for the lineup rather than for the scores, and it is
+what makes **the format's `players_per_side` mean anything**: without it, one request can add
+a player while another moves the match to a format with no room for them, each reading a
+lineup the other is about to change. `SidesFit` is the rule both consult — a side may hold
+fewer players than the format allows, because a lineup is built a player at a time, but never
+more.
 
 `UpdateMatch` is the only one whose refusal has a condition, and the condition is
 `golf.UpdateMatchInput.ChangesSetup`: the course and tee colour a score takes its par and
@@ -405,3 +413,6 @@ neither can be dropped without a client change.
   response shape means updating `web/src/api/types.ts` too.
 - The match format *names* seeded in `002_seed_match_formats.up.sql` are matched by string in
   the web client, so renaming one silently breaks match creation.
+- `players_per_side` and `scores_per_player` on `match_formats` are the format's rules as
+  data. `players_per_side` is enforced on adding a participant and on changing a match's
+  format; `scores_per_player` is carried on the wire and enforced nowhere yet.

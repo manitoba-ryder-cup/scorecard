@@ -41,7 +41,8 @@ func TestRespondDomainError_TableCoversEverySentinel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read domain errors: %v", err)
 	}
-	declared := regexp.MustCompile(`(?m)^\t(Err\w+)\s*=`).FindAllStringSubmatch(string(src), -1)
+	// Both shapes a sentinel is declared in: grouped in a var block, or on its own.
+	declared := regexp.MustCompile(`(?m)^(?:\t|var\s+)(Err\w+)\s*=`).FindAllStringSubmatch(string(src), -1)
 	if len(declared) == 0 {
 		t.Fatal("no sentinels found; the declaration shape changed")
 	}

@@ -683,3 +683,40 @@ func TestChangesSetup(t *testing.T) {
 		})
 	}
 }
+
+// SidesFit is what a format change and an added player are both measured against, so these
+// are the cases that decide whether a lineup a format cannot hold gets written.
+func TestSidesFit(t *testing.T) {
+	side := func(team uuid.UUID, n int) []MatchParticipant {
+		out := make([]MatchParticipant, n)
+		for i := range out {
+			out[i] = MatchParticipant{MatchID: matchID, TeamID: team, PlayerID: uuid.New()}
+		}
+		return out
+	}
+	lineup := func(red, blue int) []MatchParticipant {
+		return append(side(teamA, red), side(teamB, blue)...)
+	}
+
+	cases := []struct {
+		name           string
+		participants   []MatchParticipant
+		playersPerSide int32
+		want           bool
+	}{
+		{"nobody drafted yet", nil, 1, true},
+		{"singles, one a side", lineup(1, 1), 1, true},
+		{"singles, two on one side", lineup(2, 1), 1, false},
+		{"fourball, two a side", lineup(2, 2), 2, true},
+		{"fourball, three on one side", lineup(2, 3), 2, false},
+		{"fourball, half filled", lineup(1, 1), 2, true},
+		{"fourball, one side filled", lineup(2, 0), 2, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := SidesFit(tc.participants, tc.playersPerSide); got != tc.want {
+				t.Errorf("SidesFit = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
