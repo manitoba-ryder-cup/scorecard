@@ -197,16 +197,12 @@ func TestTenantIsolation_MatchesAndScores(t *testing.T) {
 		requireRejected(t, err, "submit score")
 	})
 
-	t.Run("tenant B cannot add a participant to tenant A match", func(t *testing.T) {
-		_, err := tenantB.AddParticipant(ctx, fixA.MatchID, sdk.AddParticipantRequest{
-			PlayerID: fixA.RedPlayer, TeamID: fixA.TeamRed,
-		})
-		requireRejected(t, err, "add participant")
-	})
-
-	t.Run("tenant B cannot remove a participant from tenant A match", func(t *testing.T) {
-		err := tenantB.RemoveParticipant(ctx, fixA.MatchID, fixA.RedPlayer)
-		requireRejected(t, err, "remove participant")
+	t.Run("tenant B cannot set the lineup of a tenant A match", func(t *testing.T) {
+		err := tenantB.SetLineup(ctx, fixA.MatchID, sdk.SetLineupRequest{Participants: []sdk.LineupPlayer{
+			{PlayerID: fixA.RedPlayer, TeamID: fixA.TeamRed},
+			{PlayerID: fixA.BluePlayer, TeamID: fixA.TeamBlue},
+		}})
+		requireRejected(t, err, "set lineup")
 
 		// The participant must still be there for tenant A.
 		tenantA := tenantClient(t, fixA.TenantID)

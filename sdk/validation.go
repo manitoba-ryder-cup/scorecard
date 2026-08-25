@@ -159,13 +159,24 @@ func (r UpdateMatchRequest) Validate(ctx context.Context) error {
 	return nil
 }
 
-// Validate checks an add-participant request: both references are required.
-func (r AddParticipantRequest) Validate(ctx context.Context) error {
-	if r.PlayerID == uuid.Nil {
-		return fmt.Errorf("player_id is required")
+// Validate checks a lineup submission's shape. How many a side belongs to the match format,
+// which only the server knows, so this checks what a caller can get wrong on its own.
+func (r SetLineupRequest) Validate(ctx context.Context) error {
+	if len(r.Participants) == 0 {
+		return fmt.Errorf("participants is required")
 	}
-	if r.TeamID == uuid.Nil {
-		return fmt.Errorf("team_id is required")
+	seen := make(map[uuid.UUID]bool, len(r.Participants))
+	for i, p := range r.Participants {
+		if p.PlayerID == uuid.Nil {
+			return fmt.Errorf("participants[%d].player_id is required", i)
+		}
+		if p.TeamID == uuid.Nil {
+			return fmt.Errorf("participants[%d].team_id is required", i)
+		}
+		if seen[p.PlayerID] {
+			return fmt.Errorf("participants[%d] names a player already in the lineup", i)
+		}
+		seen[p.PlayerID] = true
 	}
 	return nil
 }

@@ -98,8 +98,7 @@ func (r *Router) registerRoutes(mux *http.ServeMux) {
 
 	// Match routes
 	public("GET", sdk.RouteV1MatchParticipants, r.listParticipants)
-	scoped("POST", sdk.RouteV1MatchParticipants, sdk.ScopeTournamentsWrite, r.addParticipant)
-	scoped("DELETE", sdk.RouteV1MatchParticipant, sdk.ScopeTournamentsWrite, r.removeParticipant)
+	scoped("PUT", sdk.RouteV1MatchParticipants, sdk.ScopeTournamentsWrite, r.setLineup)
 	public("GET", sdk.RouteV1MatchScores, r.getMatchScores)
 	public("GET", sdk.RouteV1MatchHoles, r.getMatchHoles)
 	scoped("POST", sdk.RouteV1MatchScores, sdk.ScopeScoresWrite, r.submitScore)

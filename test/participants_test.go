@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -53,12 +54,11 @@ func TestFullTournamentFlowToScoring(t *testing.T) {
 		t.Fatalf("create match: %v", err)
 	}
 
-	// Participants: each drafted player joins the match on their team.
-	if _, err := client.AddParticipant(ctx, match.ID, sdk.AddParticipantRequest{PlayerID: redPlayer, TeamID: redTeam}); err != nil {
-		t.Fatalf("add red participant: %v", err)
-	}
-	if _, err := client.AddParticipant(ctx, match.ID, sdk.AddParticipantRequest{PlayerID: bluePlayer, TeamID: blueTeam}); err != nil {
-		t.Fatalf("add blue participant: %v", err)
+	// The lineup: both sides at once, which is the only way it can be set.
+	if err := client.SetLineup(ctx, match.ID, theLineup(
+		onSide(redPlayer, redTeam), onSide(bluePlayer, blueTeam),
+	)); err != nil {
+		t.Fatalf("set lineup: %v", err)
 	}
 	participants, err := client.ListParticipants(ctx, match.ID)
 	if err != nil {
@@ -89,7 +89,7 @@ func TestFullTournamentFlowToScoring(t *testing.T) {
 
 // draftedMatch sets up a tournament with one drafted Red player and a match, returning
 // what an AddParticipant call needs.
-func draftedMatch(t *testing.T, client *sdk.Client) (matchID, redTeam, redPlayer uuid.UUID) {
+func draftedMatch(t *testing.T, client *sdk.Client) (matchID, redTeam, redPlayer, blueTeam, bluePlayer uuid.UUID) {
 	t.Helper()
 	ctx := context.Background()
 	tour, err := client.CreateTournament(ctx, sdk.CreateTournamentRequest{
@@ -99,112 +99,95 @@ func draftedMatch(t *testing.T, client *sdk.Client) (matchID, redTeam, redPlayer
 		t.Fatalf("create tournament: %v", err)
 	}
 	redTeam = teamByColor(t, client, tour.ID, sdk.TeamColorRed)
-	p, err := client.CreatePlayer(ctx, sdk.CreatePlayerRequest{FirstName: "Red", LastName: "Player"})
-	if err != nil {
-		t.Fatalf("create player: %v", err)
+	blueTeam = teamByColor(t, client, tour.ID, sdk.TeamColorBlue)
+	onto := func(name string, team uuid.UUID) uuid.UUID {
+		p, err := client.CreatePlayer(ctx, sdk.CreatePlayerRequest{FirstName: name, LastName: "Player"})
+		if err != nil {
+			t.Fatalf("create player: %v", err)
+		}
+		if _, err := client.EnterTournamentPlayer(ctx, tour.ID, sdk.EnterTournamentPlayerRequest{PlayerID: p.ID}); err != nil {
+			t.Fatalf("enter: %v", err)
+		}
+		if _, err := client.DraftPlayer(ctx, team, sdk.DraftPlayerRequest{PlayerID: p.ID}); err != nil {
+			t.Fatalf("draft: %v", err)
+		}
+		return p.ID
 	}
-	if _, err := client.EnterTournamentPlayer(ctx, tour.ID, sdk.EnterTournamentPlayerRequest{PlayerID: p.ID}); err != nil {
-		t.Fatalf("enter: %v", err)
-	}
-	if _, err := client.DraftPlayer(ctx, redTeam, sdk.DraftPlayerRequest{PlayerID: p.ID}); err != nil {
-		t.Fatalf("draft: %v", err)
-	}
+	redPlayer = onto("Red", redTeam)
+	bluePlayer = onto("Blue", blueTeam)
 	courseID, teeColorID, formatID := playableCourse(t, client)
 	match, err := client.CreateMatch(ctx, tour.ID, sdk.CreateMatchRequest{CourseID: courseID, TeeColorID: teeColorID, MatchFormatID: formatID, TeeTime: fixtureTeeTime()})
 	if err != nil {
 		t.Fatalf("create match: %v", err)
 	}
-	return match.ID, redTeam, p.ID
+	return match.ID, redTeam, redPlayer, blueTeam, bluePlayer
 }
 
-func TestAddUndraftedPlayerRejected(t *testing.T) {
+// The composite FK to team_members is what rejects a player who is not on the side they are
+// named for, and mapWriteErr reads that as the caller's error rather than ours.
+func TestALineupNamingAnUndraftedPlayerIsRejected(t *testing.T) {
 	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
-	matchID, redTeam, _ := draftedMatch(t, client)
+	matchID, redTeam, _, blueTeam, bluePlayer := draftedMatch(t, client)
 
-	// A brand-new player, not drafted onto redTeam -> team_members FK violation -> 400.
 	other, err := client.CreatePlayer(ctx, sdk.CreatePlayerRequest{FirstName: "Undrafted", LastName: "Player"})
 	if err != nil {
 		t.Fatalf("create player: %v", err)
 	}
-	_, err = client.AddParticipant(ctx, matchID, sdk.AddParticipantRequest{PlayerID: other.ID, TeamID: redTeam})
+
+	err = client.SetLineup(ctx, matchID, theLineup(onSide(other.ID, redTeam), onSide(bluePlayer, blueTeam)))
+
 	var apiErr *sdk.APIError
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
 		t.Fatalf("want 400 APIError, got %v", err)
 	}
 }
 
-func TestAddDuplicateParticipantConflicts(t *testing.T) {
+// A player named twice would pass the size rule by filling a side on their own, so the shape
+// check refuses it before the wire rather than leaving the primary key to answer.
+func TestALineupNamingAPlayerTwiceIsRejected(t *testing.T) {
 	t.Parallel()
 	client := freshClient(t)
-	ctx := context.Background()
-	matchID, redTeam, redPlayer := draftedMatch(t, client)
+	matchID, redTeam, redPlayer, _, _ := draftedMatch(t, client)
 
-	if _, err := client.AddParticipant(ctx, matchID, sdk.AddParticipantRequest{PlayerID: redPlayer, TeamID: redTeam}); err != nil {
-		t.Fatalf("first add: %v", err)
-	}
-	_, err := client.AddParticipant(ctx, matchID, sdk.AddParticipantRequest{PlayerID: redPlayer, TeamID: redTeam})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Fatalf("want 409 APIError, got %v", err)
+	err := client.SetLineup(context.Background(), matchID,
+		theLineup(onSide(redPlayer, redTeam), onSide(redPlayer, redTeam)))
+
+	if err == nil || !strings.Contains(err.Error(), "already in the lineup") {
+		t.Fatalf("want the duplicate named, got %v", err)
 	}
 }
 
-func TestAddParticipantToNonexistentMatchReturns404(t *testing.T) {
+func TestSettingALineupOnAnUnknownMatchIs404(t *testing.T) {
 	t.Parallel()
 	client := freshClient(t)
 
-	_, err := client.AddParticipant(context.Background(), uuid.New(), sdk.AddParticipantRequest{
-		PlayerID: uuid.New(), TeamID: uuid.New(),
-	})
+	err := client.SetLineup(context.Background(), uuid.New(),
+		theLineup(onSide(uuid.New(), uuid.New()), onSide(uuid.New(), uuid.New())))
+
 	var apiErr *sdk.APIError
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
 		t.Fatalf("want 404 APIError, got %v", err)
 	}
 }
 
-func TestRemoveParticipant(t *testing.T) {
+// A lineup is who plays this match, not who is on the team. Replacing it leaves the draft be.
+func TestSettingALineupLeavesTheDraftAlone(t *testing.T) {
 	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
-	matchID, redTeam, redPlayer := draftedMatch(t, client)
-	if _, err := client.AddParticipant(ctx, matchID, sdk.AddParticipantRequest{PlayerID: redPlayer, TeamID: redTeam}); err != nil {
-		t.Fatalf("add participant: %v", err)
+	matchID, redTeam, redPlayer, blueTeam, bluePlayer := draftedMatch(t, client)
+	if err := client.SetLineup(ctx, matchID, theLineup(onSide(redPlayer, redTeam), onSide(bluePlayer, blueTeam))); err != nil {
+		t.Fatalf("set lineup: %v", err)
 	}
 
-	if err := client.RemoveParticipant(ctx, matchID, redPlayer); err != nil {
-		t.Fatalf("remove participant: %v", err)
-	}
-
-	parts, err := client.ListParticipants(ctx, matchID)
-	if err != nil {
-		t.Fatalf("list participants: %v", err)
-	}
-	if len(parts) != 0 {
-		t.Fatalf("want 0 participants after removal, got %d", len(parts))
-	}
-	// Removing a match assignment leaves the player drafted on their team.
 	members, err := client.ListTeamMembers(ctx, redTeam)
 	if err != nil {
 		t.Fatalf("list team members: %v", err)
 	}
 	if len(members) != 1 {
-		t.Fatalf("want player still drafted, got %d members", len(members))
-	}
-}
-
-func TestRemoveParticipantNotInMatchReturns404(t *testing.T) {
-	t.Parallel()
-	client := freshClient(t)
-	ctx := context.Background()
-	matchID, _, redPlayer := draftedMatch(t, client)
-
-	// Drafted but never added to the match -> not a participant -> 404.
-	err := client.RemoveParticipant(ctx, matchID, redPlayer)
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
-		t.Fatalf("want 404 APIError, got %v", err)
+		t.Fatalf("want the player still drafted, got %d members", len(members))
 	}
 }
 
@@ -212,9 +195,9 @@ func TestUndraftRemovesMatchParticipant(t *testing.T) {
 	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
-	matchID, redTeam, redPlayer := draftedMatch(t, client)
-	if _, err := client.AddParticipant(ctx, matchID, sdk.AddParticipantRequest{PlayerID: redPlayer, TeamID: redTeam}); err != nil {
-		t.Fatalf("add participant: %v", err)
+	matchID, redTeam, redPlayer, blueTeam, bluePlayer := draftedMatch(t, client)
+	if err := client.SetLineup(ctx, matchID, theLineup(onSide(redPlayer, redTeam), onSide(bluePlayer, blueTeam))); err != nil {
+		t.Fatalf("set lineup: %v", err)
 	}
 
 	// Undrafting a player cascades (ON DELETE CASCADE): they're pulled from the match too.
@@ -226,7 +209,7 @@ func TestUndraftRemovesMatchParticipant(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list participants: %v", err)
 	}
-	if len(parts) != 0 {
-		t.Fatalf("want participant removed via cascade, got %d", len(parts))
+	if len(parts) != 1 {
+		t.Fatalf("want the undrafted player pulled by cascade, got %d participants", len(parts))
 	}
 }

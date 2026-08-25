@@ -45,8 +45,8 @@ func (f *fakeMatchDB) DeleteMatch(ctx context.Context, id uuid.UUID) error {
 type fakeParticipantDB struct {
 	participants []MatchParticipant
 	withPlayers  []MatchParticipantPlayer
-	deleteErr    error       // returned by DeleteMatchParticipant
-	deleted      []uuid.UUID // player ids passed to DeleteMatchParticipant
+	setErr       error              // returned by SetMatchLineup
+	lineup       []MatchParticipant // what SetMatchLineup was last handed
 }
 
 func (f *fakeParticipantDB) ListMatchParticipants(ctx context.Context, matchID uuid.UUID) ([]MatchParticipant, error) {
@@ -55,12 +55,12 @@ func (f *fakeParticipantDB) ListMatchParticipants(ctx context.Context, matchID u
 func (f *fakeParticipantDB) ListParticipantsWithPlayersByTournament(ctx context.Context, tournamentID uuid.UUID) ([]MatchParticipantPlayer, error) {
 	return f.withPlayers, nil
 }
-func (f *fakeParticipantDB) CreateMatchParticipant(ctx context.Context, tournamentID, matchID, playerID, teamID uuid.UUID) (*MatchParticipant, error) {
-	return nil, nil
-}
-func (f *fakeParticipantDB) DeleteMatchParticipant(ctx context.Context, matchID, playerID uuid.UUID) error {
-	f.deleted = append(f.deleted, playerID)
-	return f.deleteErr
+func (f *fakeParticipantDB) SetMatchLineup(ctx context.Context, tournamentID, matchID uuid.UUID, entries []MatchParticipant) error {
+	if f.setErr != nil {
+		return f.setErr
+	}
+	f.lineup = entries
+	return nil
 }
 
 type fakeScoreDB struct {
@@ -489,13 +489,31 @@ func TestHoleWinner(t *testing.T) {
 	}
 }
 
-func TestRemoveParticipant_PropagatesNotFound(t *testing.T) {
-	p := &fakeParticipantDB{deleteErr: ErrNotFound}
-	svc := &MatchService{ParticipantDB: p, ScoreDB: &fakeScoreDB{}}
+func TestSetLineup_PropagatesARefusal(t *testing.T) {
+	m, p := twoTeamMatch()
+	p.setErr = ErrScoredMatchLineup
 
-	err := svc.RemoveParticipant(context.Background(), matchID, playerA)
-	if !errors.Is(err, ErrNotFound) {
-		t.Fatalf("want ErrNotFound, got %v", err)
+	err := matchService(m, p, &fakeScoreDB{}).SetLineup(context.Background(), matchID, nil)
+	if !errors.Is(err, ErrScoredMatchLineup) {
+		t.Fatalf("want ErrScoredMatchLineup, got %v", err)
+	}
+}
+
+// The lineup reaches the repository as the caller sent it: the size rule is checked against
+// this set, so anything trimmed or reordered on the way is the rule answering a question about
+// a lineup nobody asked to write.
+func TestSetLineup_HandsTheWholeSetDown(t *testing.T) {
+	m, p := twoTeamMatch()
+	entries := []MatchParticipant{
+		{MatchID: matchID, TeamID: teamA, PlayerID: playerA},
+		{MatchID: matchID, TeamID: teamB, PlayerID: playerB},
+	}
+
+	if err := matchService(m, p, &fakeScoreDB{}).SetLineup(context.Background(), matchID, entries); err != nil {
+		t.Fatalf("SetLineup: %v", err)
+	}
+	if len(p.lineup) != 2 || p.lineup[0].PlayerID != playerA || p.lineup[1].PlayerID != playerB {
+		t.Errorf("lineup = %v", p.lineup)
 	}
 }
 
@@ -630,18 +648,6 @@ func TestResetMatch_WorksLongAfterTheWindowHasShut(t *testing.T) {
 	}
 }
 
-func TestRemoveParticipant_AllowedWhileTheMatchIsUnscored(t *testing.T) {
-	m, p := twoTeamMatch()
-	svc := matchService(m, p, &fakeScoreDB{})
-
-	if err := svc.RemoveParticipant(context.Background(), matchID, playerA); err != nil {
-		t.Fatalf("RemoveParticipant: %v", err)
-	}
-	if len(p.deleted) != 1 || p.deleted[0] != playerA {
-		t.Errorf("removed = %v, want the player", p.deleted)
-	}
-}
-
 // ChangesSetup decides whether a scored match refuses an update, so these are the cases that
 // keep a played round describable. The refusal itself is exercised through the API, where the
 // lock it depends on is real.
@@ -683,9 +689,9 @@ func TestChangesSetup(t *testing.T) {
 	}
 }
 
-// SidesFit is what a format change and an added player are both measured against, so these
-// are the cases that decide whether a lineup a format cannot hold gets written.
-func TestSidesFit(t *testing.T) {
+// LineupFits is checked against the lineup being written rather than the one stored, which is
+// why a lineup arrives whole. These are the shapes a caller can send.
+func TestLineupFits(t *testing.T) {
 	side := func(team uuid.UUID, n int) []MatchParticipant {
 		out := make([]MatchParticipant, n)
 		for i := range out {
@@ -703,18 +709,20 @@ func TestSidesFit(t *testing.T) {
 		playersPerSide int32
 		want           bool
 	}{
-		{"nobody drafted yet", nil, 1, true},
 		{"singles, one a side", lineup(1, 1), 1, true},
-		{"singles, two on one side", lineup(2, 1), 1, false},
 		{"fourball, two a side", lineup(2, 2), 2, true},
-		{"fourball, three on one side", lineup(2, 3), 2, false},
-		{"fourball, half filled", lineup(1, 1), 2, true},
-		{"fourball, one side filled", lineup(2, 0), 2, true},
+
+		{"nobody at all", nil, 1, false},
+		{"a side short", lineup(2, 1), 2, false},
+		{"a side over", lineup(2, 3), 2, false},
+		// Both of these are a complete side and no opponent, which is not a match.
+		{"one side only", lineup(2, 0), 2, false},
+		{"everyone on one side", side(teamA, 4), 2, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := SidesFit(tc.participants, tc.playersPerSide); got != tc.want {
-				t.Errorf("SidesFit = %v, want %v", got, tc.want)
+			if got := LineupFits(tc.participants, tc.playersPerSide); got != tc.want {
+				t.Errorf("LineupFits = %v, want %v", got, tc.want)
 			}
 		})
 	}

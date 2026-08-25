@@ -85,35 +85,6 @@ func lockMatch(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid.UUID
 	return nil
 }
 
-// refuseUnlessLineupFits refuses when prospective would leave a side holding more players than
-// formatID allows. prospective is the lineup as it would stand once the caller's write lands.
-func refuseUnlessLineupFits(
-	ctx context.Context,
-	q *sqlc.Queries,
-	formatID uuid.UUID,
-	prospective []golf.MatchParticipant,
-) error {
-	format, err := q.GetMatchFormat(ctx, formatID)
-	if err != nil {
-		return fmt.Errorf("reading format %s: %w", formatID, mapReadErr(err, golf.ErrNotFound))
-	}
-	if !golf.SidesFit(prospective, format.PlayersPerSide) {
-		return fmt.Errorf("%w: format %s allows %d a side", golf.ErrLineupOverFormat, formatID, format.PlayersPerSide)
-	}
-	return nil
-}
-
-func matchLineup(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid.UUID) ([]golf.MatchParticipant, error) {
-	rows, err := q.ListMatchParticipants(ctx, sqlc.ListMatchParticipantsParams{
-		MatchID:  matchID,
-		TenantID: tenantID,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("listing participants for match %s: %w", matchID, err)
-	}
-	return mapSlice(rows, toDomainParticipant), nil
-}
-
 func matchHasScores(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid.UUID) (bool, error) {
 	scored, err := q.MatchHasScores(ctx, sqlc.MatchHasScoresParams{
 		MatchID:  matchID,

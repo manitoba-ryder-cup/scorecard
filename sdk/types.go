@@ -353,11 +353,17 @@ type MatchParticipant struct {
 	TeamID       uuid.UUID `json:"team_id"`
 }
 
-// AddParticipantRequest is the body for POST /v1/matches/{id}/participants. The match
-// (and its tournament) come from the path; the player must be drafted onto team_id.
-type AddParticipantRequest struct {
+// LineupPlayer is one player on one side of a match. The player must be drafted onto team_id.
+type LineupPlayer struct {
 	PlayerID uuid.UUID `json:"player_id"`
 	TeamID   uuid.UUID `json:"team_id"`
+}
+
+// SetLineupRequest is the body for PUT /v1/matches/{id}/participants: the whole lineup, both
+// sides at once. A lineup is submitted complete rather than a player at a time, so the server
+// decides against the set it is being asked to write instead of the one it happens to hold.
+type SetLineupRequest struct {
+	Participants []LineupPlayer `json:"participants"`
 }
 
 // ScoreSubmission is the request body for POST /v1/matches/{id}/scores: every score for

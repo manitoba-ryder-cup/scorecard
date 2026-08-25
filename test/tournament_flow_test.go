@@ -104,15 +104,15 @@ func TestFullRyderCupCorrectness(t *testing.T) {
 			base := m * rd.perSide
 			redPs := red[base : base+rd.perSide]
 			bluePs := blue[base : base+rd.perSide]
+			side := make([]sdk.LineupPlayer, 0, 2*rd.perSide)
 			for _, p := range redPs {
-				if _, err := client.AddParticipant(ctx, match.ID, sdk.AddParticipantRequest{PlayerID: p, TeamID: redTeam}); err != nil {
-					t.Fatalf("add red participant to %s match %d: %v", rd.format, m, err)
-				}
+				side = append(side, onSide(p, redTeam))
 			}
 			for _, p := range bluePs {
-				if _, err := client.AddParticipant(ctx, match.ID, sdk.AddParticipantRequest{PlayerID: p, TeamID: blueTeam}); err != nil {
-					t.Fatalf("add blue participant to %s match %d: %v", rd.format, m, err)
-				}
+				side = append(side, onSide(p, blueTeam))
+			}
+			if err := client.SetLineup(ctx, match.ID, theLineup(side...)); err != nil {
+				t.Fatalf("set lineup for %s match %d: %v", rd.format, m, err)
 			}
 			plans = append(plans, matchPlan{id: match.ID, redPs: redPs, bluePs: bluePs, out: out})
 		}
@@ -316,11 +316,8 @@ func addSinglesMatch(t *testing.T, client *sdk.Client, tourID, redTeam, blueTeam
 	if err != nil {
 		t.Fatalf("create match: %v", err)
 	}
-	if _, err := client.AddParticipant(ctx, match.ID, sdk.AddParticipantRequest{PlayerID: redP, TeamID: redTeam}); err != nil {
-		t.Fatalf("add red: %v", err)
-	}
-	if _, err := client.AddParticipant(ctx, match.ID, sdk.AddParticipantRequest{PlayerID: blueP, TeamID: blueTeam}); err != nil {
-		t.Fatalf("add blue: %v", err)
+	if err := client.SetLineup(ctx, match.ID, theLineup(onSide(redP, redTeam), onSide(blueP, blueTeam))); err != nil {
+		t.Fatalf("set lineup: %v", err)
 	}
 	return match.ID, redP, blueP
 }

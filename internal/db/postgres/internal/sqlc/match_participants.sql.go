@@ -50,6 +50,23 @@ func (q *Queries) CreateMatchParticipant(ctx context.Context, arg CreateMatchPar
 	return i, err
 }
 
+const deleteMatchLineup = `-- name: DeleteMatchLineup :exec
+DELETE FROM match_participants
+WHERE match_id = $1 AND tenant_id = $2
+`
+
+type DeleteMatchLineupParams struct {
+	MatchID  uuid.UUID `json:"match_id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+}
+
+// Clears a match's lineup so a complete one can replace it. Per-player scores reference these
+// rows with ON DELETE RESTRICT, so this fails on a scored match even without the guard above it.
+func (q *Queries) DeleteMatchLineup(ctx context.Context, arg DeleteMatchLineupParams) error {
+	_, err := q.db.Exec(ctx, deleteMatchLineup, arg.MatchID, arg.TenantID)
+	return err
+}
+
 const deleteMatchParticipant = `-- name: DeleteMatchParticipant :execrows
 DELETE FROM match_participants
 WHERE match_id = $1 AND player_id = $2 AND tenant_id = $3
