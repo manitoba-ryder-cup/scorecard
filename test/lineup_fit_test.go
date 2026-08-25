@@ -47,21 +47,6 @@ func anotherDraftedPlayer(t *testing.T, fix *util.Fixture, teamID uuid.UUID) uui
 	return id
 }
 
-func formatNamed(t *testing.T, client *sdk.Client, name string) sdk.MatchFormat {
-	t.Helper()
-	formats, err := client.ListMatchFormats(context.Background())
-	if err != nil {
-		t.Fatalf("list formats: %v", err)
-	}
-	for _, f := range formats {
-		if f.Name == name {
-			return f
-		}
-	}
-	t.Fatalf("no %s format seeded", name)
-	return sdk.MatchFormat{}
-}
-
 // The fixture plays Singles, which takes one a side.
 func TestAddingASecondPlayerToASinglesSideIsRefused(t *testing.T) {
 	t.Parallel()
@@ -89,66 +74,27 @@ func TestAddingASecondPlayerToASinglesSideIsRefused(t *testing.T) {
 	}
 }
 
-// A format with room takes the player the smaller one refused.
-func TestAFourballSideTakesASecondPlayer(t *testing.T) {
+// A format with room takes the player the smaller one refused. A separate match, because a
+// format is chosen when the match is created and not changed afterwards.
+func TestAFourballSideTakesTwoPlayers(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)
 	ctx := context.Background()
-	fourball := formatNamed(t, client, "Fourball")
-	spare := anotherDraftedPlayer(t, fix, fix.TeamRed)
+	fourball := matchInFormat(t, client, fix, "Fourball")
 
-	if _, err := client.UpdateMatch(ctx, fix.MatchID, sdk.UpdateMatchRequest{MatchFormatID: &fourball.ID}); err != nil {
-		t.Fatalf("want the format change allowed, got %v", err)
-	}
-	if _, err := client.AddParticipant(ctx, fix.MatchID,
-		sdk.AddParticipantRequest{PlayerID: spare, TeamID: fix.TeamRed}); err != nil {
-		t.Fatalf("want the second player allowed, got %v", err)
-	}
-}
-
-// Going the other way is what the rule exists for: the players are already there, and the
-// smaller format has nowhere to put them.
-func TestChangingToAFormatTheLineupOutgrowsIsRefused(t *testing.T) {
-	t.Parallel()
-	client, fix := authedClient(t)
-	ctx := context.Background()
-	singles := formatNamed(t, client, "Singles")
-	fourball := formatNamed(t, client, "Fourball")
-
-	if _, err := client.UpdateMatch(ctx, fix.MatchID, sdk.UpdateMatchRequest{MatchFormatID: &fourball.ID}); err != nil {
-		t.Fatalf("to fourball: %v", err)
-	}
-	for _, team := range []uuid.UUID{fix.TeamRed, fix.TeamBlue} {
-		spare := anotherDraftedPlayer(t, fix, team)
-		if _, err := client.AddParticipant(ctx, fix.MatchID,
-			sdk.AddParticipantRequest{PlayerID: spare, TeamID: team}); err != nil {
-			t.Fatalf("filling the side: %v", err)
+	for _, playerID := range []uuid.UUID{fix.RedPlayer, anotherDraftedPlayer(t, fix, fix.TeamRed)} {
+		if _, err := client.AddParticipant(ctx, fourball,
+			sdk.AddParticipantRequest{PlayerID: playerID, TeamID: fix.TeamRed}); err != nil {
+			t.Fatalf("want two a side allowed under fourball, got %v", err)
 		}
 	}
 
-	_, err := client.UpdateMatch(ctx, fix.MatchID, sdk.UpdateMatchRequest{MatchFormatID: &singles.ID})
+	_, err := client.AddParticipant(ctx, fourball,
+		sdk.AddParticipantRequest{PlayerID: anotherDraftedPlayer(t, fix, fix.TeamRed), TeamID: fix.TeamRed})
 
 	var apiErr *sdk.APIError
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Fatalf("want 409, got %v", err)
-	}
-	if apiErr.Message != "That would be too many players a side for this format." {
-		t.Errorf("message = %q", apiErr.Message)
-	}
-	if theMatch(t, client, fix).MatchFormatID != fourball.ID {
-		t.Error("the format changed anyway")
-	}
-}
-
-// A half-built lineup is an ordinary state, so growing the format is never refused for it.
-func TestChangingToARoomierFormatIsAllowedWithAPartialLineup(t *testing.T) {
-	t.Parallel()
-	client, fix := authedClient(t)
-	fourball := formatNamed(t, client, "Fourball")
-
-	if _, err := client.UpdateMatch(context.Background(), fix.MatchID,
-		sdk.UpdateMatchRequest{MatchFormatID: &fourball.ID}); err != nil {
-		t.Fatalf("want one a side allowed under fourball, got %v", err)
+		t.Fatalf("want the third refused, got %v", err)
 	}
 }
 

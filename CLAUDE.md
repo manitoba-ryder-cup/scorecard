@@ -267,19 +267,17 @@ sentinel naming what was attempted. `DeleteTeamMember` does the same one level o
 than through one match.
 
 `CreateMatchParticipant` takes the lock for the lineup rather than for the scores, and it is
-what makes **the format's `players_per_side` mean anything**: without it, one request can add
-a player while another moves the match to a format with no room for them, each reading a
-lineup the other is about to change. `SidesFit` is the rule both consult — a side may hold
-fewer players than the format allows, because a lineup is built a player at a time, but never
-more.
+what makes **the format's `players_per_side` mean anything**: two adds against a side with one
+place left both read a lineup with room and both take it. `SidesFit` is the rule — a side may
+hold fewer players than the format allows, because a lineup is built a player at a time, but
+never more.
 
 `UpdateMatch` is the only one whose refusal has a condition, and the condition is
 `golf.UpdateMatchInput.ChangesSetup`: the course and tee colour a score takes its par and
-stroke index from, and the format that says whether a hole was recorded per player or per
-side. Re-sending a value the match already holds is not a change, so a form that submits
-every field on every save is not refused over fields it did not touch. The tee time sits
-outside that set on purpose — a group that went out late needs it, and the scoring window is
-measured from it on every submission.
+stroke index from. Re-sending a value the match already holds is not a change, so a form that
+submits every field on every save is not refused over fields it did not touch. The tee time
+sits outside that set on purpose — a group that went out late needs it, and the scoring window
+is measured from it on every submission.
 
 **The refusal travels up as a sentinel; nothing is handed down.** Passing the domain a
 `guard` callback so the rule could live in `internal/golf` was built twice and reverted
@@ -414,5 +412,9 @@ neither can be dropped without a client change.
 - The match format *names* seeded in `002_seed_match_formats.up.sql` are matched by string in
   the web client, so renaming one silently breaks match creation.
 - `players_per_side` and `scores_per_player` on `match_formats` are the format's rules as
-  data. `players_per_side` is enforced on adding a participant and on changing a match's
-  format; `scores_per_player` is carried on the wire and enforced nowhere yet.
+  data. `players_per_side` is enforced when a participant is added; `scores_per_player` is
+  carried on the wire and enforced nowhere yet.
+- **A match's format is set when it is created and never changed.** It decides how many play a
+  side and whether a hole is recorded per player, so changing it reinterprets the scores and
+  the lineup rather than adjusting them. `UpdateMatch` does not carry the field and the SQL
+  does not set the column; delete the match to play a different format.

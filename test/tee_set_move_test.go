@@ -140,7 +140,7 @@ func TestARefusalSaysWhyAndWhatToDo(t *testing.T) {
 	if !errors.As(err, &apiErr) {
 		t.Fatalf("want an APIError, got %v", err)
 	}
-	if apiErr.Message != "That match has scores. Reset it before changing its course, tees or format." {
+	if apiErr.Message != "That match has scores. Reset it before changing its course or tees." {
 		t.Errorf("want the way through, got %q", apiErr.Message)
 	}
 

@@ -60,11 +60,10 @@ func (r *Router) updateMatch(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	in := golf.UpdateMatchInput{
-		ID:            id,
-		CourseID:      body.CourseID,
-		TeeColorID:    body.TeeColorID,
-		MatchFormatID: body.MatchFormatID,
-		Handicapped:   body.Handicapped,
+		ID:          id,
+		CourseID:    body.CourseID,
+		TeeColorID:  body.TeeColorID,
+		Handicapped: body.Handicapped,
 	}
 	if body.TeeTime != nil {
 		// Validate already confirmed it parses.
