@@ -76,7 +76,7 @@ func TestAddingASecondPlayerToASinglesSideIsRefused(t *testing.T) {
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
 		t.Fatalf("want 409, got %v", err)
 	}
-	if apiErr.Message != "That side is full for this match's format. Remove a player before adding another." {
+	if apiErr.Message != "That would be too many players a side for this format." {
 		t.Errorf("message = %q", apiErr.Message)
 	}
 
@@ -132,7 +132,7 @@ func TestChangingToAFormatTheLineupOutgrowsIsRefused(t *testing.T) {
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
 		t.Fatalf("want 409, got %v", err)
 	}
-	if apiErr.Message != "This match has more players a side than that format allows. Remove the extras before changing it." {
+	if apiErr.Message != "That would be too many players a side for this format." {
 		t.Errorf("message = %q", apiErr.Message)
 	}
 	if theMatch(t, client, fix).MatchFormatID != fourball.ID {
@@ -152,9 +152,9 @@ func TestChangingToARoomierFormatIsAllowedWithAPartialLineup(t *testing.T) {
 	}
 }
 
-// A player already in the match is a duplicate, not a full side. Counting them twice would
-// answer "that side is full" to someone who has not changed the lineup at all.
-func TestAddingTheSamePlayerTwiceIsNotReportedAsAFullSide(t *testing.T) {
+// A player already in the match is a duplicate, not a side with no room. Counting them twice
+// would refuse the lineup of someone who has not changed it at all.
+func TestAddingTheSamePlayerTwiceIsNotReportedAsALineupProblem(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)
 
@@ -165,7 +165,7 @@ func TestAddingTheSamePlayerTwiceIsNotReportedAsAFullSide(t *testing.T) {
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
 		t.Fatalf("want 409, got %v", err)
 	}
-	if apiErr.Message == "That side is full for this match's format. Remove a player before adding another." {
-		t.Error("a duplicate was reported as a full side")
+	if apiErr.Message == "That would be too many players a side for this format." {
+		t.Error("a duplicate was reported as a lineup that does not fit")
 	}
 }

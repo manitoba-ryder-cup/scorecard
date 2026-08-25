@@ -43,9 +43,7 @@ var (
 	ErrScoredPlayerUndraft = fmt.Errorf("%w: player has scored matches, cannot undraft", ErrConflict)
 )
 
-// Each names a lineup a format cannot hold. Separate sentinels because one is reached by
-// adding a player and the other by changing the format under the players already there.
-var (
-	ErrSideFull         = fmt.Errorf("%w: side is full for the match's format", ErrConflict)
-	ErrLineupOverFormat = fmt.Errorf("%w: lineup has more a side than the format allows", ErrConflict)
-)
+// ErrLineupOverFormat marks a write that would leave a side holding more players than its
+// format allows, reached either by adding a player or by moving the match to a format with
+// less room than the players already there need.
+var ErrLineupOverFormat = fmt.Errorf("%w: lineup would have more a side than the format allows", ErrConflict)

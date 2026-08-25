@@ -41,7 +41,7 @@ func (p *ParticipantsDB) CreateMatchParticipant(ctx context.Context, tournamentI
 				MatchID: matchID, TeamID: teamID, PlayerID: playerID,
 			})
 		}
-		if err := refuseUnlessLineupFits(ctx, q, match.MatchFormatID, prospective, golf.ErrSideFull); err != nil {
+		if err := refuseUnlessLineupFits(ctx, q, match.MatchFormatID, prospective, golf.ErrLineupOverFormat); err != nil {
 			return nil, err
 		}
 		participant, err := q.CreateMatchParticipant(ctx, sqlc.CreateMatchParticipantParams{
