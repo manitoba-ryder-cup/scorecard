@@ -112,14 +112,9 @@ func (s *MatchService) ListMatches(ctx context.Context, tournamentID uuid.UUID) 
 	return matches, nil
 }
 
-// SetLineup replaces a match's lineup with entries. Both sides at once: what a side may hold
-// is the format's rule, and it can only be checked against a complete set.
+// SetLineup replaces a match's lineup with entries.
 func (s *MatchService) SetLineup(ctx context.Context, matchID uuid.UUID, entries []MatchParticipant) error {
-	match, err := s.MatchDB.GetMatch(ctx, matchID)
-	if err != nil {
-		return fmt.Errorf("failed to load match: %w", err)
-	}
-	if err := s.ParticipantDB.SetMatchLineup(ctx, match.TournamentID, matchID, entries); err != nil {
+	if err := s.ParticipantDB.SetMatchLineup(ctx, matchID, entries); err != nil {
 		return fmt.Errorf("failed to set lineup: %w", err)
 	}
 	return nil

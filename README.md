@@ -218,8 +218,7 @@ to the configured public tenant (401 if none is configured). Writes require the 
 | GET | `/v1/tournaments/{id}/matches` | public read |
 | POST | `/v1/tournaments/{id}/matches` | `scorecard:tournaments:write` |
 | GET | `/v1/matches/{id}/participants` | public read |
-| POST | `/v1/matches/{id}/participants` | `scorecard:tournaments:write` |
-| DELETE | `/v1/matches/{id}/participants/{playerId}` | `scorecard:tournaments:write` |
+| PUT | `/v1/matches/{id}/participants` | `scorecard:tournaments:write` |
 | GET | `/v1/matches/{id}/holes` | public read |
 | GET | `/v1/matches/{id}/scores` | public read |
 | POST | `/v1/matches/{id}/scores` | `scorecard:scores:write` |
@@ -300,9 +299,10 @@ golang-migrate format, in `internal/db/postgres/migrations/`:
 ./bin/scorecard migrate version
 ```
 
-There are only two migrations — `001_init` and `002_seed_match_formats` — because schema
-changes are still made by amending them in place rather than adding a new one. That holds
-only while no deployment carries data worth preserving; once one does, this stops being safe.
+A migration that has applied is frozen — it never runs again on a database that already has
+it, so a mistake there is corrected by the next migration rather than edited in place. The
+server also runs pending migrations on startup, so one that fails leaves the version dirty and
+every start after it fails on that rather than on the original error.
 
 ### Seeding a Tournament
 
