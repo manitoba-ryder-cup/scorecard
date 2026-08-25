@@ -26,7 +26,6 @@ var (
 var (
 	ErrCourseNotFound           = fmt.Errorf("%w: course", ErrNotFound)
 	ErrMatchNotFound            = fmt.Errorf("%w: match", ErrNotFound)
-	ErrParticipantNotFound      = fmt.Errorf("%w: match participant", ErrNotFound)
 	ErrPlayerNotFound           = fmt.Errorf("%w: player", ErrNotFound)
 	ErrTeamMemberNotFound       = fmt.Errorf("%w: team member", ErrNotFound)
 	ErrTeamNotFound             = fmt.Errorf("%w: team", ErrNotFound)

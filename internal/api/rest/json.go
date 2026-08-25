@@ -79,7 +79,6 @@ var domainAnswers = []struct {
 }{
 	{"ErrCourseNotFound", golf.ErrCourseNotFound, http.StatusNotFound, "Course not found."},
 	{"ErrMatchNotFound", golf.ErrMatchNotFound, http.StatusNotFound, "Match not found."},
-	{"ErrParticipantNotFound", golf.ErrParticipantNotFound, http.StatusNotFound, "That player isn't in this match."},
 	{"ErrPlayerNotFound", golf.ErrPlayerNotFound, http.StatusNotFound, "Player not found."},
 	{"ErrTeamMemberNotFound", golf.ErrTeamMemberNotFound, http.StatusNotFound, "That player isn't on this team."},
 	{"ErrTeamNotFound", golf.ErrTeamNotFound, http.StatusNotFound, "Team not found."},

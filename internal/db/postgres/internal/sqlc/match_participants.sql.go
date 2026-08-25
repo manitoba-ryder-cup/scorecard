@@ -60,31 +60,10 @@ type DeleteMatchLineupParams struct {
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
-// Clears a match's lineup so a complete one can replace it. Per-player scores reference these
-// rows with ON DELETE RESTRICT, so this fails on a scored match even without the guard above it.
+// Clears a match's lineup so a complete one can replace it.
 func (q *Queries) DeleteMatchLineup(ctx context.Context, arg DeleteMatchLineupParams) error {
 	_, err := q.db.Exec(ctx, deleteMatchLineup, arg.MatchID, arg.TenantID)
 	return err
-}
-
-const deleteMatchParticipant = `-- name: DeleteMatchParticipant :execrows
-DELETE FROM match_participants
-WHERE match_id = $1 AND player_id = $2 AND tenant_id = $3
-`
-
-type DeleteMatchParticipantParams struct {
-	MatchID  uuid.UUID `json:"match_id"`
-	PlayerID uuid.UUID `json:"player_id"`
-	TenantID uuid.UUID `json:"tenant_id"`
-}
-
-// Remove a player from a match (leaves their team draft untouched).
-func (q *Queries) DeleteMatchParticipant(ctx context.Context, arg DeleteMatchParticipantParams) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteMatchParticipant, arg.MatchID, arg.PlayerID, arg.TenantID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
 }
 
 const listMatchParticipants = `-- name: ListMatchParticipants :many

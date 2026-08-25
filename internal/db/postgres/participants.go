@@ -23,7 +23,7 @@ func NewParticipantsDB(db *DB) *ParticipantsDB {
 //
 // The size rule needs no lock — it is checked against the set being written, not the one
 // stored — which is the reason a lineup arrives whole rather than a player at a time.
-func (p *ParticipantsDB) SetMatchLineup(ctx context.Context, tournamentID, matchID uuid.UUID, entries []golf.MatchParticipant) error {
+func (p *ParticipantsDB) SetMatchLineup(ctx context.Context, matchID uuid.UUID, entries []golf.MatchParticipant) error {
 	return withTenantExec(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
 		if err := lockMatch(ctx, q, matchID, tenantID); err != nil {
 			return err
@@ -50,7 +50,7 @@ func (p *ParticipantsDB) SetMatchLineup(ctx context.Context, tournamentID, match
 			// An undrafted or wrong-team player trips a composite FK, which mapWriteErr reads
 			// as the caller's error rather than ours.
 			if _, err := q.CreateMatchParticipant(ctx, sqlc.CreateMatchParticipantParams{
-				TournamentID: tournamentID,
+				TournamentID: match.TournamentID,
 				MatchID:      matchID,
 				PlayerID:     e.PlayerID,
 				TeamID:       e.TeamID,

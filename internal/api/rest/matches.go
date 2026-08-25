@@ -134,8 +134,6 @@ func (r *Router) listParticipants(w http.ResponseWriter, req *http.Request) {
 }
 
 // PUT /v1/matches/{id}/participants
-// Replaces the lineup with the one sent. Both sides at once: how many a side is the format's
-// rule, and it can only be answered against a complete lineup.
 func (r *Router) setLineup(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "match")
 	if !ok {

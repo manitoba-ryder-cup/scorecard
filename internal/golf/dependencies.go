@@ -33,7 +33,7 @@ type matchDB interface {
 type participantDB interface {
 	ListMatchParticipants(ctx context.Context, matchID uuid.UUID) ([]MatchParticipant, error)
 	ListParticipantsWithPlayersByTournament(ctx context.Context, tournamentID uuid.UUID) ([]MatchParticipantPlayer, error)
-	SetMatchLineup(ctx context.Context, tournamentID, matchID uuid.UUID, entries []MatchParticipant) error
+	SetMatchLineup(ctx context.Context, matchID uuid.UUID, entries []MatchParticipant) error
 }
 
 // scoreDB interface defines database operations for scores

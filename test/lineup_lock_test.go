@@ -124,8 +124,6 @@ func TestTheDatabaseRefusesToOrphanAScoredParticipant(t *testing.T) {
 	}
 }
 
-// theLineup is how a lineup is set now: both sides at once, because how many a side is the
-// format's rule and the server can only answer it against a complete set.
 func theLineup(pairs ...sdk.LineupPlayer) sdk.SetLineupRequest {
 	return sdk.SetLineupRequest{Participants: pairs}
 }

@@ -54,7 +54,6 @@ func TestFullTournamentFlowToScoring(t *testing.T) {
 		t.Fatalf("create match: %v", err)
 	}
 
-	// The lineup: both sides at once, which is the only way it can be set.
 	if err := client.SetLineup(ctx, match.ID, theLineup(
 		onSide(redPlayer, redTeam), onSide(bluePlayer, blueTeam),
 	)); err != nil {
@@ -87,8 +86,8 @@ func TestFullTournamentFlowToScoring(t *testing.T) {
 	}
 }
 
-// draftedMatch sets up a tournament with one drafted Red player and a match, returning
-// what an AddParticipant call needs.
+// draftedMatch sets up a tournament with a drafted player on each side and a match, which
+// is the smallest thing a lineup can be set on.
 func draftedMatch(t *testing.T, client *sdk.Client) (matchID, redTeam, redPlayer, blueTeam, bluePlayer uuid.UUID) {
 	t.Helper()
 	ctx := context.Background()

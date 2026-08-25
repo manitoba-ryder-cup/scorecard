@@ -55,7 +55,7 @@ func (f *fakeParticipantDB) ListMatchParticipants(ctx context.Context, matchID u
 func (f *fakeParticipantDB) ListParticipantsWithPlayersByTournament(ctx context.Context, tournamentID uuid.UUID) ([]MatchParticipantPlayer, error) {
 	return f.withPlayers, nil
 }
-func (f *fakeParticipantDB) SetMatchLineup(ctx context.Context, tournamentID, matchID uuid.UUID, entries []MatchParticipant) error {
+func (f *fakeParticipantDB) SetMatchLineup(ctx context.Context, matchID uuid.UUID, entries []MatchParticipant) error {
 	if f.setErr != nil {
 		return f.setErr
 	}
