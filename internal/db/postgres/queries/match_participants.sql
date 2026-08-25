@@ -27,3 +27,9 @@ FROM match_participants mp
 JOIN players p ON p.id = mp.player_id AND p.tenant_id = mp.tenant_id
 WHERE mp.tournament_id = @tournament_id AND mp.tenant_id = @tenant_id
 ORDER BY mp.match_id, mp.team_id, p.last_name, p.first_name;
+
+-- Clears a match's lineup so a complete one can replace it. Per-player scores reference these
+-- rows with ON DELETE RESTRICT, so this fails on a scored match even without the guard above it.
+-- name: DeleteMatchLineup :exec
+DELETE FROM match_participants
+WHERE match_id = $1 AND tenant_id = $2;

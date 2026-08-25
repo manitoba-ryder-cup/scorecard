@@ -144,8 +144,8 @@ func TestARefusalSaysWhyAndWhatToDo(t *testing.T) {
 		t.Errorf("want the way through, got %q", apiErr.Message)
 	}
 
-	if err := client.RemoveParticipant(ctx, fix.MatchID, fix.RedPlayer); !saysScored(t, err, "changing its lineup") {
-		t.Errorf("removing a participant: want the way through, got %v", err)
+	if err := setTheSameLineup(t, client, fix); !saysScored(t, err, "changing its lineup") {
+		t.Errorf("setting the lineup: want the way through, got %v", err)
 	}
 	if err := client.DeleteMatch(ctx, fix.MatchID); !saysScored(t, err, "deleting it") {
 		t.Errorf("deleting: want the way through, got %v", err)

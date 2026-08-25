@@ -41,4 +41,6 @@ var (
 	ErrScoredPlayerUndraft = fmt.Errorf("%w: player has scored matches, cannot undraft", ErrConflict)
 )
 
-var ErrLineupOverFormat = fmt.Errorf("%w: lineup would have more a side than the format allows", ErrConflict)
+// ErrLineupSize marks a lineup that is not what its format takes: a side short, a side over,
+// or only one side named.
+var ErrLineupSize = fmt.Errorf("%w: lineup is not the size the format takes", ErrConflict)

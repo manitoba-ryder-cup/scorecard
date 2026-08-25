@@ -232,17 +232,9 @@ func (c *Client) ListParticipants(ctx context.Context, matchID uuid.UUID) ([]Mat
 	return out, c.do(ctx, http.MethodGet, pathID(RouteV1MatchParticipants, matchID), nil, &out)
 }
 
-// AddParticipant adds a drafted player (with their team) to a match.
-func (c *Client) AddParticipant(ctx context.Context, matchID uuid.UUID, req AddParticipantRequest) (*MatchParticipant, error) {
-	var out MatchParticipant
-	return &out, c.do(ctx, http.MethodPost, pathID(RouteV1MatchParticipants, matchID), req, &out)
-}
-
-// RemoveParticipant removes a player from a match. A 204 (no body) is success; 404 if
-// they weren't in it.
-func (c *Client) RemoveParticipant(ctx context.Context, matchID, playerID uuid.UUID) error {
-	route := strings.Replace(pathID(RouteV1MatchParticipant, matchID), "{playerId}", playerID.String(), 1)
-	return c.do(ctx, http.MethodDelete, route, nil, nil)
+// SetLineup replaces a match's lineup with the one given. A 204 (no body) is success.
+func (c *Client) SetLineup(ctx context.Context, matchID uuid.UUID, req SetLineupRequest) error {
+	return c.do(ctx, http.MethodPut, pathID(RouteV1MatchParticipants, matchID), req, nil)
 }
 
 // SubmitScore records a hole's scores and returns the match's recomputed state, so a

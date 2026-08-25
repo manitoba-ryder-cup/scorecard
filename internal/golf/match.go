@@ -72,16 +72,19 @@ func (in UpdateMatchInput) ChangesSetup(current Match) bool {
 		(in.TeeColorID != nil && *in.TeeColorID != current.TeeColorID)
 }
 
-// SidesFit reports whether every side in participants is within what the format allows a
-// side. Only over-filling is refused: a lineup is built a player at a time, so a side with
-// room left in it is an ordinary half-finished state rather than a broken one.
-func SidesFit(participants []MatchParticipant, playersPerSide int32) bool {
+// LineupFits reports whether participants are a complete lineup for a format: two sides, each
+// holding exactly what it takes. A match is one side against the other, so a lineup missing a
+// player is not half-written — it is a match nobody can play.
+func LineupFits(participants []MatchParticipant, playersPerSide int32) bool {
 	perSide := map[uuid.UUID]int{}
 	for _, p := range participants {
 		perSide[p.TeamID]++
 	}
+	if len(perSide) != 2 {
+		return false
+	}
 	for _, n := range perSide {
-		if n > int(playersPerSide) {
+		if n != int(playersPerSide) {
 			return false
 		}
 	}
@@ -109,26 +112,15 @@ func (s *MatchService) ListMatches(ctx context.Context, tournamentID uuid.UUID) 
 	return matches, nil
 }
 
-// AddParticipant adds a player (on a team) to a match. The match is loaded first (so a
-// bad match is a clean 404) to derive the tournament. The composite FKs enforce that
-// the player is drafted onto that team and the team is in the match's tournament — an
-// undrafted or wrong-team player surfaces as ErrInvalidInput.
-func (s *MatchService) AddParticipant(ctx context.Context, matchID, playerID, teamID uuid.UUID) (*MatchParticipant, error) {
+// SetLineup replaces a match's lineup with entries. Both sides at once: what a side may hold
+// is the format's rule, and it can only be checked against a complete set.
+func (s *MatchService) SetLineup(ctx context.Context, matchID uuid.UUID, entries []MatchParticipant) error {
 	match, err := s.MatchDB.GetMatch(ctx, matchID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load match: %w", err)
+		return fmt.Errorf("failed to load match: %w", err)
 	}
-	participant, err := s.ParticipantDB.CreateMatchParticipant(ctx, match.TournamentID, matchID, playerID, teamID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to add participant: %w", err)
-	}
-	return participant, nil
-}
-
-// RemoveParticipant removes a player from a match. ErrParticipantNotFound if they weren't in it.
-func (s *MatchService) RemoveParticipant(ctx context.Context, matchID, playerID uuid.UUID) error {
-	if err := s.ParticipantDB.DeleteMatchParticipant(ctx, matchID, playerID); err != nil {
-		return fmt.Errorf("failed to remove participant: %w", err)
+	if err := s.ParticipantDB.SetMatchLineup(ctx, match.TournamentID, matchID, entries); err != nil {
+		return fmt.Errorf("failed to set lineup: %w", err)
 	}
 	return nil
 }

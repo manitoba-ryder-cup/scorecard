@@ -17,59 +17,13 @@ func NewParticipantsDB(db *DB) *ParticipantsDB {
 	return &ParticipantsDB{db: db}
 }
 
-// CreateMatchParticipant adds a player (on a team) to a match. The composite FKs to
-// team_members and teams reject an undrafted or wrong-team player as a FK violation,
-// which mapWriteErr turns into ErrInvalidInput; a duplicate is ErrConflict.
-func (p *ParticipantsDB) CreateMatchParticipant(ctx context.Context, tournamentID, matchID, playerID, teamID uuid.UUID) (*golf.MatchParticipant, error) {
-	return withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.MatchParticipant, error) {
-		if err := lockMatch(ctx, q, matchID, tenantID); err != nil {
-			return nil, err
-		}
-		match, err := q.GetMatch(ctx, sqlc.GetMatchParams{ID: matchID, TenantID: tenantID})
-		if err != nil {
-			return nil, fmt.Errorf("reading match %s: %w", matchID, mapReadErr(err, golf.ErrMatchNotFound))
-		}
-		lineup, err := matchLineup(ctx, q, matchID, tenantID)
-		if err != nil {
-			return nil, err
-		}
-		// A player already in the match is a duplicate, not a side that has run out of room;
-		// counting them twice here would answer the wrong refusal.
-		prospective := lineup
-		if !holdsPlayer(lineup, playerID) {
-			prospective = append(prospective, golf.MatchParticipant{
-				MatchID: matchID, TeamID: teamID, PlayerID: playerID,
-			})
-		}
-		if err := refuseUnlessLineupFits(ctx, q, match.MatchFormatID, prospective); err != nil {
-			return nil, err
-		}
-		participant, err := q.CreateMatchParticipant(ctx, sqlc.CreateMatchParticipantParams{
-			TournamentID: tournamentID,
-			MatchID:      matchID,
-			PlayerID:     playerID,
-			TeamID:       teamID,
-			TenantID:     tenantID,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("creating match participant: %w", mapWriteErr(err))
-		}
-		mp := toDomainParticipant(participant)
-		return &mp, nil
-	})
-}
-
-func holdsPlayer(lineup []golf.MatchParticipant, playerID uuid.UUID) bool {
-	for _, p := range lineup {
-		if p.PlayerID == playerID {
-			return true
-		}
-	}
-	return false
-}
-
-// DeleteMatchParticipant removes a player from a match. ErrParticipantNotFound if they weren't in it.
-func (p *ParticipantsDB) DeleteMatchParticipant(ctx context.Context, matchID, playerID uuid.UUID) error {
+// SetMatchLineup replaces a match's lineup with entries. The lock spans the whole exchange:
+// the scored check that decides whether the lineup may move at all is read before the write
+// that acts on it, and a score landing in between would make that answer untrue.
+//
+// The size rule needs no lock — it is checked against the set being written, not the one
+// stored — which is the reason a lineup arrives whole rather than a player at a time.
+func (p *ParticipantsDB) SetMatchLineup(ctx context.Context, tournamentID, matchID uuid.UUID, entries []golf.MatchParticipant) error {
 	return withTenantExec(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
 		if err := lockMatch(ctx, q, matchID, tenantID); err != nil {
 			return err
@@ -77,16 +31,33 @@ func (p *ParticipantsDB) DeleteMatchParticipant(ctx context.Context, matchID, pl
 		if err := refuseIfScored(ctx, q, matchID, tenantID, golf.ErrScoredMatchLineup); err != nil {
 			return err
 		}
-		rows, err := q.DeleteMatchParticipant(ctx, sqlc.DeleteMatchParticipantParams{
-			MatchID:  matchID,
-			PlayerID: playerID,
-			TenantID: tenantID,
-		})
+		match, err := q.GetMatch(ctx, sqlc.GetMatchParams{ID: matchID, TenantID: tenantID})
 		if err != nil {
-			return fmt.Errorf("deleting match participant: %w", mapWriteErr(err))
+			return fmt.Errorf("reading match %s: %w", matchID, mapReadErr(err, golf.ErrMatchNotFound))
 		}
-		if rows == 0 {
-			return fmt.Errorf("deleting match participant: %w", golf.ErrParticipantNotFound)
+		format, err := q.GetMatchFormat(ctx, match.MatchFormatID)
+		if err != nil {
+			return fmt.Errorf("reading format %s: %w", match.MatchFormatID, mapReadErr(err, golf.ErrNotFound))
+		}
+		if !golf.LineupFits(entries, format.PlayersPerSide) {
+			return fmt.Errorf("%w: format %s takes %d a side", golf.ErrLineupSize, match.MatchFormatID, format.PlayersPerSide)
+		}
+
+		if err := q.DeleteMatchLineup(ctx, sqlc.DeleteMatchLineupParams{MatchID: matchID, TenantID: tenantID}); err != nil {
+			return fmt.Errorf("clearing lineup for match %s: %w", matchID, mapWriteErr(err))
+		}
+		for _, e := range entries {
+			// An undrafted or wrong-team player trips a composite FK, which mapWriteErr reads
+			// as the caller's error rather than ours.
+			if _, err := q.CreateMatchParticipant(ctx, sqlc.CreateMatchParticipantParams{
+				TournamentID: tournamentID,
+				MatchID:      matchID,
+				PlayerID:     e.PlayerID,
+				TeamID:       e.TeamID,
+				TenantID:     tenantID,
+			}); err != nil {
+				return fmt.Errorf("adding %s to match %s: %w", e.PlayerID, matchID, mapWriteErr(err))
+			}
 		}
 		return nil
 	})

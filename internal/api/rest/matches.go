@@ -133,36 +133,23 @@ func (r *Router) listParticipants(w http.ResponseWriter, req *http.Request) {
 	respondJSON(w, http.StatusOK, mapSlice(participants, toMatchParticipantDTO))
 }
 
-// POST /v1/matches/{id}/participants
-func (r *Router) addParticipant(w http.ResponseWriter, req *http.Request) {
+// PUT /v1/matches/{id}/participants
+// Replaces the lineup with the one sent. Both sides at once: how many a side is the format's
+// rule, and it can only be answered against a complete lineup.
+func (r *Router) setLineup(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "match")
 	if !ok {
 		return
 	}
-	body, ok := decodeAndValidate[sdk.AddParticipantRequest](w, req)
+	body, ok := decodeAndValidate[sdk.SetLineupRequest](w, req)
 	if !ok {
 		return
 	}
-	participant, err := r.MatchService.AddParticipant(req.Context(), id, body.PlayerID, body.TeamID)
-	if err != nil {
-		respondDomainError(req.Context(), w, err)
-		return
+	entries := make([]golf.MatchParticipant, len(body.Participants))
+	for i, e := range body.Participants {
+		entries[i] = golf.MatchParticipant{MatchID: id, PlayerID: e.PlayerID, TeamID: e.TeamID}
 	}
-	respondJSON(w, http.StatusCreated, toMatchParticipantDTO(*participant))
-}
-
-// DELETE /v1/matches/{id}/participants/{playerId}
-// Removes a player from the match; 404 if they weren't in it.
-func (r *Router) removeParticipant(w http.ResponseWriter, req *http.Request) {
-	id, ok := pathUUIDOr400(w, req, "id", "match")
-	if !ok {
-		return
-	}
-	playerID, ok := pathUUIDOr400(w, req, "playerId", "player")
-	if !ok {
-		return
-	}
-	if err := r.MatchService.RemoveParticipant(req.Context(), id, playerID); err != nil {
+	if err := r.MatchService.SetLineup(req.Context(), id, entries); err != nil {
 		respondDomainError(req.Context(), w, err)
 		return
 	}

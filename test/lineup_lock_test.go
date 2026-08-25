@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 	util "github.com/manitoba-ryder-cup/scorecard/test/_util"
 )
@@ -19,7 +20,7 @@ func TestRemovingAParticipantFromAScoredMatchIsRefused(t *testing.T) {
 	ctx := context.Background()
 	playHole(t, client, fix, 1, 4, 5)
 
-	err := client.RemoveParticipant(ctx, fix.MatchID, fix.RedPlayer)
+	err := setTheSameLineup(t, client, fix)
 	var apiErr *sdk.APIError
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
 		t.Fatalf("want 409 APIError, got %v", err)
@@ -67,8 +68,8 @@ func TestAOneBallScoreAlsoLocksTheLineup(t *testing.T) {
 	}
 
 	var apiErr *sdk.APIError
-	if err := client.RemoveParticipant(ctx, fix.MatchID, fix.RedPlayer); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Errorf("remove participant: want 409, got %v", err)
+	if err := setTheSameLineup(t, client, fix); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
+		t.Errorf("set lineup: want 409, got %v", err)
 	}
 	if err := client.UndraftPlayer(ctx, fix.TeamRed, fix.RedPlayer); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
 		t.Errorf("undraft: want 409, got %v", err)
@@ -86,8 +87,8 @@ func TestResetReopensAScoredMatchesLineup(t *testing.T) {
 	if err := client.ResetMatchScores(ctx, fix.MatchID); err != nil {
 		t.Fatalf("reset: %v", err)
 	}
-	if err := client.RemoveParticipant(ctx, fix.MatchID, fix.RedPlayer); err != nil {
-		t.Fatalf("remove after reset: %v", err)
+	if err := setTheSameLineup(t, client, fix); err != nil {
+		t.Fatalf("set lineup after reset: %v", err)
 	}
 	if err := client.UndraftPlayer(ctx, fix.TeamRed, fix.RedPlayer); err != nil {
 		t.Fatalf("undraft after reset: %v", err)
@@ -121,4 +122,22 @@ func TestTheDatabaseRefusesToOrphanAScoredParticipant(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "fk__scores__match_id_player_id__match_participants") {
 		t.Fatalf("want the scores foreign key to refuse the delete, got %v", err)
 	}
+}
+
+// theLineup is how a lineup is set now: both sides at once, because how many a side is the
+// format's rule and the server can only answer it against a complete set.
+func theLineup(pairs ...sdk.LineupPlayer) sdk.SetLineupRequest {
+	return sdk.SetLineupRequest{Participants: pairs}
+}
+
+func onSide(playerID, teamID uuid.UUID) sdk.LineupPlayer {
+	return sdk.LineupPlayer{PlayerID: playerID, TeamID: teamID}
+}
+
+// The lineup the fixture already holds. Writing it back is still a write, and a scored match
+// refuses it — the rule is about the lineup moving at all, not about it ending up different.
+func setTheSameLineup(t *testing.T, client *sdk.Client, fix *util.Fixture) error {
+	t.Helper()
+	return client.SetLineup(context.Background(), fix.MatchID,
+		theLineup(onSide(fix.RedPlayer, fix.TeamRed), onSide(fix.BluePlayer, fix.TeamBlue)))
 }

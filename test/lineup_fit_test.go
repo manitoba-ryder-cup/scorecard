@@ -48,20 +48,23 @@ func anotherDraftedPlayer(t *testing.T, fix *util.Fixture, teamID uuid.UUID) uui
 }
 
 // The fixture plays Singles, which takes one a side.
-func TestAddingASecondPlayerToASinglesSideIsRefused(t *testing.T) {
+func TestASinglesLineupTakesOneASide(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)
 	ctx := context.Background()
 	spare := anotherDraftedPlayer(t, fix, fix.TeamRed)
 
-	_, err := client.AddParticipant(ctx, fix.MatchID,
-		sdk.AddParticipantRequest{PlayerID: spare, TeamID: fix.TeamRed})
+	err := client.SetLineup(ctx, fix.MatchID, theLineup(
+		onSide(fix.RedPlayer, fix.TeamRed),
+		onSide(spare, fix.TeamRed),
+		onSide(fix.BluePlayer, fix.TeamBlue),
+	))
 
 	var apiErr *sdk.APIError
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Fatalf("want 409, got %v", err)
+		t.Fatalf("want 409 for two on a singles side, got %v", err)
 	}
-	if apiErr.Message != "That would be too many players a side for this format." {
+	if apiErr.Message != "That lineup isn't the right size for this match's format." {
 		t.Errorf("message = %q", apiErr.Message)
 	}
 
@@ -70,48 +73,67 @@ func TestAddingASecondPlayerToASinglesSideIsRefused(t *testing.T) {
 		t.Fatalf("list participants: %v", err)
 	}
 	if len(participants) != 2 {
-		t.Errorf("the player was added anyway: %d participants", len(participants))
+		t.Errorf("the lineup was written anyway: %d participants", len(participants))
 	}
 }
 
-// A format with room takes the player the smaller one refused. A separate match, because a
+// A lineup arrives complete, so a side short is refused for the same reason a side over is.
+func TestALineupMissingASideIsRefused(t *testing.T) {
+	t.Parallel()
+	client, fix := authedClient(t)
+
+	err := client.SetLineup(context.Background(), fix.MatchID, theLineup(onSide(fix.RedPlayer, fix.TeamRed)))
+
+	var apiErr *sdk.APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
+		t.Fatalf("want 409 for one side only, got %v", err)
+	}
+}
+
+// A format with room takes the players the smaller one refused. A separate match, because a
 // format is chosen when the match is created and not changed afterwards.
-func TestAFourballSideTakesTwoPlayers(t *testing.T) {
+func TestAFourballLineupTakesTwoASide(t *testing.T) {
+	t.Parallel()
+	client, fix := authedClient(t)
+	fourball := matchInFormat(t, client, fix, "Fourball")
+
+	err := client.SetLineup(context.Background(), fourball, theLineup(
+		onSide(fix.RedPlayer, fix.TeamRed),
+		onSide(anotherDraftedPlayer(t, fix, fix.TeamRed), fix.TeamRed),
+		onSide(fix.BluePlayer, fix.TeamBlue),
+		onSide(anotherDraftedPlayer(t, fix, fix.TeamBlue), fix.TeamBlue),
+	))
+
+	if err != nil {
+		t.Fatalf("want two a side allowed under fourball, got %v", err)
+	}
+}
+
+// The write is a replacement, so the lineup that comes back is the one sent and not the one
+// merged with what was there.
+func TestSettingALineupReplacesTheOneBefore(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)
 	ctx := context.Background()
-	fourball := matchInFormat(t, client, fix, "Fourball")
+	replacement := anotherDraftedPlayer(t, fix, fix.TeamRed)
 
-	for _, playerID := range []uuid.UUID{fix.RedPlayer, anotherDraftedPlayer(t, fix, fix.TeamRed)} {
-		if _, err := client.AddParticipant(ctx, fourball,
-			sdk.AddParticipantRequest{PlayerID: playerID, TeamID: fix.TeamRed}); err != nil {
-			t.Fatalf("want two a side allowed under fourball, got %v", err)
+	if err := client.SetLineup(ctx, fix.MatchID, theLineup(
+		onSide(replacement, fix.TeamRed),
+		onSide(fix.BluePlayer, fix.TeamBlue),
+	)); err != nil {
+		t.Fatalf("set lineup: %v", err)
+	}
+
+	participants, err := client.ListParticipants(ctx, fix.MatchID)
+	if err != nil {
+		t.Fatalf("list participants: %v", err)
+	}
+	if len(participants) != 2 {
+		t.Fatalf("want two participants, got %d", len(participants))
+	}
+	for _, p := range participants {
+		if p.PlayerID == fix.RedPlayer {
+			t.Error("the player who was replaced is still in the match")
 		}
-	}
-
-	_, err := client.AddParticipant(ctx, fourball,
-		sdk.AddParticipantRequest{PlayerID: anotherDraftedPlayer(t, fix, fix.TeamRed), TeamID: fix.TeamRed})
-
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Fatalf("want the third refused, got %v", err)
-	}
-}
-
-// A player already in the match is a duplicate, not a side with no room. Counting them twice
-// would refuse the lineup of someone who has not changed it at all.
-func TestAddingTheSamePlayerTwiceIsNotReportedAsALineupProblem(t *testing.T) {
-	t.Parallel()
-	client, fix := authedClient(t)
-
-	_, err := client.AddParticipant(context.Background(), fix.MatchID,
-		sdk.AddParticipantRequest{PlayerID: fix.RedPlayer, TeamID: fix.TeamRed})
-
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Fatalf("want 409, got %v", err)
-	}
-	if apiErr.Message == "That would be too many players a side for this format." {
-		t.Error("a duplicate was reported as a lineup that does not fit")
 	}
 }

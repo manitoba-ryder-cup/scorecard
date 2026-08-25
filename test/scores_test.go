@@ -197,10 +197,6 @@ func TestSubmitScoreRejectsAMatchOutsideItsScoringWindow(t *testing.T) {
 	ctx := context.Background()
 	red := fix.RedPlayer
 
-	formats, err := client.ListMatchFormats(ctx)
-	if err != nil {
-		t.Fatalf("list formats: %v", err)
-	}
 	for _, tc := range []struct {
 		name    string
 		teeTime time.Time
@@ -216,21 +212,18 @@ func TestSubmitScoreRejectsAMatchOutsideItsScoringWindow(t *testing.T) {
 			match, err := client.CreateMatch(ctx, fix.TournamentID, sdk.CreateMatchRequest{
 				CourseID:      fix.CourseID,
 				TeeColorID:    fix.TeeColorID,
-				MatchFormatID: formats[0].ID,
+				MatchFormatID: formatNamed(t, client, "Singles").ID,
 				TeeTime:       tc.teeTime.UTC().Format(time.RFC3339),
 			})
 			if err != nil {
 				t.Fatalf("create match: %v", err)
 			}
 			// The window is checked before the teams, so one side would fail for the wrong reason.
-			for _, side := range []struct{ player, team uuid.UUID }{
-				{red, fix.TeamRed}, {fix.BluePlayer, fix.TeamBlue},
-			} {
-				if _, err := client.AddParticipant(ctx, match.ID, sdk.AddParticipantRequest{
-					PlayerID: side.player, TeamID: side.team,
-				}); err != nil {
-					t.Fatalf("add participant: %v", err)
-				}
+			if err := client.SetLineup(ctx, match.ID, sdk.SetLineupRequest{Participants: []sdk.LineupPlayer{
+				{PlayerID: red, TeamID: fix.TeamRed},
+				{PlayerID: fix.BluePlayer, TeamID: fix.TeamBlue},
+			}}); err != nil {
+				t.Fatalf("set lineup: %v", err)
 			}
 
 			_, err = client.SubmitScore(ctx, match.ID, sdk.ScoreSubmission{

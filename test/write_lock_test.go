@@ -121,12 +121,12 @@ func TestAWriteCannotDecideWhileAScoreIsLanding(t *testing.T) {
 		wantsConflict(t, err, "tee set move")
 	})
 
-	t.Run("removing a participant", func(t *testing.T) {
+	t.Run("setting the lineup", func(t *testing.T) {
 		t.Parallel()
 		client, fix := authedClient(t)
 		err := refusedAfterTheScoreCommits(t, fix, func() error {
-			return client.RemoveParticipant(ctx, fix.MatchID, fix.BluePlayer)
+			return setTheSameLineup(t, client, fix)
 		})
-		wantsConflict(t, err, "remove participant")
+		wantsConflict(t, err, "set lineup")
 	})
 }

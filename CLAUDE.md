@@ -258,19 +258,19 @@ scores, runs the domain's `guard`, writes, re-reads, and upserts the `recompute`
 reason. The result row is deleted rather than zeroed — its existence is what marks a match
 started.
 
-Four paths take `LockMatch` without writing a score — `DeleteMatch`,
-`UpdateMatch`, `CreateMatchParticipant` and `DeleteMatchParticipant` — and hold it to refuse
-rather than to recompute: the lock is what keeps what they read true between the check and
-the write. The three that answer a scored match refuse through `refuseIfScored`, with the
-sentinel naming what was attempted. `DeleteTeamMember` does the same one level out, on
-`LockPlayerMatchesForScoring`, because undrafting reaches matches through the player rather
+Three paths take `LockMatch` without writing a score — `DeleteMatch`, `UpdateMatch` and
+`SetMatchLineup` — and hold it to refuse rather than to recompute: the lock is what keeps what
+they read true between the check and the write. All three refuse through `refuseIfScored`,
+with the sentinel naming what was attempted. `DeleteTeamMember` does the same one level out,
+on `LockPlayerMatchesForScoring`, because undrafting reaches matches through the player rather
 than through one match.
 
-`CreateMatchParticipant` takes the lock for the lineup rather than for the scores, and it is
-what makes **the format's `players_per_side` mean anything**: two adds against a side with one
-place left both read a lineup with room and both take it. `SidesFit` is the rule — a side may
-hold fewer players than the format allows, because a lineup is built a player at a time, but
-never more.
+`SetMatchLineup` takes the lock for the lineup rather than for the scores, and it takes it for
+one rule only: a scored match's lineup may not move, which is read before the write that acts
+on it. **The size rule needs no lock** — `LineupFits` is checked against the set being written,
+not the one stored — and that is the reason a lineup arrives whole rather than a player at a
+time. Two sides, each holding exactly what the format takes; a lineup one short is not
+half-written, it is a match nobody can play.
 
 `UpdateMatch` is the only one whose refusal has a condition, and the condition is
 `golf.UpdateMatchInput.ChangesSetup`: the course and tee colour a score takes its par and
@@ -292,7 +292,7 @@ reaches participants by cascade. Either left `match_results` claiming a finished
 scores were gone, so one cup read as finished and never-played at once depending on the
 endpoint. Both are refused now, in two places that do not cover the same ground:
 
-- `ParticipantsDB.DeleteMatchParticipant` and `TeamMembersDB.DeleteTeamMember` refuse with
+- `ParticipantsDB.SetMatchLineup` and `TeamMembersDB.DeleteTeamMember` refuse with
   `ErrScoredMatchLineup` and `ErrScoredPlayerUndraft`, and are the complete rule — they hold
   for every scoring grain. The check sits in the repository beside the delete, inside one
   transaction and behind the lock the score write path takes: asked from the service and then
@@ -412,8 +412,8 @@ neither can be dropped without a client change.
 - The match format *names* seeded in `002_seed_match_formats.up.sql` are matched by string in
   the web client, so renaming one silently breaks match creation.
 - `players_per_side` and `scores_per_player` on `match_formats` are the format's rules as
-  data. `players_per_side` is enforced when a participant is added; `scores_per_player` is
-  carried on the wire and enforced nowhere yet.
+  data. `players_per_side` is what a lineup is measured against when one is set;
+  `scores_per_player` is carried on the wire and enforced nowhere yet.
 - **A match's format is set when it is created and never changed.** It decides how many play a
   side and whether a hole is recorded per player, so changing it reinterprets the scores and
   the lineup rather than adjusting them. `UpdateMatch` does not carry the field and the SQL
