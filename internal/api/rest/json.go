@@ -88,7 +88,7 @@ var domainAnswers = []struct {
 	{"ErrScoredMatchDelete", golf.ErrScoredMatchDelete, http.StatusConflict, "That match has scores. Reset it before deleting it."},
 	{"ErrScoredMatchLineup", golf.ErrScoredMatchLineup, http.StatusConflict, "That match has scores. Reset it before changing its lineup."},
 	{"ErrScoredMatchSetup", golf.ErrScoredMatchSetup, http.StatusConflict, "That match has scores. Reset it before changing its course or tees."},
-	{"ErrScoredPlayerUndraft", golf.ErrScoredPlayerUndraft, http.StatusConflict, "That player has been scored in a match. Reset it before undrafting them."},
+	{"ErrAssignedPlayerUndraft", golf.ErrAssignedPlayerUndraft, http.StatusConflict, "That player is participating in a match."},
 	{"ErrLineupSize", golf.ErrLineupSize, http.StatusConflict, "That lineup isn't the right size for this match's format."},
 
 	{"ErrNotFound", golf.ErrNotFound, http.StatusNotFound, "Not found."},

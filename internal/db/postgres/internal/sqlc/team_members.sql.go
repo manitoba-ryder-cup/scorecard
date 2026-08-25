@@ -61,7 +61,7 @@ type DeleteTeamMemberParams struct {
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
-// Undraft a player. ON DELETE CASCADE pulls them from any match_participants too.
+// Undraft a player. Refused by match_participants' foreign key while she is named in a lineup.
 func (q *Queries) DeleteTeamMember(ctx context.Context, arg DeleteTeamMemberParams) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteTeamMember, arg.TeamID, arg.PlayerID, arg.TenantID)
 	if err != nil {
@@ -100,29 +100,4 @@ func (q *Queries) ListTeamMemberships(ctx context.Context, tenantID uuid.UUID) (
 		return nil, err
 	}
 	return items, nil
-}
-
-const playerHasScoredMatches = `-- name: PlayerHasScoredMatches :one
-SELECT EXISTS (
-    SELECT 1
-    FROM match_participants mp
-    JOIN scores s ON s.match_id = mp.match_id AND s.tenant_id = mp.tenant_id
-    WHERE mp.team_id = $1 AND mp.player_id = $2 AND mp.tenant_id = $3
-)::boolean
-`
-
-type PlayerHasScoredMatchesParams struct {
-	TeamID   uuid.UUID `json:"team_id"`
-	PlayerID uuid.UUID `json:"player_id"`
-	TenantID uuid.UUID `json:"tenant_id"`
-}
-
-// Whether undrafting this player would take scores with it. Joined on the match rather
-// than the participant row, so a one-ball format counts too: those scores carry no player
-// and so are invisible to the foreign key that guards the per-player case.
-func (q *Queries) PlayerHasScoredMatches(ctx context.Context, arg PlayerHasScoredMatchesParams) (bool, error) {
-	row := q.db.QueryRow(ctx, playerHasScoredMatches, arg.TeamID, arg.PlayerID, arg.TenantID)
-	var column_1 bool
-	err := row.Scan(&column_1)
-	return column_1, err
 }

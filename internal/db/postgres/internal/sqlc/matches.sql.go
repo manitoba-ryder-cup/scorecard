@@ -234,42 +234,6 @@ func (q *Queries) LockMatch(ctx context.Context, arg LockMatchParams) (uuid.UUID
 	return id, err
 }
 
-const lockPlayerMatchesForScoring = `-- name: LockPlayerMatchesForScoring :many
-SELECT m.id FROM matches m
-JOIN match_participants mp ON mp.match_id = m.id AND mp.tenant_id = m.tenant_id
-WHERE mp.team_id = $1 AND mp.player_id = $2 AND mp.tenant_id = $3
-ORDER BY m.id
-FOR UPDATE OF m
-`
-
-type LockPlayerMatchesForScoringParams struct {
-	TeamID   uuid.UUID `json:"team_id"`
-	PlayerID uuid.UUID `json:"player_id"`
-	TenantID uuid.UUID `json:"tenant_id"`
-}
-
-// Locks every match a player is in, so undrafting them serialises against a score landing
-// in any of them. Ordered, so two undrafts cannot take the same locks in opposite orders.
-func (q *Queries) LockPlayerMatchesForScoring(ctx context.Context, arg LockPlayerMatchesForScoringParams) ([]uuid.UUID, error) {
-	rows, err := q.db.Query(ctx, lockPlayerMatchesForScoring, arg.TeamID, arg.PlayerID, arg.TenantID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []uuid.UUID{}
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		items = append(items, id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const updateMatch = `-- name: UpdateMatch :one
 UPDATE matches
 SET course_id       = COALESCE($1, course_id),

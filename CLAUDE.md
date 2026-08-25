@@ -261,9 +261,8 @@ started.
 Three paths take `LockMatch` without writing a score — `DeleteMatch`, `UpdateMatch` and
 `SetMatchLineup` — and hold it to refuse rather than to recompute: the lock is what keeps what
 they read true between the check and the write. All three refuse through `refuseIfScored`,
-with the sentinel naming what was attempted. `DeleteTeamMember` does the same one level out,
-on `LockPlayerMatchesForScoring`, because undrafting reaches matches through the player rather
-than through one match.
+with the sentinel naming what was attempted. `DeleteTeamMember` takes no lock at all — see
+**A rule a constraint can hold** below.
 
 `SetMatchLineup` takes the lock for the lineup rather than for the scores, and it takes it for
 one rule only: a scored match's lineup may not move, which is read before the write that acts
@@ -286,20 +285,38 @@ only chose between two sentences that turned out to be one. A repository that re
 refuses, and an API layer that turns the sentinel into a sentence, needs neither.
 
 **Nothing else may delete a score.** `scores` referenced `match_participants` with
-`ON DELETE CASCADE`, which let two routes destroy a played match without anything
-recomputing what was left behind — removing a participant, and undrafting a player, which
-reaches participants by cascade. Either left `match_results` claiming a finished match whose
-scores were gone, so one cup read as finished and never-played at once depending on the
-endpoint. Both are refused now, in two places that do not cover the same ground:
+`ON DELETE CASCADE`, which let a played match be destroyed without anything recomputing what
+was left behind, leaving `match_results` claiming a finished match whose scores were gone —
+so one cup read as finished and never-played at once depending on the endpoint.
+`ParticipantsDB.SetMatchLineup` refuses with `ErrScoredMatchLineup`, and it is the complete
+rule: the check sits in the repository beside the delete, inside one transaction and behind
+the lock the score write path takes, because asked from the service and then deleted
+separately, a score landing in between would be orphaned. The `ON DELETE RESTRICT` from
+migration 003 is the backstop, and covers **only per-player scores** — a one-ball format
+records against the team with a null `player_id`, which the foreign key skips
+(`MATCH SIMPLE`), so alt shot and scramble rest on the guard alone.
 
-- `ParticipantsDB.SetMatchLineup` and `TeamMembersDB.DeleteTeamMember` refuse with
-  `ErrScoredMatchLineup` and `ErrScoredPlayerUndraft`, and are the complete rule — they hold
-  for every scoring grain. The check sits in the repository beside the delete, inside one
-  transaction and behind the lock the score write path takes: asked from the service and then
-  deleted separately, a score landing in between would be orphaned.
-- The `ON DELETE RESTRICT` from migration 003 is the backstop, and covers **only per-player
-  scores**. A one-ball format records against the team with a null `player_id`, which the
-  foreign key skips (`MATCH SIMPLE`), so alt shot and scramble rest on the guard alone.
+### A rule a constraint can hold
+
+Undrafting a player who is named in a lineup is refused by migration 005, which flips
+`match_participants`' foreign key to `team_members` from `ON DELETE CASCADE` to
+`ON DELETE RESTRICT`. No lock, no read, no guard: a lineup place **is** a reference to the
+draft row, so the constraint is the rule rather than a backstop for one. Unlike 003 it holds
+for every format, because a lineup names its players whatever the scoring grain — there is no
+null column for `MATCH SIMPLE` to skip. Substituting the player out is the way through, and a
+reset is not: it clears the scores, not who was named to play.
+
+**The test for whether a refusal can be a constraint**: it can when the rule is *refuse to
+delete X while Y exists* and Y already references X. An update (`ChangesSetup`), a rule
+counting rows (`LineupFits`), or a reference that cannot see everything (003, above) all still
+need the code. Weigh it against the cost — an applied migration is frozen, so a constraint
+that turns out wrong needs another migration where a guard would need an edit.
+
+`mapDeleteErr` is what makes the constraint answerable. SQLSTATE 23503 means two opposite
+things: an insert naming a row that does not exist, which is the caller's bad request, and a
+delete leaving a row still referenced, which is a conflict. `mapWriteErr` reads it as the
+first, which `SetMatchLineup` depends on. A delete can only produce the second, so
+`mapDeleteErr` takes the sentinel from the call site the way `mapReadErr` takes its `missing`.
 
 Two things a reset does not undo. It ignores the scoring window but score entry does not,
 so clearing a match played yesterday leaves it uneditable until its tee time moves — the

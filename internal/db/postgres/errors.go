@@ -30,6 +30,21 @@ func mapReadErr(err, missing error) error {
 	return err
 }
 
+// mapDeleteErr translates a delete's failure into a domain sentinel. A foreign key violation
+// on a delete is always the referenced side — the row is still in use — so it becomes blocked,
+// which names what is holding it. The insert direction cannot reach here: a delete only
+// dangles a reference, and this schema's ON DELETE SET NULL columns are nullable.
+func mapDeleteErr(err, blocked error) error {
+	if err == nil {
+		return nil
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == pgForeignKeyViolation {
+		return fmt.Errorf("%w: %s", blocked, pgErr.ConstraintName)
+	}
+	return mapWriteErr(err)
+}
+
 // mapWriteErr translates a database write error into a domain sentinel where one
 // applies, keeping driver types out of the domain and API. A unique violation (e.g.
 // a second Red team, or a duplicate tournament) becomes golf.ErrConflict; everything

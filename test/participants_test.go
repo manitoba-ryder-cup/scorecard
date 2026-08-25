@@ -190,7 +190,10 @@ func TestSettingALineupLeavesTheDraftAlone(t *testing.T) {
 	}
 }
 
-func TestUndraftRemovesMatchParticipant(t *testing.T) {
+// A lineup place references the draft, so undrafting a player who holds one is refused by the
+// foreign key. The match keeps the side it was given: pulling her out would leave it a player
+// short, which is a lineup nothing can write and nobody can play.
+func TestUndraftingAPlayerInAMatchIsRefused(t *testing.T) {
 	t.Parallel()
 	client := freshClient(t)
 	ctx := context.Background()
@@ -199,16 +202,21 @@ func TestUndraftRemovesMatchParticipant(t *testing.T) {
 		t.Fatalf("set lineup: %v", err)
 	}
 
-	// Undrafting a player cascades (ON DELETE CASCADE): they're pulled from the match too.
-	if err := client.UndraftPlayer(ctx, redTeam, redPlayer); err != nil {
-		t.Fatalf("undraft: %v", err)
+	err := client.UndraftPlayer(ctx, redTeam, redPlayer)
+
+	var apiErr *sdk.APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
+		t.Fatalf("want 409 APIError, got %v", err)
+	}
+	if apiErr.Message != "That player is participating in a match." {
+		t.Errorf("message = %q", apiErr.Message)
 	}
 
 	parts, err := client.ListParticipants(ctx, matchID)
 	if err != nil {
 		t.Fatalf("list participants: %v", err)
 	}
-	if len(parts) != 1 {
-		t.Fatalf("want the undrafted player pulled by cascade, got %d participants", len(parts))
+	if len(parts) != 2 {
+		t.Fatalf("want the lineup untouched, got %d participants", len(parts))
 	}
 }

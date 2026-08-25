@@ -34,10 +34,10 @@ var (
 )
 
 var (
-	ErrScoredMatchDelete   = fmt.Errorf("%w: match is scored, cannot delete", ErrConflict)
-	ErrScoredMatchLineup   = fmt.Errorf("%w: match is scored, cannot change lineup", ErrConflict)
-	ErrScoredMatchSetup    = fmt.Errorf("%w: match is scored, its tee set is frozen", ErrConflict)
-	ErrScoredPlayerUndraft = fmt.Errorf("%w: player has scored matches, cannot undraft", ErrConflict)
+	ErrScoredMatchDelete     = fmt.Errorf("%w: match is scored, cannot delete", ErrConflict)
+	ErrScoredMatchLineup     = fmt.Errorf("%w: match is scored, cannot change lineup", ErrConflict)
+	ErrScoredMatchSetup      = fmt.Errorf("%w: match is scored, its tee set is frozen", ErrConflict)
+	ErrAssignedPlayerUndraft = fmt.Errorf("%w: player holds a lineup place, cannot undraft", ErrConflict)
 )
 
 // ErrLineupSize marks a lineup that is not what its format takes: a side short, a side over,

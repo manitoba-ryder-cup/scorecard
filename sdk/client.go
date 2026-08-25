@@ -194,7 +194,7 @@ func (c *Client) ClearTeamCaptain(ctx context.Context, teamID uuid.UUID) error {
 }
 
 // UndraftPlayer removes a player from a team. A 204 (no body) is success; 404 if they
-// weren't on the team.
+// weren't on the team, and 409 while they are named in a match lineup.
 func (c *Client) UndraftPlayer(ctx context.Context, teamID, playerID uuid.UUID) error {
 	route := strings.Replace(pathID(RouteV1TeamMember, teamID), "{playerId}", playerID.String(), 1)
 	return c.do(ctx, http.MethodDelete, route, nil, nil)

@@ -46,12 +46,14 @@ func TestUndraftingAScoredPlayerIsRefused(t *testing.T) {
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
 		t.Fatalf("want 409 APIError, got %v", err)
 	}
+	if apiErr.Message != "That player is participating in a match." {
+		t.Errorf("message = %q", apiErr.Message)
+	}
 }
 
-// The grain the foreign key cannot see: a one-ball format records against the team with no
-// player, so those rows reference no participant and the domain guard is the only thing
-// between them and a cascade. Asserted through the API for that reason — the constraint
-// test below does not cover this and cannot.
+// The grain the scores foreign key cannot see: a one-ball format records against the team with
+// no player, so those rows reference no participant and the guard is all that stops the lineup
+// moving. The undraft beside it is refused by a constraint that does not depend on the format.
 func TestAOneBallScoreAlsoLocksTheLineup(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)
@@ -90,8 +92,27 @@ func TestResetReopensAScoredMatchesLineup(t *testing.T) {
 	if err := setTheSameLineup(t, client, fix); err != nil {
 		t.Fatalf("set lineup after reset: %v", err)
 	}
+}
+
+// Reset clears the scores, not who was named to play, so it is not on its own a way to undraft
+// anyone. Naming someone else in her place is.
+func TestUndraftingWorksOnceThePlayerIsSubstitutedOut(t *testing.T) {
+	t.Parallel()
+	client, fix := authedClient(t)
+	ctx := context.Background()
+
+	if err := client.UndraftPlayer(ctx, fix.TeamRed, fix.RedPlayer); err == nil {
+		t.Fatal("want the undraft refused while she holds a lineup place")
+	}
+	if err := client.SetLineup(ctx, fix.MatchID, theLineup(
+		onSide(anotherDraftedPlayer(t, fix, fix.TeamRed), fix.TeamRed),
+		onSide(fix.BluePlayer, fix.TeamBlue),
+	)); err != nil {
+		t.Fatalf("substitute her out: %v", err)
+	}
+
 	if err := client.UndraftPlayer(ctx, fix.TeamRed, fix.RedPlayer); err != nil {
-		t.Fatalf("undraft after reset: %v", err)
+		t.Fatalf("undraft once she is out of the lineup: %v", err)
 	}
 }
 
