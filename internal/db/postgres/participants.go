@@ -22,7 +22,7 @@ func NewParticipantsDB(db *DB) *ParticipantsDB {
 // which mapWriteErr turns into ErrInvalidInput; a duplicate is ErrConflict.
 func (p *ParticipantsDB) CreateMatchParticipant(ctx context.Context, tournamentID, matchID, playerID, teamID uuid.UUID) (*golf.MatchParticipant, error) {
 	return withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.MatchParticipant, error) {
-		if err := lockMatchForScoring(ctx, q, matchID, tenantID); err != nil {
+		if err := lockMatch(ctx, q, matchID, tenantID); err != nil {
 			return nil, err
 		}
 		match, err := q.GetMatch(ctx, sqlc.GetMatchParams{ID: matchID, TenantID: tenantID})
@@ -71,7 +71,7 @@ func holdsPlayer(lineup []golf.MatchParticipant, playerID uuid.UUID) bool {
 // DeleteMatchParticipant removes a player from a match. ErrParticipantNotFound if they weren't in it.
 func (p *ParticipantsDB) DeleteMatchParticipant(ctx context.Context, matchID, playerID uuid.UUID) error {
 	return withTenantExec(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
-		if err := lockMatchForScoring(ctx, q, matchID, tenantID); err != nil {
+		if err := lockMatch(ctx, q, matchID, tenantID); err != nil {
 			return err
 		}
 		if err := refuseIfScored(ctx, q, matchID, tenantID, golf.ErrScoredMatchLineup); err != nil {

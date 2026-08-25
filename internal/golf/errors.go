@@ -34,8 +34,6 @@ var (
 	ErrTournamentPlayerNotFound = fmt.Errorf("%w: tournament player", ErrNotFound)
 )
 
-// Each names a write the scoring rule refused. Separate sentinels because the answer has to
-// name what the caller was attempting; the reset itself is the same.
 var (
 	ErrScoredMatchDelete   = fmt.Errorf("%w: match is scored, cannot delete", ErrConflict)
 	ErrScoredMatchLineup   = fmt.Errorf("%w: match is scored, cannot change lineup", ErrConflict)
@@ -43,7 +41,4 @@ var (
 	ErrScoredPlayerUndraft = fmt.Errorf("%w: player has scored matches, cannot undraft", ErrConflict)
 )
 
-// ErrLineupOverFormat marks a write that would leave a side holding more players than its
-// format allows, reached either by adding a player or by moving the match to a format with
-// less room than the players already there need.
 var ErrLineupOverFormat = fmt.Errorf("%w: lineup would have more a side than the format allows", ErrConflict)

@@ -27,11 +27,12 @@ SET course_id       = COALESCE(sqlc.narg('course_id'), course_id),
 WHERE id = sqlc.arg('id') AND tenant_id = sqlc.arg('tenant_id')
 RETURNING *;
 
--- Serializes a match's score writes. Submitting a score is a read-modify-write of
--- match_results, so without this lock two concurrent submissions can each recompute
--- from a snapshot taken before the other committed, and the later write wins with a
--- partial view.
--- name: LockMatchForScoring :one
+-- Serializes writes to a match. Every one of them is a read-modify-write — a score
+-- recomputes match_results from the scores it can see, a lineup change counts the players
+-- it can see, a setup change asks whether the match has been scored — so without this lock
+-- two of them can each decide against a snapshot taken before the other committed, and the
+-- later write lands on an answer that is no longer true.
+-- name: LockMatch :one
 SELECT id FROM matches
 WHERE id = $1 AND tenant_id = $2
 FOR UPDATE;

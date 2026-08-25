@@ -43,7 +43,7 @@ func (s *ScoresDB) SaveScoresAndRecompute(
 		}
 
 		// Before the write, so the guard's decision cannot be raced by another writer.
-		if _, err := q.LockMatchForScoring(ctx, sqlc.LockMatchForScoringParams{
+		if _, err := q.LockMatch(ctx, sqlc.LockMatchParams{
 			ID:       matchID,
 			TenantID: tenantID,
 		}); err != nil {
@@ -87,7 +87,7 @@ func (s *ScoresDB) SaveScoresAndRecompute(
 
 func (s *ScoresDB) ResetMatch(ctx context.Context, matchID uuid.UUID) error {
 	return withTenantExec(ctx, s.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
-		if _, err := q.LockMatchForScoring(ctx, sqlc.LockMatchForScoringParams{
+		if _, err := q.LockMatch(ctx, sqlc.LockMatchParams{
 			ID:       matchID,
 			TenantID: tenantID,
 		}); err != nil {

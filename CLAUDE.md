@@ -250,7 +250,7 @@ closure.
 
 `ScoresDB.SaveScoresAndRecompute` is the only writer of `match_results` (`results.go` reads
 only). A whole hole is one unit: it takes every score on that hole, and in one transaction
-takes a `FOR UPDATE` lock on the match (`LockMatchForScoring`), re-reads the committed
+takes a `FOR UPDATE` lock on the match (`LockMatch`), re-reads the committed
 scores, runs the domain's `guard`, writes, re-reads, and upserts the `recompute`d result.
 
 `ScoresDB.ResetMatch` is the only other writer: it deletes a match's scores and its
@@ -258,7 +258,7 @@ scores, runs the domain's `guard`, writes, re-reads, and upserts the `recompute`
 reason. The result row is deleted rather than zeroed — its existence is what marks a match
 started.
 
-Four paths take `LockMatchForScoring` without writing a score — `DeleteMatch`,
+Four paths take `LockMatch` without writing a score — `DeleteMatch`,
 `UpdateMatch`, `CreateMatchParticipant` and `DeleteMatchParticipant` — and hold it to refuse
 rather than to recompute: the lock is what keeps what they read true between the check and
 the write. The three that answer a scored match refuse through `refuseIfScored`, with the

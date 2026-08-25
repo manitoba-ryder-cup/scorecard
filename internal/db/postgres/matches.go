@@ -44,7 +44,7 @@ func (m *MatchesDB) CreateMatch(ctx context.Context, in golf.CreateMatchInput) (
 // against.
 func (m *MatchesDB) UpdateMatch(ctx context.Context, in golf.UpdateMatchInput) (*golf.Match, error) {
 	return withTenant(ctx, m.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Match, error) {
-		if err := lockMatchForScoring(ctx, q, in.ID, tenantID); err != nil {
+		if err := lockMatch(ctx, q, in.ID, tenantID); err != nil {
 			return nil, err
 		}
 		current, err := q.GetMatch(ctx, sqlc.GetMatchParams{ID: in.ID, TenantID: tenantID})
@@ -83,10 +83,10 @@ func (m *MatchesDB) UpdateMatch(ctx context.Context, in golf.UpdateMatchInput) (
 	})
 }
 
-// lockMatchForScoring takes the match's FOR UPDATE lock. Held before the first read, so a
-// score cannot land between finding the match unscored and the write that relies on it.
-func lockMatchForScoring(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid.UUID) error {
-	if _, err := q.LockMatchForScoring(ctx, sqlc.LockMatchForScoringParams{
+// lockMatch takes the match's FOR UPDATE lock. Held before the first read, so nothing can
+// land between what a write reads to decide and the write that relies on that decision.
+func lockMatch(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid.UUID) error {
+	if _, err := q.LockMatch(ctx, sqlc.LockMatchParams{
 		ID:       matchID,
 		TenantID: tenantID,
 	}); err != nil {
@@ -153,7 +153,7 @@ func refuseIfScored(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid
 // scored: losing results is a decision, not a side effect of tidying up.
 func (m *MatchesDB) DeleteMatch(ctx context.Context, id uuid.UUID) error {
 	return withTenantExec(ctx, m.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
-		if err := lockMatchForScoring(ctx, q, id, tenantID); err != nil {
+		if err := lockMatch(ctx, q, id, tenantID); err != nil {
 			return err
 		}
 		if err := refuseIfScored(ctx, q, id, tenantID, golf.ErrScoredMatchDelete); err != nil {

@@ -212,23 +212,24 @@ func (q *Queries) ListMatchesWithDetailsByTournament(ctx context.Context, arg Li
 	return items, nil
 }
 
-const lockMatchForScoring = `-- name: LockMatchForScoring :one
+const lockMatch = `-- name: LockMatch :one
 SELECT id FROM matches
 WHERE id = $1 AND tenant_id = $2
 FOR UPDATE
 `
 
-type LockMatchForScoringParams struct {
+type LockMatchParams struct {
 	ID       uuid.UUID `json:"id"`
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
-// Serializes a match's score writes. Submitting a score is a read-modify-write of
-// match_results, so without this lock two concurrent submissions can each recompute
-// from a snapshot taken before the other committed, and the later write wins with a
-// partial view.
-func (q *Queries) LockMatchForScoring(ctx context.Context, arg LockMatchForScoringParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, lockMatchForScoring, arg.ID, arg.TenantID)
+// Serializes writes to a match. Every one of them is a read-modify-write — a score
+// recomputes match_results from the scores it can see, a lineup change counts the players
+// it can see, a setup change asks whether the match has been scored — so without this lock
+// two of them can each decide against a snapshot taken before the other committed, and the
+// later write lands on an answer that is no longer true.
+func (q *Queries) LockMatch(ctx context.Context, arg LockMatchParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, lockMatch, arg.ID, arg.TenantID)
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
