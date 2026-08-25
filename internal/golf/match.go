@@ -56,26 +56,20 @@ func (s *MatchService) CreateMatch(ctx context.Context, in CreateMatchInput) (*M
 // the fields: a match's scores and participants reference it, so moving one between cups
 // is not an edit.
 type UpdateMatchInput struct {
-	ID            uuid.UUID
-	CourseID      *uuid.UUID
-	TeeColorID    *uuid.UUID
-	MatchFormatID *uuid.UUID
-	TeeTime       *time.Time
-	Handicapped   *bool
+	ID          uuid.UUID
+	CourseID    *uuid.UUID
+	TeeColorID  *uuid.UUID
+	TeeTime     *time.Time
+	Handicapped *bool
 }
 
-// ChangesSetup reports whether in would change what a played match's scores are read
-// against: the course and tee colour they take par and stroke index from, and the format that
-// says whether a hole was recorded per player or per side. Re-sending a value the match
-// already holds is not a change, which is what lets a form submit every field on every save.
+// ChangesSetup reports whether in would move the tee set a played match's scores are read
+// against — the course and tee colour they take par and stroke index from. Re-sending a value
+// the match already holds is not a change, which is what lets a form submit every field on
+// every save.
 func (in UpdateMatchInput) ChangesSetup(current Match) bool {
 	return (in.CourseID != nil && *in.CourseID != current.CourseID) ||
-		(in.TeeColorID != nil && *in.TeeColorID != current.TeeColorID) ||
-		in.ChangesFormat(current)
-}
-
-func (in UpdateMatchInput) ChangesFormat(current Match) bool {
-	return in.MatchFormatID != nil && *in.MatchFormatID != current.MatchFormatID
+		(in.TeeColorID != nil && *in.TeeColorID != current.TeeColorID)
 }
 
 // SidesFit reports whether every side in participants is within what the format allows a

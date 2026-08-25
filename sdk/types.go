@@ -335,12 +335,14 @@ type CreateMatchRequest struct {
 //
 // The tournament is deliberately absent — a match's scores and participants reference it,
 // so moving one between cups is not an edit.
+// The format is not here on purpose: it decides how many play a side and whether a hole is
+// recorded per player, so changing it reinterprets a match rather than adjusting it. Set it
+// once at creation, and delete the match to change it.
 type UpdateMatchRequest struct {
-	CourseID      *uuid.UUID `json:"course_id,omitempty"`
-	TeeColorID    *uuid.UUID `json:"tee_color_id,omitempty"`
-	MatchFormatID *uuid.UUID `json:"match_format_id,omitempty"`
-	TeeTime       *string    `json:"tee_time,omitempty"`
-	Handicapped   *bool      `json:"handicapped,omitempty"`
+	CourseID    *uuid.UUID `json:"course_id,omitempty"`
+	TeeColorID  *uuid.UUID `json:"tee_color_id,omitempty"`
+	TeeTime     *string    `json:"tee_time,omitempty"`
+	Handicapped *bool      `json:"handicapped,omitempty"`
 }
 
 // MatchParticipant is a player (on a team) taking part in a match.

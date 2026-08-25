@@ -110,15 +110,15 @@ func TestAWriteCannotDecideWhileAScoreIsLanding(t *testing.T) {
 		wantsConflict(t, err, "delete")
 	})
 
-	t.Run("changing the format", func(t *testing.T) {
+	t.Run("moving the tee set", func(t *testing.T) {
 		t.Parallel()
 		client, fix := authedClient(t)
-		fourball := formatNamed(t, client, "Fourball")
+		gold := secondTeeSet(t, fix)
 		err := refusedAfterTheScoreCommits(t, fix, func() error {
-			_, err := client.UpdateMatch(ctx, fix.MatchID, sdk.UpdateMatchRequest{MatchFormatID: &fourball.ID})
+			_, err := client.UpdateMatch(ctx, fix.MatchID, sdk.UpdateMatchRequest{TeeColorID: &gold})
 			return err
 		})
-		wantsConflict(t, err, "format change")
+		wantsConflict(t, err, "tee set move")
 	})
 
 	t.Run("removing a participant", func(t *testing.T) {

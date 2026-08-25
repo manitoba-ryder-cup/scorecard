@@ -663,16 +663,15 @@ func TestChangesSetup(t *testing.T) {
 	}{
 		{"a different course", UpdateMatchInput{CourseID: &other}, true},
 		{"a different tee colour", UpdateMatchInput{TeeColorID: &other}, true},
-		{"a different format", UpdateMatchInput{MatchFormatID: &other}, true},
 		{"the tee time alone", UpdateMatchInput{TeeTime: &later}, false},
 		{"the handicap flag alone", UpdateMatchInput{Handicapped: &yes}, false},
 		{"nothing at all", UpdateMatchInput{}, false},
 		// A form that submits every field on every save sends these back unchanged.
 		{"every setup field resent unchanged", UpdateMatchInput{
-			CourseID: &courseID, TeeColorID: &teeColorID, MatchFormatID: &formatID,
+			CourseID: &courseID, TeeColorID: &teeColorID,
 		}, false},
 		{"one field changed among unchanged ones", UpdateMatchInput{
-			CourseID: &courseID, TeeColorID: &teeColorID, MatchFormatID: &other,
+			CourseID: &courseID, TeeColorID: &other,
 		}, true},
 	}
 	for _, tc := range cases {

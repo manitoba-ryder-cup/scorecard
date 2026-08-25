@@ -56,23 +56,13 @@ func (m *MatchesDB) UpdateMatch(ctx context.Context, in golf.UpdateMatchInput) (
 				return nil, err
 			}
 		}
-		if in.ChangesFormat(toDomainMatch(current)) {
-			lineup, err := matchLineup(ctx, q, in.ID, tenantID)
-			if err != nil {
-				return nil, err
-			}
-			if err := refuseUnlessLineupFits(ctx, q, *in.MatchFormatID, lineup); err != nil {
-				return nil, err
-			}
-		}
 		match, err := q.UpdateMatch(ctx, sqlc.UpdateMatchParams{
-			ID:            in.ID,
-			TenantID:      tenantID,
-			CourseID:      in.CourseID,
-			TeeColorID:    in.TeeColorID,
-			MatchFormatID: in.MatchFormatID,
-			TeeTime:       in.TeeTime,
-			Handicapped:   in.Handicapped,
+			ID:          in.ID,
+			TenantID:    tenantID,
+			CourseID:    in.CourseID,
+			TeeColorID:  in.TeeColorID,
+			TeeTime:     in.TeeTime,
+			Handicapped: in.Handicapped,
 		})
 		if err != nil {
 			// No row means no such match here; an unknown course or tee is the FK.
@@ -95,9 +85,8 @@ func lockMatch(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid.UUID
 	return nil
 }
 
-// refuseUnlessLineupFits refuses when prospective would leave a side holding more players
-// than formatID allows. prospective is the lineup as it would stand, so an add passes the
-// player it is about to write and a format change passes the players already there.
+// refuseUnlessLineupFits refuses when prospective would leave a side holding more players than
+// formatID allows. prospective is the lineup as it would stand once the caller's write lands.
 func refuseUnlessLineupFits(
 	ctx context.Context,
 	q *sqlc.Queries,

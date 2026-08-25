@@ -210,14 +210,13 @@ func TestUpdateMatchRequest_Validate(t *testing.T) {
 		// false is a real value, so unsetting handicapped is not an empty body.
 		{"handicapped false only", UpdateMatchRequest{Handicapped: boolptr(false)}, false},
 		{"every field", UpdateMatchRequest{
-			CourseID: uuidptr(id), TeeColorID: uuidptr(id), MatchFormatID: uuidptr(id),
+			CourseID: uuidptr(id), TeeColorID: uuidptr(id),
 			TeeTime: strptr("2026-09-18T13:00:00Z"), Handicapped: boolptr(true),
 		}, false},
 
 		{"nothing set", UpdateMatchRequest{}, true},
 		{"explicit nil course", UpdateMatchRequest{CourseID: uuidptr(uuid.Nil)}, true},
 		{"explicit nil tee colour", UpdateMatchRequest{TeeColorID: uuidptr(uuid.Nil)}, true},
-		{"explicit nil format", UpdateMatchRequest{MatchFormatID: uuidptr(uuid.Nil)}, true},
 		{"blank tee time", UpdateMatchRequest{TeeTime: strptr("")}, true},
 		{"wall clock tee time", UpdateMatchRequest{TeeTime: strptr("2026-09-18T13:00")}, true},
 	}

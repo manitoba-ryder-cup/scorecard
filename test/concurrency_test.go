@@ -87,9 +87,10 @@ func TestConcurrentAddsCannotOverfillASide(t *testing.T) {
 
 	for i := range matches {
 		client, fix := authedClient(t)
-		fourball := formatNamed(t, client, "Fourball")
-		if _, err := client.UpdateMatch(ctx, fix.MatchID, sdk.UpdateMatchRequest{MatchFormatID: &fourball.ID}); err != nil {
-			t.Fatalf("match %d: to fourball: %v", i, err)
+		fourball := matchInFormat(t, client, fix, "Fourball")
+		if _, err := client.AddParticipant(ctx, fourball,
+			sdk.AddParticipantRequest{PlayerID: fix.RedPlayer, TeamID: fix.TeamRed}); err != nil {
+			t.Fatalf("match %d: filling the first place: %v", i, err)
 		}
 
 		// Red already holds one, so fourball leaves room for exactly one of these two.
@@ -102,7 +103,7 @@ func TestConcurrentAddsCannotOverfillASide(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				_, err := client.AddParticipant(ctx, fix.MatchID,
+				_, err := client.AddParticipant(ctx, fourball,
 					sdk.AddParticipantRequest{PlayerID: playerID, TeamID: fix.TeamRed})
 				errs <- err
 			}()
@@ -125,7 +126,7 @@ func TestConcurrentAddsCannotOverfillASide(t *testing.T) {
 			t.Errorf("match %d: %d of 2 adds were accepted into one free place", i, added)
 		}
 
-		participants, err := client.ListParticipants(ctx, fix.MatchID)
+		participants, err := client.ListParticipants(ctx, fourball)
 		if err != nil {
 			t.Fatalf("match %d: list participants: %v", i, err)
 		}
@@ -135,8 +136,8 @@ func TestConcurrentAddsCannotOverfillASide(t *testing.T) {
 				red++
 			}
 		}
-		if red > int(fourball.PlayersPerSide) {
-			t.Errorf("match %d: red has %d players, fourball allows %d", i, red, fourball.PlayersPerSide)
+		if red > 2 {
+			t.Errorf("match %d: red has %d players, fourball allows 2", i, red)
 		}
 	}
 }
