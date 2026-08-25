@@ -61,7 +61,7 @@ func (m *MatchesDB) UpdateMatch(ctx context.Context, in golf.UpdateMatchInput) (
 			if err != nil {
 				return nil, err
 			}
-			if err := refuseUnlessLineupFits(ctx, q, *in.MatchFormatID, lineup, golf.ErrLineupOverFormat); err != nil {
+			if err := refuseUnlessLineupFits(ctx, q, *in.MatchFormatID, lineup); err != nil {
 				return nil, err
 			}
 		}
@@ -95,22 +95,21 @@ func lockMatchForScoring(ctx context.Context, q *sqlc.Queries, matchID, tenantID
 	return nil
 }
 
-// refuseUnlessLineupFits refuses when a side already holds more players than formatID allows.
-// prospective is the lineup as it would stand, so an add passes the player it is about to
-// write and a format change passes the one already there.
+// refuseUnlessLineupFits refuses when prospective would leave a side holding more players
+// than formatID allows. prospective is the lineup as it would stand, so an add passes the
+// player it is about to write and a format change passes the players already there.
 func refuseUnlessLineupFits(
 	ctx context.Context,
 	q *sqlc.Queries,
 	formatID uuid.UUID,
 	prospective []golf.MatchParticipant,
-	refusal error,
 ) error {
 	format, err := q.GetMatchFormat(ctx, formatID)
 	if err != nil {
 		return fmt.Errorf("reading format %s: %w", formatID, mapReadErr(err, golf.ErrNotFound))
 	}
 	if !golf.SidesFit(prospective, format.PlayersPerSide) {
-		return fmt.Errorf("%w: format %s allows %d a side", refusal, formatID, format.PlayersPerSide)
+		return fmt.Errorf("%w: format %s allows %d a side", golf.ErrLineupOverFormat, formatID, format.PlayersPerSide)
 	}
 	return nil
 }

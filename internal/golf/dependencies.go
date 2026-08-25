@@ -25,7 +25,13 @@ type matchDB interface {
 	ListMatchesByTournament(ctx context.Context, tournamentID uuid.UUID) ([]Match, error)
 	ListMatchDetailsByTournament(ctx context.Context, tournamentID uuid.UUID) ([]MatchDetail, error)
 	CreateMatch(ctx context.Context, in CreateMatchInput) (*Match, error)
+	// UpdateMatch applies in, refusing ErrScoredMatchSetup when ChangesSetup holds on a
+	// scored match and ErrLineupOverFormat when the new format has no room for the lineup.
+	// Both checks and the write are one atomic step against concurrent writers on the match:
+	// decided separately, a score or a player landing in between makes the answer a lie.
 	UpdateMatch(ctx context.Context, in UpdateMatchInput) (*Match, error)
+	// DeleteMatch removes the match, refusing ErrScoredMatchDelete if it has been scored.
+	// The check and the delete are atomic against concurrent writers, as above.
 	DeleteMatch(ctx context.Context, id uuid.UUID) error
 }
 
@@ -33,7 +39,13 @@ type matchDB interface {
 type participantDB interface {
 	ListMatchParticipants(ctx context.Context, matchID uuid.UUID) ([]MatchParticipant, error)
 	ListParticipantsWithPlayersByTournament(ctx context.Context, tournamentID uuid.UUID) ([]MatchParticipantPlayer, error)
+	// CreateMatchParticipant adds a player to a side, refusing ErrLineupOverFormat when
+	// SidesFit would not hold afterwards. Reading the lineup and writing to it are one
+	// atomic step: two adds deciding against the same lineup would both be allowed, and
+	// the side would end up over the format with neither request having done anything wrong.
 	CreateMatchParticipant(ctx context.Context, tournamentID, matchID, playerID, teamID uuid.UUID) (*MatchParticipant, error)
+	// DeleteMatchParticipant removes a player, refusing ErrScoredMatchLineup if the match
+	// has been scored. The check and the delete are atomic against concurrent writers.
 	DeleteMatchParticipant(ctx context.Context, matchID, playerID uuid.UUID) error
 }
 
