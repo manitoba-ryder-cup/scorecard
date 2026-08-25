@@ -42,3 +42,10 @@ var (
 	ErrScoredMatchSetup    = fmt.Errorf("%w: match is scored, its setup is frozen", ErrConflict)
 	ErrScoredPlayerUndraft = fmt.Errorf("%w: player has scored matches, cannot undraft", ErrConflict)
 )
+
+// Each names a lineup a format cannot hold. Separate sentinels because one is reached by
+// adding a player and the other by changing the format under the players already there.
+var (
+	ErrSideFull         = fmt.Errorf("%w: side is full for the match's format", ErrConflict)
+	ErrLineupOverFormat = fmt.Errorf("%w: lineup has more a side than the format allows", ErrConflict)
+)

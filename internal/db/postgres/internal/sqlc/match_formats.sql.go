@@ -7,7 +7,26 @@ package sqlc
 
 import (
 	"context"
+
+	"github.com/google/uuid"
 )
+
+const getMatchFormat = `-- name: GetMatchFormat :one
+SELECT id, name, players_per_side, scores_per_player FROM match_formats
+WHERE id = $1
+`
+
+func (q *Queries) GetMatchFormat(ctx context.Context, id uuid.UUID) (MatchFormat, error) {
+	row := q.db.QueryRow(ctx, getMatchFormat, id)
+	var i MatchFormat
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.PlayersPerSide,
+		&i.ScoresPerPlayer,
+	)
+	return i, err
+}
 
 const listMatchFormats = `-- name: ListMatchFormats :many
 

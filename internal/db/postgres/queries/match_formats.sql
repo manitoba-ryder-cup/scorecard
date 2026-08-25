@@ -6,3 +6,7 @@
 -- name: ListMatchFormats :many
 SELECT * FROM match_formats
 ORDER BY name;
+
+-- name: GetMatchFormat :one
+SELECT * FROM match_formats
+WHERE id = $1;

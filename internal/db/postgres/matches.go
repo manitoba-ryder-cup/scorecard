@@ -56,6 +56,15 @@ func (m *MatchesDB) UpdateMatch(ctx context.Context, in golf.UpdateMatchInput) (
 				return nil, err
 			}
 		}
+		if in.ChangesFormat(toDomainMatch(current)) {
+			lineup, err := matchLineup(ctx, q, in.ID, tenantID)
+			if err != nil {
+				return nil, err
+			}
+			if err := refuseUnlessLineupFits(ctx, q, *in.MatchFormatID, lineup, golf.ErrLineupOverFormat); err != nil {
+				return nil, err
+			}
+		}
 		match, err := q.UpdateMatch(ctx, sqlc.UpdateMatchParams{
 			ID:            in.ID,
 			TenantID:      tenantID,
@@ -84,6 +93,38 @@ func lockMatchForScoring(ctx context.Context, q *sqlc.Queries, matchID, tenantID
 		return fmt.Errorf("locking match %s: %w", matchID, mapReadErr(err, golf.ErrMatchNotFound))
 	}
 	return nil
+}
+
+// refuseUnlessLineupFits refuses when a side already holds more players than formatID allows.
+// prospective is the lineup as it would stand, so an add passes the player it is about to
+// write and a format change passes the one already there.
+func refuseUnlessLineupFits(
+	ctx context.Context,
+	q *sqlc.Queries,
+	formatID uuid.UUID,
+	prospective []golf.MatchParticipant,
+	refusal error,
+) error {
+	format, err := q.GetMatchFormat(ctx, formatID)
+	if err != nil {
+		return fmt.Errorf("reading format %s: %w", formatID, mapReadErr(err, golf.ErrNotFound))
+	}
+	if !golf.SidesFit(prospective, format.PlayersPerSide) {
+		return fmt.Errorf("%w: format %s allows %d a side", refusal, formatID, format.PlayersPerSide)
+	}
+	return nil
+}
+
+// matchLineup reads the players already in a match.
+func matchLineup(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid.UUID) ([]golf.MatchParticipant, error) {
+	rows, err := q.ListMatchParticipants(ctx, sqlc.ListMatchParticipantsParams{
+		MatchID:  matchID,
+		TenantID: tenantID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("listing participants for match %s: %w", matchID, err)
+	}
+	return mapSlice(rows, toDomainParticipant), nil
 }
 
 func matchHasScores(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid.UUID) (bool, error) {

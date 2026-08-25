@@ -22,6 +22,28 @@ func NewParticipantsDB(db *DB) *ParticipantsDB {
 // which mapWriteErr turns into ErrInvalidInput; a duplicate is ErrConflict.
 func (p *ParticipantsDB) CreateMatchParticipant(ctx context.Context, tournamentID, matchID, playerID, teamID uuid.UUID) (*golf.MatchParticipant, error) {
 	return withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.MatchParticipant, error) {
+		if err := lockMatchForScoring(ctx, q, matchID, tenantID); err != nil {
+			return nil, err
+		}
+		match, err := q.GetMatch(ctx, sqlc.GetMatchParams{ID: matchID, TenantID: tenantID})
+		if err != nil {
+			return nil, fmt.Errorf("reading match %s: %w", matchID, mapReadErr(err, golf.ErrMatchNotFound))
+		}
+		lineup, err := matchLineup(ctx, q, matchID, tenantID)
+		if err != nil {
+			return nil, err
+		}
+		// A player already in the match is a duplicate, not a side that has run out of room;
+		// counting them twice here would answer the wrong refusal.
+		prospective := lineup
+		if !holdsPlayer(lineup, playerID) {
+			prospective = append(prospective, golf.MatchParticipant{
+				MatchID: matchID, TeamID: teamID, PlayerID: playerID,
+			})
+		}
+		if err := refuseUnlessLineupFits(ctx, q, match.MatchFormatID, prospective, golf.ErrSideFull); err != nil {
+			return nil, err
+		}
 		participant, err := q.CreateMatchParticipant(ctx, sqlc.CreateMatchParticipantParams{
 			TournamentID: tournamentID,
 			MatchID:      matchID,
@@ -38,6 +60,15 @@ func (p *ParticipantsDB) CreateMatchParticipant(ctx context.Context, tournamentI
 }
 
 // DeleteMatchParticipant removes a player from a match. ErrParticipantNotFound if they weren't in it.
+func holdsPlayer(lineup []golf.MatchParticipant, playerID uuid.UUID) bool {
+	for _, p := range lineup {
+		if p.PlayerID == playerID {
+			return true
+		}
+	}
+	return false
+}
+
 func (p *ParticipantsDB) DeleteMatchParticipant(ctx context.Context, matchID, playerID uuid.UUID) error {
 	return withTenantExec(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
 		if err := lockMatchForScoring(ctx, q, matchID, tenantID); err != nil {
