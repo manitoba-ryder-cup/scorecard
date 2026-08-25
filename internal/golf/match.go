@@ -74,7 +74,6 @@ func (in UpdateMatchInput) ChangesSetup(current Match) bool {
 		in.ChangesFormat(current)
 }
 
-// ChangesFormat reports whether in names a format other than the one the match holds.
 func (in UpdateMatchInput) ChangesFormat(current Match) bool {
 	return in.MatchFormatID != nil && *in.MatchFormatID != current.MatchFormatID
 }

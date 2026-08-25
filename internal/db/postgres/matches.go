@@ -83,8 +83,8 @@ func (m *MatchesDB) UpdateMatch(ctx context.Context, in golf.UpdateMatchInput) (
 	})
 }
 
-// lockMatch takes the match's FOR UPDATE lock. Held before the first read, so nothing can
-// land between what a write reads to decide and the write that relies on that decision.
+// lockMatch takes the match's FOR UPDATE lock. Held before the first read, so a write that
+// decides on what it reads cannot have the answer change under it.
 func lockMatch(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid.UUID) error {
 	if _, err := q.LockMatch(ctx, sqlc.LockMatchParams{
 		ID:       matchID,
@@ -114,7 +114,6 @@ func refuseUnlessLineupFits(
 	return nil
 }
 
-// matchLineup reads the players already in a match.
 func matchLineup(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid.UUID) ([]golf.MatchParticipant, error) {
 	rows, err := q.ListMatchParticipants(ctx, sqlc.ListMatchParticipantsParams{
 		MatchID:  matchID,

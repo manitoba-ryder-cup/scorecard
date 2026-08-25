@@ -223,11 +223,10 @@ type LockMatchParams struct {
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
-// Serializes writes to a match. Every one of them is a read-modify-write — a score
-// recomputes match_results from the scores it can see, a lineup change counts the players
-// it can see, a setup change asks whether the match has been scored — so without this lock
-// two of them can each decide against a snapshot taken before the other committed, and the
-// later write lands on an answer that is no longer true.
+// Serializes writes to a match. Each of them reads to decide — whether the match has been
+// scored, how many players a side already holds — and then writes on that answer, so without
+// this lock two can decide against the same snapshot and the later one acts on an answer that
+// stopped being true before it landed.
 func (q *Queries) LockMatch(ctx context.Context, arg LockMatchParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, lockMatch, arg.ID, arg.TenantID)
 	var id uuid.UUID

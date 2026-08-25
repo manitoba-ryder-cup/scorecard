@@ -709,7 +709,6 @@ func TestSidesFit(t *testing.T) {
 		{"singles, two on one side", lineup(2, 1), 1, false},
 		{"fourball, two a side", lineup(2, 2), 2, true},
 		{"fourball, three on one side", lineup(2, 3), 2, false},
-		// A lineup is built a player at a time, so room left is not a broken state.
 		{"fourball, half filled", lineup(1, 1), 2, true},
 		{"fourball, one side filled", lineup(2, 0), 2, true},
 	}
