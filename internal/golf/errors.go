@@ -34,8 +34,8 @@ var (
 	ErrTournamentPlayerNotFound = fmt.Errorf("%w: tournament player", ErrNotFound)
 )
 
-// Each names a write the scoring rule refused. Separate sentinels because the way through
-// differs: what a caller has to reset, and what they can do afterwards, is not the same.
+// Each names a write the scoring rule refused. Separate sentinels because the answer has to
+// name what the caller was attempting; the reset itself is the same.
 var (
 	ErrScoredMatchDelete   = fmt.Errorf("%w: match is scored, cannot delete", ErrConflict)
 	ErrScoredMatchLineup   = fmt.Errorf("%w: match is scored, cannot change lineup", ErrConflict)

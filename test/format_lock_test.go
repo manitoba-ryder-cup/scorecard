@@ -62,9 +62,8 @@ func TestAnUnscoredMatchChangesFormat(t *testing.T) {
 	}
 }
 
-// The format decides whether a hole was recorded per player or per side. Changing it under a
-// played match would reinterpret every score already written, so it is refused with the reset
-// that makes it possible.
+// The refusal has to reach the caller as a sentence and not only a status: the reset is the
+// only way through, and nothing else tells them.
 func TestChangingAScoredMatchsFormatIsRefused(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)
