@@ -16,6 +16,7 @@ var (
 	tournamentID = uuid.MustParse("66666666-6666-6666-6666-666666666666")
 	courseID     = uuid.MustParse("77777777-7777-7777-7777-777777777777")
 	teeColorID   = uuid.MustParse("88888888-8888-8888-8888-888888888888")
+	formatID     = uuid.MustParse("99999999-9999-9999-9999-999999999999")
 )
 
 func pUUID(u uuid.UUID) *uuid.UUID { return &u }

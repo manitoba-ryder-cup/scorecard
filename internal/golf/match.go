@@ -64,25 +64,22 @@ type UpdateMatchInput struct {
 	Handicapped   *bool
 }
 
-// movesTeeSet reports whether in changes the course or tee colour. Re-sending the values a
-// match already has is not a move.
-func (in UpdateMatchInput) movesTeeSet(current Match) bool {
+// ChangesSetup reports whether in would change what a played match's scores are read
+// against: the course and tee colour they take par and stroke index from, and the format that
+// says whether a hole was recorded per player or per side. Re-sending a value the match
+// already holds is not a change, which is what lets a form submit every field on every save.
+func (in UpdateMatchInput) ChangesSetup(current Match) bool {
 	return (in.CourseID != nil && *in.CourseID != current.CourseID) ||
-		(in.TeeColorID != nil && *in.TeeColorID != current.TeeColorID)
+		(in.TeeColorID != nil && *in.TeeColorID != current.TeeColorID) ||
+		(in.MatchFormatID != nil && *in.MatchFormatID != current.MatchFormatID)
 }
 
 // UpdateMatch is deliberately allowed on a match that already has scores: the case that
 // needs it most is a group that went out late with a hole already entered, and the scoring
-// window is measured from the tee time on every submission. The tee set is the exception —
-// scores read their par and stroke index from it, so moving a scored match would leave them
-// describing a round nobody played.
+// window is measured from the tee time on every submission. What the scores are read
+// against is frozen instead — see ChangesSetup.
 func (s *MatchService) UpdateMatch(ctx context.Context, in UpdateMatchInput) (*Match, error) {
-	match, err := s.MatchDB.UpdateMatch(ctx, in, func(current Match, scored bool) error {
-		if scored && in.movesTeeSet(current) {
-			return fmt.Errorf("%w: match %s", ErrScoredMatchTeeSet, in.ID)
-		}
-		return nil
-	})
+	match, err := s.MatchDB.UpdateMatch(ctx, in)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update match: %w", err)
 	}

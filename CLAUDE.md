@@ -260,19 +260,24 @@ started.
 
 Three paths take `LockMatchForScoring` without writing a score — `DeleteMatch`,
 `UpdateMatch` and `DeleteMatchParticipant` — and hold it to refuse rather than to recompute:
-the lock is what keeps "this match is unscored" true between the check and the write.
+the lock is what keeps "this match is unscored" true between the check and the write. All
+three refuse through `refuseIfScored`, with the sentinel naming what was attempted.
 `DeleteTeamMember` does the same one level out, on `LockPlayerMatchesForScoring`, because
 undrafting reaches matches through the player rather than through one match.
 
-Two of them refuse in the repository through `refuseIfScored`. `UpdateMatch` instead hands
-`MatchService` a `guard`, the shape `SaveScoresAndRecompute` established. **The line between
-them is whether the domain has a decision to make.** `UpdateMatch` has one: it compares the
-incoming course and tee colour against the stored pair to work out whether the write is a
-move, and that comparison cannot leave the transaction the lock is held in. A delete has no
-decision — scored, refuse, nothing to weigh — so a closure passed down to carry a constant
-would be ceremony, and `golf.ErrScoredMatchDelete` already says where the rule belongs.
-Making all four take a guard for symmetry was tried and reverted; don't restore it without a
-decision that needs the transaction.
+`UpdateMatch` is the only one whose refusal has a condition, and the condition is
+`golf.UpdateMatchInput.ChangesSetup`: the course and tee colour a score takes its par and
+stroke index from, and the format that says whether a hole was recorded per player or per
+side. Re-sending a value the match already holds is not a change, so a form that submits
+every field on every save is not refused over fields it did not touch. The tee time sits
+outside that set on purpose — a group that went out late needs it, and the scoring window is
+measured from it on every submission.
+
+**The refusal travels up as a sentinel; nothing is handed down.** Passing the domain a
+`guard` callback so the rule could live in `internal/golf` was built twice and reverted
+twice: once for the deletes, where the closure carried a constant, and once here, where it
+only chose between two sentences that turned out to be one. A repository that reads and
+refuses, and an API layer that turns the sentinel into a sentence, needs neither.
 
 **Nothing else may delete a score.** `scores` referenced `match_participants` with
 `ON DELETE CASCADE`, which let two routes destroy a played match without anything

@@ -18,7 +18,6 @@ type fakeMatchDB struct {
 	updated   *UpdateMatchInput // what UpdateMatch was last handed
 	deleted   *uuid.UUID        // what DeleteMatch was last handed
 	deleteErr error
-	scored    bool // what UpdateMatch's guard is told about the stored match
 }
 
 func (f *fakeMatchDB) GetMatch(ctx context.Context, id uuid.UUID) (*Match, error) {
@@ -33,15 +32,8 @@ func (f *fakeMatchDB) ListMatchDetailsByTournament(ctx context.Context, tourname
 func (f *fakeMatchDB) CreateMatch(ctx context.Context, in CreateMatchInput) (*Match, error) {
 	return nil, nil
 }
-func (f *fakeMatchDB) UpdateMatch(ctx context.Context, in UpdateMatchInput, guard func(Match, bool) error) (*Match, error) {
+func (f *fakeMatchDB) UpdateMatch(ctx context.Context, in UpdateMatchInput) (*Match, error) {
 	f.updated = &in
-	current := Match{}
-	if f.match != nil {
-		current = *f.match
-	}
-	if err := guard(current, f.scored); err != nil {
-		return nil, err
-	}
 	return f.match, nil
 }
 
@@ -650,58 +642,44 @@ func TestRemoveParticipant_AllowedWhileTheMatchIsUnscored(t *testing.T) {
 	}
 }
 
-// The tee set rule, which the repository used to hold. Scores read their par and stroke
-// index from the tee set, so these four cases are what keeps a played round describable.
-
-func updateTo(m *fakeMatchDB, in UpdateMatchInput) error {
-	_, err := matchService(m, &fakeParticipantDB{}, &fakeScoreDB{}).UpdateMatch(context.Background(), in)
-	return err
-}
-
-func TestAScoredMatchRefusesATeeSetMove(t *testing.T) {
-	m, _ := twoTeamMatch()
-	m.scored = true
-
+// ChangesSetup decides whether a scored match refuses an update, so these are the cases that
+// keep a played round describable. The refusal itself is exercised through the API, where the
+// lock it depends on is real.
+func TestChangesSetup(t *testing.T) {
+	current := Match{
+		ID:            matchID,
+		CourseID:      courseID,
+		TeeColorID:    teeColorID,
+		MatchFormatID: formatID,
+	}
 	other := uuid.New()
-	err := updateTo(m, UpdateMatchInput{ID: matchID, TeeColorID: &other})
+	later := teeOff.Add(time.Hour)
+	yes := true
 
-	if !errors.Is(err, ErrScoredMatchTeeSet) {
-		t.Fatalf("err = %v, want ErrScoredMatchTeeSet", err)
+	cases := []struct {
+		name string
+		in   UpdateMatchInput
+		want bool
+	}{
+		{"a different course", UpdateMatchInput{CourseID: &other}, true},
+		{"a different tee colour", UpdateMatchInput{TeeColorID: &other}, true},
+		{"a different format", UpdateMatchInput{MatchFormatID: &other}, true},
+		{"the tee time alone", UpdateMatchInput{TeeTime: &later}, false},
+		{"the handicap flag alone", UpdateMatchInput{Handicapped: &yes}, false},
+		{"nothing at all", UpdateMatchInput{}, false},
+		// A form that submits every field on every save sends these back unchanged.
+		{"every setup field resent unchanged", UpdateMatchInput{
+			CourseID: &courseID, TeeColorID: &teeColorID, MatchFormatID: &formatID,
+		}, false},
+		{"one field changed among unchanged ones", UpdateMatchInput{
+			CourseID: &courseID, TeeColorID: &teeColorID, MatchFormatID: &other,
+		}, true},
 	}
-	if !errors.Is(err, ErrConflict) {
-		t.Error("want the refusal to still read as a conflict")
-	}
-}
-
-func TestAnUnscoredMatchTakesATeeSetMove(t *testing.T) {
-	m, _ := twoTeamMatch()
-
-	other := uuid.New()
-	if err := updateTo(m, UpdateMatchInput{ID: matchID, TeeColorID: &other}); err != nil {
-		t.Fatalf("want the move allowed, got %v", err)
-	}
-}
-
-// Re-sending what a match already has is what a form that submits every field does, and it
-// changes nothing — so it is not a move.
-func TestResendingAScoredMatchsOwnTeeSetIsNotAMove(t *testing.T) {
-	m, _ := twoTeamMatch()
-	m.scored = true
-
-	err := updateTo(m, UpdateMatchInput{ID: matchID, CourseID: &courseID, TeeColorID: &teeColorID})
-
-	if err != nil {
-		t.Fatalf("want the resend allowed, got %v", err)
-	}
-}
-
-// The case the rule exists to permit: a group that went out late, with a hole already in.
-func TestAScoredMatchStillTakesATeeTimeChange(t *testing.T) {
-	m, _ := twoTeamMatch()
-	m.scored = true
-
-	later := teeOff.Add(90 * time.Minute)
-	if err := updateTo(m, UpdateMatchInput{ID: matchID, TeeTime: &later}); err != nil {
-		t.Fatalf("want the tee time editable, got %v", err)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.in.ChangesSetup(current); got != tc.want {
+				t.Errorf("ChangesSetup = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }
