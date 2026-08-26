@@ -150,7 +150,7 @@ func (q *Queries) ListMatchesByTournament(ctx context.Context, arg ListMatchesBy
 }
 
 const listMatchesWithDetailsByTournament = `-- name: ListMatchesWithDetailsByTournament :many
-SELECT m.id, m.tournament_id, m.course_id, m.tee_color_id, m.match_format_id, m.tenant_id, m.tee_time, m.handicapped, m.created_at, m.updated_at, mf.name AS format_name, mf.scores_per_player, c.name AS course_name
+SELECT m.id, m.tournament_id, m.course_id, m.tee_color_id, m.match_format_id, m.tenant_id, m.tee_time, m.handicapped, m.created_at, m.updated_at, mf.name AS format_name, mf.players_per_side, mf.scores_per_player, c.name AS course_name
 FROM matches m
 JOIN match_formats mf ON mf.id = m.match_format_id
 JOIN courses c ON c.id = m.course_id AND c.tenant_id = m.tenant_id
@@ -175,13 +175,14 @@ type ListMatchesWithDetailsByTournamentRow struct {
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 	FormatName      string    `json:"format_name"`
+	PlayersPerSide  int32     `json:"players_per_side"`
 	ScoresPerPlayer bool      `json:"scores_per_player"`
 	CourseName      string    `json:"course_name"`
 }
 
 // Joined with the format and course so the results view resolves all of it in one query. The
-// format's scoring grain rides along: a client reading a hole needs it, and deriving it from
-// the name would be this table's data copied into a list somewhere else.
+// format's rules ride along, because deriving them from its name copies this table's data into
+// a list somewhere else.
 func (q *Queries) ListMatchesWithDetailsByTournament(ctx context.Context, arg ListMatchesWithDetailsByTournamentParams) ([]ListMatchesWithDetailsByTournamentRow, error) {
 	rows, err := q.db.Query(ctx, listMatchesWithDetailsByTournament, arg.TournamentID, arg.TenantID)
 	if err != nil {
@@ -203,6 +204,7 @@ func (q *Queries) ListMatchesWithDetailsByTournament(ctx context.Context, arg Li
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.FormatName,
+			&i.PlayersPerSide,
 			&i.ScoresPerPlayer,
 			&i.CourseName,
 		); err != nil {

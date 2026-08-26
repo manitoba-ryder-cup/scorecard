@@ -184,6 +184,7 @@ func toDomainMatchDetail(m sqlc.ListMatchesWithDetailsByTournamentRow) golf.Matc
 			Handicapped:   m.Handicapped,
 		},
 		FormatName:      m.FormatName,
+		PlayersPerSide:  m.PlayersPerSide,
 		ScoresPerPlayer: m.ScoresPerPlayer,
 		CourseName:      m.CourseName,
 	}

@@ -75,9 +75,8 @@ type MatchParticipantPlayer struct {
 // MatchDetail is a match plus its resolved format and course.
 type MatchDetail struct {
 	Match
-	FormatName string
-	// Whether the format records a stroke for each player or one for the side, which is what
-	// decides the shape of a hole's scores.
+	FormatName      string
+	PlayersPerSide  int32
 	ScoresPerPlayer bool
 	CourseName      string
 }
@@ -271,10 +270,10 @@ type MatchSide struct {
 // holes played. The closed-out state (Finished/LeaderTeamID/Lead/HolesRemaining) is
 // the same StoredResult the scoring engine persists.
 type MatchResult struct {
-	StoredResult // the closed-out state, embedded so there is one shape for it
-	MatchID      uuid.UUID
-	FormatName   string
-	// Whether the format records a stroke for each player or one for the side.
+	StoredResult    // the closed-out state, embedded so there is one shape for it
+	MatchID         uuid.UUID
+	FormatName      string
+	PlayersPerSide  int32
 	ScoresPerPlayer bool
 	CourseName      string
 	TeeTime         time.Time
