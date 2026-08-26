@@ -76,6 +76,8 @@ type MatchParticipantPlayer struct {
 type MatchDetail struct {
 	Match
 	FormatName string
+	// How many a side the format fields, which is what an unfilled match is drawn against.
+	PlayersPerSide int32
 	// Whether the format records a stroke for each player or one for the side, which is what
 	// decides the shape of a hole's scores.
 	ScoresPerPlayer bool
@@ -274,6 +276,8 @@ type MatchResult struct {
 	StoredResult // the closed-out state, embedded so there is one shape for it
 	MatchID      uuid.UUID
 	FormatName   string
+	// How many a side the format fields.
+	PlayersPerSide int32
 	// Whether the format records a stroke for each player or one for the side.
 	ScoresPerPlayer bool
 	CourseName      string

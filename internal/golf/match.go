@@ -354,6 +354,7 @@ func buildMatchResult(m MatchDetail, sides []MatchSide, scores []Score) MatchRes
 	result := MatchResult{
 		MatchID:         m.ID,
 		FormatName:      m.FormatName,
+		PlayersPerSide:  m.PlayersPerSide,
 		ScoresPerPlayer: m.ScoresPerPlayer,
 		CourseName:      m.CourseName,
 		TeeTime:         m.TeeTime,

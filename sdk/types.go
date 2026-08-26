@@ -431,6 +431,9 @@ type MatchResult struct {
 	MatchStatus           // finished/winner/leader/lead/holes_remaining, flattened into this object
 	MatchID     uuid.UUID `json:"match_id"`
 	FormatName  string    `json:"format_name"`
+	// How many a side the format fields. Sent so a client drawing a match with no lineup yet
+	// takes the shape of the pairing from the format rather than from a list of format names.
+	PlayersPerSide int32 `json:"players_per_side"`
 	// Whether the format records a stroke for each player or one for the side. Sent so a client
 	// reading a hole takes the grain from the format rather than from a list of format names.
 	ScoresPerPlayer bool         `json:"scores_per_player"`
