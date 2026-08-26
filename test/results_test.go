@@ -22,6 +22,27 @@ func closeOutRedWin(t *testing.T, client *sdk.Client, fix *util.Fixture) {
 	}
 }
 
+// The client reads a hole against this: per player for Singles and Fourball, once for the side
+// otherwise. Derived from the format's name instead, it is this column copied into a list that
+// nothing keeps equal to it.
+func TestTournamentResultsSayHowTheFormatIsScored(t *testing.T) {
+	t.Parallel()
+	client, fix := authedClient(t)
+	ctx := context.Background()
+
+	results, err := client.GetTournamentResults(ctx, fix.TournamentID)
+	if err != nil {
+		t.Fatalf("get results: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("want 1 result, got %d", len(results))
+	}
+	// The fixture plays Singles, which records a stroke for each player.
+	if !results[0].ScoresPerPlayer {
+		t.Errorf("%s should record a score per player, got scores_per_player=false", results[0].FormatName)
+	}
+}
+
 func TestTournamentResultsReflectAClosedMatch(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)
