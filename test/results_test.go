@@ -22,9 +22,7 @@ func closeOutRedWin(t *testing.T, client *sdk.Client, fix *util.Fixture) {
 	}
 }
 
-// A client reads a hole against the grain and draws an unfilled match against the side size.
-// Derived from the format's name instead, these are two columns copied into a list somewhere
-// else that nothing keeps equal to them.
+// Both are on the wire so a client never has to key off the format's name.
 func TestTournamentResultsSayTheFormatsRules(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)

@@ -43,8 +43,8 @@ WHERE m.tournament_id = $1 AND m.tenant_id = $2
 ORDER BY m.tee_time;
 
 -- Joined with the format and course so the results view resolves all of it in one query. The
--- format's rules ride along: a client reading a hole or drawing an unfilled one needs them, and
--- deriving them from the name would be this table's data copied into a list somewhere else.
+-- format's rules ride along, because deriving them from its name copies this table's data into
+-- a list somewhere else.
 -- name: ListMatchesWithDetailsByTournament :many
 SELECT m.*, mf.name AS format_name, mf.players_per_side, mf.scores_per_player, c.name AS course_name
 FROM matches m
