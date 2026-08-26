@@ -11,12 +11,10 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 )
 
-// PlayersDB handles player database operations
 type PlayersDB struct {
 	db *DB
 }
 
-// NewPlayersDB creates a new PlayersDB
 func NewPlayersDB(db *DB) *PlayersDB {
 	return &PlayersDB{db: db}
 }
@@ -64,7 +62,7 @@ func (p *PlayersDB) UpdatePlayer(ctx context.Context, in golf.UpdatePlayerInput)
 	})
 }
 
-// GetPlayer retrieves a player (with their all-time record and cups) by ID.
+// GetPlayer retrieves a player with their all-time record. Cups won is left to the service.
 func (p *PlayersDB) GetPlayer(ctx context.Context, id uuid.UUID) (*golf.Player, error) {
 	return withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Player, error) {
 		rows, err := q.PlayerRecords(ctx, sqlc.PlayerRecordsParams{TenantID: tenantID, ID: &id})
@@ -79,7 +77,7 @@ func (p *PlayersDB) GetPlayer(ctx context.Context, id uuid.UUID) (*golf.Player, 
 	})
 }
 
-// ListPlayers retrieves all players for the tenant, each with their record and cups.
+// ListPlayers retrieves the tenant's players, each with their all-time record.
 func (p *PlayersDB) ListPlayers(ctx context.Context) ([]golf.Player, error) {
 	return withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) ([]golf.Player, error) {
 		rows, err := q.PlayerRecords(ctx, sqlc.PlayerRecordsParams{TenantID: tenantID})
@@ -144,10 +142,9 @@ func toDomainPlayer(p sqlc.Player) golf.Player {
 }
 
 // PlayerStatsRows runs every aggregate the stats page needs inside one tenant-scoped
-// transaction. These used to be six separate calls, and because each withTenant opens its
-// own transaction that meant six rounds of BEGIN / SET LOCAL / COMMIT — around two dozen
-// round trips for queries that each execute in well under a millisecond. With the
-// database in another region the round trips were nearly the whole response.
+// transaction. Split back into a call apiece, each pays its own BEGIN / SET LOCAL / COMMIT,
+// and against a database in another region those round trips are most of the response —
+// the queries themselves execute in well under a millisecond.
 func (p *PlayersDB) PlayerStatsRows(ctx context.Context, playerID uuid.UUID) (*golf.PlayerStatsRows, error) {
 	return withTenant(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.PlayerStatsRows, error) {
 		out := &golf.PlayerStatsRows{}

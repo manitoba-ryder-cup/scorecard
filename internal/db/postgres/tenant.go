@@ -9,8 +9,8 @@ import (
 )
 
 // withTenant resolves the request's tenant and runs fn inside a single tenant-scoped
-// transaction, returning fn's result. It collapses the GetTenant -> WithTenantContext
-// -> assign-through-pointer boilerplate that every tenant-scoped repo method repeated.
+// transaction, returning fn's result. One call is one transaction, so operations that must
+// be atomic belong in a single closure.
 func withTenant[T any](ctx context.Context, db *DB, fn func(q *sqlc.Queries, tenantID uuid.UUID) (T, error)) (T, error) {
 	var result T
 	tenantID, err := identity.GetTenant(ctx)
@@ -37,8 +37,6 @@ func withTenantExec(ctx context.Context, db *DB, fn func(q *sqlc.Queries, tenant
 	return err
 }
 
-// mapSlice converts a slice of sqlc rows to domain values with a per-row mapper,
-// replacing the make+for loop each list repo repeated.
 func mapSlice[T, U any](in []T, f func(T) U) []U {
 	out := make([]U, len(in))
 	for i, v := range in {

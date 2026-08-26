@@ -101,8 +101,8 @@ CREATE TABLE tournaments (
 
 -- Teams are per-tournament first-class entities. A Ryder Cup has exactly two
 -- sides: the color CHECK + UNIQUE(tournament_id, color) caps a tournament at one
--- Red and one Blue. captain_id is a first-class nullable FK to a player (the app
--- additionally requires the captain to be a member of the team).
+-- Red and one Blue. captain_id is a first-class nullable FK to a player: any player may
+-- captain a side, drafted onto it or not.
 CREATE TABLE teams (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
@@ -162,9 +162,9 @@ CREATE TABLE team_members (
     CONSTRAINT uq__team_members__tournament_id__player_id UNIQUE (tournament_id, player_id)
 );
 
--- Match formats are code-defined reference data: each name maps to scoring rules
--- implemented in the application, so they are global (no tenant_id, no RLS) and
--- seeded (see 002_seed_match_formats) rather than created by users.
+-- Match formats are reference data: global (no tenant_id, no RLS) and seeded (see
+-- 002_seed_match_formats) rather than created by users. 004 adds the columns that carry
+-- each format's rules, so nothing reads them off the name.
 CREATE TABLE match_formats (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,

@@ -31,7 +31,7 @@ func (s *PlayerService) CreatePlayer(ctx context.Context, in CreatePlayerInput) 
 	return player, nil
 }
 
-// PlayerService handles player reads.
+// PlayerService owns the player roster: identity, and the record derived on top of it.
 type PlayerService struct {
 	PlayerDB playerDB
 	ResultDB resultDB

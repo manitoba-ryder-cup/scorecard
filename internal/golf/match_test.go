@@ -10,8 +10,6 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
-// --- fakes ---
-
 type fakeMatchDB struct {
 	match     *Match
 	details   []MatchDetail
@@ -170,8 +168,6 @@ func twoTeamMatch() (*fakeMatchDB, *fakeParticipantDB) {
 	}}
 	return m, p
 }
-
-// --- tests ---
 
 func TestSubmitScore_WritesScoreWithMatchCourseAndRecomputes(t *testing.T) {
 	m, p := twoTeamMatch()
@@ -550,9 +546,8 @@ func TestListResults_ReportsTheLeaderOfAnUnfinishedMatch(t *testing.T) {
 }
 
 // The phase the caller caches on, and where it comes from. Taken from the stored results
-// rather than the scores this method already holds: /teams and the tournament record read
-// those, and a match whose participant was removed keeps its result row while its scores
-// cascade away — so deriving it here twice let one cup report two phases at once.
+// rather than the scores this method already holds, because /teams and the tournament
+// record read those: derived twice, one cup can report two phases at once.
 func TestListResults_TakesThePhaseFromTheStoredResults(t *testing.T) {
 	tests := []struct {
 		name     string

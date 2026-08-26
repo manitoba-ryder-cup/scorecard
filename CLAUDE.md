@@ -123,7 +123,7 @@ internal/api/rest/       # HTTP layer (stdlib http.ServeMux, method-prefixed pat
   ├── dto.go             # Domain -> SDK DTO mapping
   ├── json.go            # Response and error helpers
   ├── players.go, tournaments.go, matches.go, courses.go,
-  │   roster.go, teams.go, formats.go, health_handler.go
+  │   roster.go, teams.go, formats.go, health.go
 
 internal/golf/           # Domain layer (business logic, no tenant awareness)
   ├── models.go          # Domain entities

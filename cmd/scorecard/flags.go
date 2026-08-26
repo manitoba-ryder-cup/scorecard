@@ -6,7 +6,6 @@ import (
 
 // Common flags that can be reused across commands
 var (
-	// DebugFlag enables debug logging (global flag)
 	DebugFlag = &cli.BoolFlag{
 		Name:        "debug",
 		Usage:       "Enable debug logging",
@@ -14,7 +13,6 @@ var (
 		Destination: &config.Debug,
 	}
 
-	// LogFormatFlag selects the log output format (global flag)
 	LogFormatFlag = &cli.StringFlag{
 		Name:        "log-format",
 		Usage:       "Log format: json (default, for log aggregation) or text (human-readable)",
@@ -23,7 +21,6 @@ var (
 		Destination: &config.LogFormat,
 	}
 
-	// DatabaseURLFlag defines the PostgreSQL connection URL (global flag)
 	DatabaseURLFlag = &cli.StringFlag{
 		Name:        "database-url",
 		Aliases:     []string{"u"},
@@ -33,7 +30,6 @@ var (
 		Destination: &config.DatabaseURL,
 	}
 
-	// HTTPAddressFlag defines the HTTP server listen address
 	HTTPAddressFlag = &cli.StringFlag{
 		Name:        "http-address",
 		Aliases:     []string{"a"},
@@ -43,7 +39,6 @@ var (
 		Destination: &config.HTTPAddress,
 	}
 
-	// JWTPublicKeyFlag defines the path to the JWT public key
 	JWTPublicKeyFlag = &cli.StringFlag{
 		Name:        "jwt-public-key",
 		Aliases:     []string{"p"},
@@ -53,7 +48,6 @@ var (
 		Destination: &config.JWTPublicKeyPath,
 	}
 
-	// EnvironmentFlag defines the deployment environment
 	EnvironmentFlag = &cli.StringFlag{
 		Name:        "environment",
 		Aliases:     []string{"e"},
@@ -63,7 +57,6 @@ var (
 		Destination: &config.Environment,
 	}
 
-	// TrustedProxyModeFlag enables X-Forwarded-For header trust
 	TrustedProxyModeFlag = &cli.BoolFlag{
 		Name:        "trusted-proxy-mode",
 		Usage:       "Trust X-Forwarded-For headers from reverse proxy",

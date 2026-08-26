@@ -23,7 +23,7 @@ func (s *TeamService) SetCaptain(ctx context.Context, teamID, captainID uuid.UUI
 	return team, nil
 }
 
-// ClearCaptain unsets a team's captain (used to reassign). ErrTeamNotFound if no such team.
+// ClearCaptain leaves a team with no captain. ErrTeamNotFound if no such team.
 func (s *TeamService) ClearCaptain(ctx context.Context, teamID uuid.UUID) error {
 	if err := s.TeamDB.ClearCaptain(ctx, teamID); err != nil {
 		return fmt.Errorf("failed to clear captain: %w", err)

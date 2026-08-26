@@ -9,12 +9,10 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/internal/golf"
 )
 
-// MatchesDB handles match database operations
 type MatchesDB struct {
 	db *DB
 }
 
-// NewMatchesDB creates a new MatchesDB
 func NewMatchesDB(db *DB) *MatchesDB {
 	return &MatchesDB{db: db}
 }
@@ -94,7 +92,6 @@ func matchHasScores(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid
 	return scored, nil
 }
 
-// refuseIfScored returns refusal if the match has scores.
 func refuseIfScored(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid.UUID, refusal error) error {
 	scored, err := matchHasScores(ctx, q, matchID, tenantID)
 	if err != nil {
@@ -126,7 +123,6 @@ func (m *MatchesDB) DeleteMatch(ctx context.Context, id uuid.UUID) error {
 	})
 }
 
-// GetMatch retrieves a match by ID with tenant isolation
 func (m *MatchesDB) GetMatch(ctx context.Context, id uuid.UUID) (*golf.Match, error) {
 	return withTenant(ctx, m.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.Match, error) {
 		match, err := q.GetMatch(ctx, sqlc.GetMatchParams{ID: id, TenantID: tenantID})
@@ -138,7 +134,6 @@ func (m *MatchesDB) GetMatch(ctx context.Context, id uuid.UUID) (*golf.Match, er
 	})
 }
 
-// ListMatchesByTournament retrieves all matches for a tournament
 func (m *MatchesDB) ListMatchesByTournament(ctx context.Context, tournamentID uuid.UUID) ([]golf.Match, error) {
 	return withTenant(ctx, m.db, func(q *sqlc.Queries, tenantID uuid.UUID) ([]golf.Match, error) {
 		matches, err := q.ListMatchesByTournament(ctx, sqlc.ListMatchesByTournamentParams{
@@ -165,7 +160,6 @@ func (m *MatchesDB) ListMatchDetailsByTournament(ctx context.Context, tournament
 	})
 }
 
-// toDomainMatch converts a sqlc Match to a domain Match
 func toDomainMatch(m sqlc.Match) golf.Match {
 	return golf.Match{
 		ID:            m.ID,

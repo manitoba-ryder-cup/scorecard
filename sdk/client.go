@@ -39,8 +39,6 @@ type validatable interface {
 	Validate(ctx context.Context) error
 }
 
-// --- Players ---
-
 func (c *Client) ListPlayers(ctx context.Context) ([]PlayerProfile, error) {
 	var out []PlayerProfile
 	return out, c.do(ctx, http.MethodGet, RouteV1Players, nil, &out)
@@ -71,14 +69,10 @@ func (c *Client) GetPlayerStats(ctx context.Context, id uuid.UUID) (PlayerStats,
 	return out, c.do(ctx, http.MethodGet, pathID(RouteV1PlayerStats, id), nil, &out)
 }
 
-// --- Reference data ---
-
 func (c *Client) ListMatchFormats(ctx context.Context) ([]MatchFormat, error) {
 	var out []MatchFormat
 	return out, c.do(ctx, http.MethodGet, RouteV1MatchFormats, nil, &out)
 }
-
-// --- Course reference data ---
 
 func (c *Client) ListTeeColors(ctx context.Context) ([]TeeColor, error) {
 	var out []TeeColor
@@ -118,8 +112,6 @@ func (c *Client) ListCourseTeeSets(ctx context.Context, courseID uuid.UUID) ([]T
 	return out, c.do(ctx, http.MethodGet, pathID(RouteV1CourseTees, courseID), nil, &out)
 }
 
-// --- Tournaments ---
-
 func (c *Client) ListTournaments(ctx context.Context) ([]Tournament, error) {
 	var out []Tournament
 	return out, c.do(ctx, http.MethodGet, RouteV1Tournaments, nil, &out)
@@ -156,8 +148,6 @@ func (c *Client) GetTournamentStatus(ctx context.Context, id uuid.UUID) (*Finish
 	return &out, c.do(ctx, http.MethodGet, pathID(RouteV1TournamentStatus, id), nil, &out)
 }
 
-// --- Tournament roster ---
-
 func (c *Client) ListTournamentPlayers(ctx context.Context, tournamentID uuid.UUID) ([]TournamentPlayer, error) {
 	var out []TournamentPlayer
 	return out, c.do(ctx, http.MethodGet, pathID(RouteV1TournamentPlayers, tournamentID), nil, &out)
@@ -174,8 +164,6 @@ func (c *Client) UpdateTournamentPlayer(ctx context.Context, tournamentID, playe
 	return &out, c.do(ctx, http.MethodPut, route, req, &out)
 }
 
-// --- Team draft ---
-
 // DraftPlayer assigns an entered player to a team.
 func (c *Client) DraftPlayer(ctx context.Context, teamID uuid.UUID, req DraftPlayerRequest) (*TeamMember, error) {
 	var out TeamMember
@@ -187,8 +175,8 @@ func (c *Client) SetTeamCaptain(ctx context.Context, teamID uuid.UUID, req SetTe
 	return c.do(ctx, http.MethodPut, pathID(RouteV1TeamCaptain, teamID), req, nil)
 }
 
-// ClearTeamCaptain unsets a team's captain (used to reassign). 204 is success; 404 if the
-// team doesn't exist.
+// ClearTeamCaptain leaves a team with no captain. 204 is success; 404 if the team doesn't
+// exist. Naming a different captain is SetTeamCaptain on its own.
 func (c *Client) ClearTeamCaptain(ctx context.Context, teamID uuid.UUID) error {
 	return c.do(ctx, http.MethodDelete, pathID(RouteV1TeamCaptain, teamID), nil, nil)
 }
@@ -205,8 +193,6 @@ func (c *Client) ListTeamMembers(ctx context.Context, teamID uuid.UUID) ([]Tourn
 	var out []TournamentPlayer
 	return out, c.do(ctx, http.MethodGet, pathID(RouteV1TeamMembers, teamID), nil, &out)
 }
-
-// --- Matches ---
 
 func (c *Client) ListMatches(ctx context.Context, tournamentID uuid.UUID) ([]Match, error) {
 	var out []Match

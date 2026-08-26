@@ -12,7 +12,6 @@ import (
 	"github.com/travisbale/knowhere/jwt"
 )
 
-// Config holds the configuration for creating a new server
 type Config struct {
 	HTTPAddress      string
 	DatabaseURL      string
@@ -45,28 +44,23 @@ type Server struct {
 	db         closer
 }
 
-// NewServer creates a new server instance with all dependencies
 func NewServer(ctx context.Context, config *Config) (*Server, error) {
-	// Connect to database using knowhere wrapper
 	db, err := postgres.NewDB(ctx, config.DatabaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	// Run database migrations
 	if err := postgres.MigrateUp(config.DatabaseURL); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to run database migrations: %w", err)
 	}
 
-	// Create JWT validator
 	jwtValidator, err := jwt.NewValidator(config.JWTPublicKeyPath)
 	if err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to create JWT validator: %w", err)
 	}
 
-	// Parse the optional public tenant
 	var publicTenantID *uuid.UUID
 	if config.PublicTenantID != "" {
 		id, err := uuid.Parse(config.PublicTenantID)
@@ -80,7 +74,6 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 	// Wire the domain services (shared with the CLI commands).
 	services := NewServices(db)
 
-	// Create HTTP server
 	router := &rest.Router{
 		DB:                db,
 		JWTValidator:      jwtValidator,
@@ -103,9 +96,7 @@ func NewServer(ctx context.Context, config *Config) (*Server, error) {
 	}, nil
 }
 
-// Start begins listening for HTTP requests
 func (s *Server) Start() error {
-	// Start HTTP server (blocking)
 	return s.httpServer.ListenAndServe()
 }
 

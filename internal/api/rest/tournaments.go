@@ -7,7 +7,6 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
-// GET /v1/tournaments
 func (r *Router) listTournaments(w http.ResponseWriter, req *http.Request) {
 	tournaments, err := r.TournamentService.ListTournaments(req.Context())
 	if err != nil {
@@ -17,7 +16,6 @@ func (r *Router) listTournaments(w http.ResponseWriter, req *http.Request) {
 	respondJSON(w, http.StatusOK, mapSlice(tournaments, toTournamentDTO))
 }
 
-// POST /v1/tournaments
 func (r *Router) createTournament(w http.ResponseWriter, req *http.Request) {
 	body, ok := decodeAndValidate[sdk.CreateTournamentRequest](w, req)
 	if !ok {
@@ -47,7 +45,6 @@ func (r *Router) createTournament(w http.ResponseWriter, req *http.Request) {
 	respondJSON(w, http.StatusCreated, toTournamentDTO(*tournament))
 }
 
-// GET /v1/tournaments/{id}
 func (r *Router) getTournament(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "tournament")
 	if !ok {
@@ -63,7 +60,6 @@ func (r *Router) getTournament(w http.ResponseWriter, req *http.Request) {
 	respondJSON(w, http.StatusOK, toTournamentDTO(*tournament))
 }
 
-// GET /v1/tournaments/{id}/teams
 func (r *Router) getTournamentTeams(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "tournament")
 	if !ok {
@@ -78,7 +74,6 @@ func (r *Router) getTournamentTeams(w http.ResponseWriter, req *http.Request) {
 	respondJSON(w, http.StatusOK, mapSlice(teams, toTournamentTeamDTO))
 }
 
-// GET /v1/tournaments/{id}/winner
 func (r *Router) getTournamentWinner(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "tournament")
 	if !ok {
@@ -92,7 +87,6 @@ func (r *Router) getTournamentWinner(w http.ResponseWriter, req *http.Request) {
 	respondJSON(w, http.StatusOK, sdk.WinnerResponse{Finished: outcome.Finished, WinnerTeamID: outcome.WinnerTeamID})
 }
 
-// GET /v1/tournaments/{id}/status
 func (r *Router) getTournamentStatus(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "tournament")
 	if !ok {

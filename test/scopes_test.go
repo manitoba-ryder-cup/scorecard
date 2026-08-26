@@ -18,8 +18,6 @@ import (
 //
 // This table is deliberately a second, independent copy. Derived from the server's own
 // registration the two would agree by construction and prove nothing.
-//
-//commentcap:allow -- naming why this is a copy is what stops someone deriving it
 var scopedRoutes = []struct {
 	method, route, scope string
 }{

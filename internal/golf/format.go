@@ -5,8 +5,8 @@ import (
 	"fmt"
 )
 
-// FormatService exposes the code-defined match formats. They are seeded reference
-// data, not user content, so this is read-only.
+// FormatService exposes the match formats. They are seeded reference data, not user
+// content, so this is read-only.
 type FormatService struct {
 	FormatDB formatDB
 }

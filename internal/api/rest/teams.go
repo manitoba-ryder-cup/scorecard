@@ -6,7 +6,6 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
-// PUT /v1/teams/{id}/captain
 func (r *Router) setCaptain(w http.ResponseWriter, req *http.Request) {
 	teamID, ok := pathUUIDOr400(w, req, "id", "team")
 	if !ok {
@@ -23,8 +22,8 @@ func (r *Router) setCaptain(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// DELETE /v1/teams/{id}/captain
-// Unsets the team's captain (used to reassign); 404 if the team doesn't exist.
+// clearCaptain leaves the team with no captain; 404 if the team doesn't exist. Naming a
+// different one is a PUT, not a delete first.
 func (r *Router) clearCaptain(w http.ResponseWriter, req *http.Request) {
 	teamID, ok := pathUUIDOr400(w, req, "id", "team")
 	if !ok {

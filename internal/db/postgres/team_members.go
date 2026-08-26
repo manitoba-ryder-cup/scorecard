@@ -17,7 +17,6 @@ func NewTeamMembersDB(db *DB) *TeamMembersDB {
 	return &TeamMembersDB{db: db}
 }
 
-// CreateTeamMember drafts a player onto a team.
 func (t *TeamMembersDB) CreateTeamMember(ctx context.Context, teamID, playerID, tournamentID uuid.UUID) (*golf.TeamMember, error) {
 	return withTenant(ctx, t.db, func(q *sqlc.Queries, tenantID uuid.UUID) (*golf.TeamMember, error) {
 		member, err := q.CreateTeamMember(ctx, sqlc.CreateTeamMemberParams{

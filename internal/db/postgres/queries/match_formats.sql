@@ -1,5 +1,5 @@
--- Match formats are global, code-defined reference data (seeded, not tenant-scoped),
--- so these reads take no tenant_id and there is no create/update/delete.
+-- Match formats are global seeded reference data (not tenant-scoped), so these reads take
+-- no tenant_id and there is no create/update/delete.
 
 -- Sorted by name: the ids are gen_random_uuid(), so ordering by them shuffles
 -- differently in every database.

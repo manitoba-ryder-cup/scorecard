@@ -121,7 +121,6 @@ func toTeamWithCaptain(row sqlc.ListTeamsByTournamentRow) golf.TeamWithCaptain {
 	return twc
 }
 
-// derefString returns the string a pointer holds, or "" if nil.
 func derefString(s *string) string {
 	if s == nil {
 		return ""
