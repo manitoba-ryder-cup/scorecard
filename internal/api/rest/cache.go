@@ -35,8 +35,8 @@ func cacheableRead(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// cacheByPhase picks a tier from where the cup stands. A cup being played is exempt, since a
-// spectator polls it every twenty seconds and caching would defeat that.
+// cacheByPhase picks a tier from where the cup stands. A cup being played is exempt: it is
+// read to find out what changed in the last minute, which is what a cache would withhold.
 //
 // A finished cup gets an hour rather than a day because resetting a match can unfinish one,
 // and the endpoints publishing a cup disagree until the longest tier expires. An hour is what
