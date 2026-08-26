@@ -150,7 +150,7 @@ func (q *Queries) ListMatchesByTournament(ctx context.Context, arg ListMatchesBy
 }
 
 const listMatchesWithDetailsByTournament = `-- name: ListMatchesWithDetailsByTournament :many
-SELECT m.id, m.tournament_id, m.course_id, m.tee_color_id, m.match_format_id, m.tenant_id, m.tee_time, m.handicapped, m.created_at, m.updated_at, mf.name AS format_name, c.name AS course_name
+SELECT m.id, m.tournament_id, m.course_id, m.tee_color_id, m.match_format_id, m.tenant_id, m.tee_time, m.handicapped, m.created_at, m.updated_at, mf.name AS format_name, mf.scores_per_player, c.name AS course_name
 FROM matches m
 JOIN match_formats mf ON mf.id = m.match_format_id
 JOIN courses c ON c.id = m.course_id AND c.tenant_id = m.tenant_id
@@ -164,21 +164,24 @@ type ListMatchesWithDetailsByTournamentParams struct {
 }
 
 type ListMatchesWithDetailsByTournamentRow struct {
-	ID            uuid.UUID `json:"id"`
-	TournamentID  uuid.UUID `json:"tournament_id"`
-	CourseID      uuid.UUID `json:"course_id"`
-	TeeColorID    uuid.UUID `json:"tee_color_id"`
-	MatchFormatID uuid.UUID `json:"match_format_id"`
-	TenantID      uuid.UUID `json:"tenant_id"`
-	TeeTime       time.Time `json:"tee_time"`
-	Handicapped   bool      `json:"handicapped"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
-	FormatName    string    `json:"format_name"`
-	CourseName    string    `json:"course_name"`
+	ID              uuid.UUID `json:"id"`
+	TournamentID    uuid.UUID `json:"tournament_id"`
+	CourseID        uuid.UUID `json:"course_id"`
+	TeeColorID      uuid.UUID `json:"tee_color_id"`
+	MatchFormatID   uuid.UUID `json:"match_format_id"`
+	TenantID        uuid.UUID `json:"tenant_id"`
+	TeeTime         time.Time `json:"tee_time"`
+	Handicapped     bool      `json:"handicapped"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+	FormatName      string    `json:"format_name"`
+	ScoresPerPlayer bool      `json:"scores_per_player"`
+	CourseName      string    `json:"course_name"`
 }
 
-// Joined with format + course names so the results view resolves both in one query.
+// Joined with the format and course so the results view resolves all of it in one query. The
+// format's scoring grain rides along: a client reading a hole needs it, and deriving it from
+// the name would be this table's data copied into a list somewhere else.
 func (q *Queries) ListMatchesWithDetailsByTournament(ctx context.Context, arg ListMatchesWithDetailsByTournamentParams) ([]ListMatchesWithDetailsByTournamentRow, error) {
 	rows, err := q.db.Query(ctx, listMatchesWithDetailsByTournament, arg.TournamentID, arg.TenantID)
 	if err != nil {
@@ -200,6 +203,7 @@ func (q *Queries) ListMatchesWithDetailsByTournament(ctx context.Context, arg Li
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.FormatName,
+			&i.ScoresPerPlayer,
 			&i.CourseName,
 		); err != nil {
 			return nil, err

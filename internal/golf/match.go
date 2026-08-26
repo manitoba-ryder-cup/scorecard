@@ -352,13 +352,14 @@ func groupSides(participants []MatchParticipantPlayer) map[uuid.UUID][]MatchSide
 // reads as unplayed.
 func buildMatchResult(m MatchDetail, sides []MatchSide, scores []Score) MatchResult {
 	result := MatchResult{
-		MatchID:      m.ID,
-		FormatName:   m.FormatName,
-		CourseName:   m.CourseName,
-		TeeTime:      m.TeeTime,
-		Sides:        sides,
-		StoredResult: StoredResult{HolesRemaining: 18},
-		HoleResults:  []*uuid.UUID{},
+		MatchID:         m.ID,
+		FormatName:      m.FormatName,
+		ScoresPerPlayer: m.ScoresPerPlayer,
+		CourseName:      m.CourseName,
+		TeeTime:         m.TeeTime,
+		Sides:           sides,
+		StoredResult:    StoredResult{HolesRemaining: 18},
+		HoleResults:     []*uuid.UUID{},
 	}
 	if len(sides) != 2 {
 		return result

@@ -43,9 +43,11 @@ SELECT m.* FROM matches m
 WHERE m.tournament_id = $1 AND m.tenant_id = $2
 ORDER BY m.tee_time;
 
--- Joined with format + course names so the results view resolves both in one query.
+-- Joined with the format and course so the results view resolves all of it in one query. The
+-- format's scoring grain rides along: a client reading a hole needs it, and deriving it from
+-- the name would be this table's data copied into a list somewhere else.
 -- name: ListMatchesWithDetailsByTournament :many
-SELECT m.*, mf.name AS format_name, c.name AS course_name
+SELECT m.*, mf.name AS format_name, mf.scores_per_player, c.name AS course_name
 FROM matches m
 JOIN match_formats mf ON mf.id = m.match_format_id
 JOIN courses c ON c.id = m.course_id AND c.tenant_id = m.tenant_id

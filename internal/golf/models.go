@@ -78,7 +78,10 @@ type MatchParticipantPlayer struct {
 type MatchDetail struct {
 	Match
 	FormatName string
-	CourseName string
+	// Whether the format records a stroke for each player or one for the side, which is what
+	// decides the shape of a hole's scores.
+	ScoresPerPlayer bool
+	CourseName      string
 }
 
 // Score is a hole score attributed to a side (TeamID) and, for per-player formats,
@@ -275,10 +278,12 @@ type MatchResult struct {
 	StoredResult // the closed-out state, embedded so there is one shape for it
 	MatchID      uuid.UUID
 	FormatName   string
-	CourseName   string
-	TeeTime      time.Time
-	Sides        []MatchSide
-	HoleResults  []*uuid.UUID
+	// Whether the format records a stroke for each player or one for the side.
+	ScoresPerPlayer bool
+	CourseName      string
+	TeeTime         time.Time
+	Sides           []MatchSide
+	HoleResults     []*uuid.UUID
 }
 
 // TeamHoleScore is one side's gross score on a hole, tagged by team ID. Strokes alone

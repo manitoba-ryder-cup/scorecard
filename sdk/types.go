@@ -431,13 +431,16 @@ type MatchSide struct {
 // reports who is ahead at any point (null = all square) so a live leaderboard needs no
 // client-side derivation. tee_time is RFC3339.
 type MatchResult struct {
-	MatchStatus              // finished/winner/leader/lead/holes_remaining, flattened into this object
-	MatchID     uuid.UUID    `json:"match_id"`
-	FormatName  string       `json:"format_name"`
-	Sides       []MatchSide  `json:"sides"`
-	HoleResults []*uuid.UUID `json:"hole_results"`
-	TeeTime     string       `json:"tee_time"`
-	CourseName  string       `json:"course_name"`
+	MatchStatus           // finished/winner/leader/lead/holes_remaining, flattened into this object
+	MatchID     uuid.UUID `json:"match_id"`
+	FormatName  string    `json:"format_name"`
+	// Whether the format records a stroke for each player or one for the side. Sent so a client
+	// reading a hole takes the grain from the format rather than from a list of format names.
+	ScoresPerPlayer bool         `json:"scores_per_player"`
+	Sides           []MatchSide  `json:"sides"`
+	HoleResults     []*uuid.UUID `json:"hole_results"`
+	TeeTime         string       `json:"tee_time"`
+	CourseName      string       `json:"course_name"`
 	// The scoring window, RFC3339. Both bounds are sent so the client gates its UI on the
 	// server's rule rather than a second copy of it, and sent as instants rather than a
 	// yes/no so they stay correct on a page left open across the boundary.

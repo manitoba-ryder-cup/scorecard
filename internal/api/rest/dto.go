@@ -172,6 +172,7 @@ func toMatchResultDTO(m golf.MatchResult) sdk.MatchResult {
 		MatchStatus:     toMatchStatusDTO(m.StoredResult),
 		MatchID:         m.MatchID,
 		FormatName:      m.FormatName,
+		ScoresPerPlayer: m.ScoresPerPlayer,
 		Sides:           mapSlice(m.Sides, toMatchSideDTO),
 		HoleResults:     holeResults,
 		TeeTime:         m.TeeTime.Format(time.RFC3339),
