@@ -31,8 +31,10 @@ RETURNING *;
 -- scored, how many players a side already holds — and then writes on that answer, so without
 -- this lock two can decide against the same snapshot and the later one acts on an answer that
 -- stopped being true before it landed.
+-- Returns the row, not just its id: a caller that locks a match to decide something about it
+-- needs the match, and reading it again inside the lock cannot say anything different.
 -- name: LockMatch :one
-SELECT id FROM matches
+SELECT * FROM matches
 WHERE id = $1 AND tenant_id = $2
 FOR UPDATE;
 
