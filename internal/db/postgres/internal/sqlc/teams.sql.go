@@ -22,8 +22,8 @@ type ClearTeamCaptainParams struct {
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
-// Unset a team's captain outright (used to reassign). Rows affected = 0 only when the
-// team doesn't exist, which the caller turns into a 404.
+// Leaves a team with no captain. Rows affected = 0 only when the team doesn't exist,
+// which the caller turns into a 404.
 func (q *Queries) ClearTeamCaptain(ctx context.Context, arg ClearTeamCaptainParams) (int64, error) {
 	result, err := q.db.Exec(ctx, clearTeamCaptain, arg.ID, arg.TenantID)
 	if err != nil {

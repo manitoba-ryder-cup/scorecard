@@ -25,7 +25,7 @@ type Player struct {
 	CupsWon   int // finished tournaments the player's team won outright
 }
 
-// Team represents one of a tournament's two sides.
+// Team is one of a tournament's two sides.
 type Team struct {
 	ID           uuid.UUID
 	TournamentID uuid.UUID
@@ -33,7 +33,6 @@ type Team struct {
 	CaptainID    *uuid.UUID
 }
 
-// Tournament represents a golf tournament event
 type Tournament struct {
 	ID        uuid.UUID
 	Name      string
@@ -46,7 +45,6 @@ type Tournament struct {
 	Phase sdk.TournamentPhase
 }
 
-// Match represents an individual golf match
 type Match struct {
 	ID            uuid.UUID
 	TournamentID  uuid.UUID
@@ -74,7 +72,7 @@ type MatchParticipantPlayer struct {
 	LastName  string
 }
 
-// MatchDetail is a match plus its resolved format and course names.
+// MatchDetail is a match plus its resolved format and course.
 type MatchDetail struct {
 	Match
 	FormatName string
@@ -97,7 +95,6 @@ type Score struct {
 	Strokes    int32
 }
 
-// Course represents a golf course.
 type Course struct {
 	ID   uuid.UUID
 	Name string
@@ -107,7 +104,7 @@ type Course struct {
 	TimeZone string
 }
 
-// Hole represents a hole on a golf course with specific tee
+// Hole is one hole's setup for a tee: par, stroke index (Hdcp), and yardage.
 type Hole struct {
 	CourseID   uuid.UUID
 	TeeColorID uuid.UUID
@@ -117,13 +114,12 @@ type Hole struct {
 	Yards      int32
 }
 
-// TeeColor represents tee marker colors
+// TeeColor is a tenant-level tee marker, shared across courses.
 type TeeColor struct {
 	ID    uuid.UUID
 	Color string
 }
 
-// TeeSet represents course rating and slope for a specific tee
 type TeeSet struct {
 	CourseID   uuid.UUID
 	TeeColorID uuid.UUID
@@ -141,7 +137,7 @@ type CourseTeeSet struct {
 	Rating     float64
 }
 
-// MatchFormat represents the type of match
+// MatchFormat is a scoring format and the two rules it carries as data.
 type MatchFormat struct {
 	ID             uuid.UUID
 	Name           string
@@ -272,7 +268,7 @@ type MatchSide struct {
 
 // MatchResult is a match's outcome for the tournament results view. HoleResults holds,
 // per played hole in order, the winning team's id (nil = halved); its length is the
-// holes played. The closed-out state (Finished/WinnerTeamID/Lead/HolesRemaining) is
+// holes played. The closed-out state (Finished/LeaderTeamID/Lead/HolesRemaining) is
 // the same StoredResult the scoring engine persists.
 type MatchResult struct {
 	StoredResult // the closed-out state, embedded so there is one shape for it
@@ -311,7 +307,8 @@ type PlayerRecord struct {
 }
 
 // MatchOutcome is a match's standing: whether anyone has scored it, whether it is
-// complete, and the winning team (nil while undecided, or when the match was halved).
+// complete, and the leading team (nil when all square). WinnerTeamID is that leader, and
+// only means the winner once Finished — the standings rules check that before reading it.
 type MatchOutcome struct {
 	Started      bool
 	Finished     bool
@@ -337,7 +334,6 @@ type StoredResult struct {
 }
 
 // Winner is the leader once the match is decided, nil while it is live or halved.
-// The one place "the leader is the winner once it's finished" is written down.
 func (r StoredResult) Winner() *uuid.UUID {
 	if !r.Finished {
 		return nil
@@ -365,7 +361,6 @@ type TeamWithCaptain struct {
 	Captain *PlayerSummary
 }
 
-// TeamData represents a team's summary for a tournament
 type TeamData struct {
 	ID      uuid.UUID
 	Color   string
@@ -373,7 +368,6 @@ type TeamData struct {
 	Points  float64
 }
 
-// PlayerSummary is a lightweight player representation
 type PlayerSummary struct {
 	ID        uuid.UUID
 	FirstName string

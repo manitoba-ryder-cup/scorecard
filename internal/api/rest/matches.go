@@ -8,7 +8,6 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
-// GET /v1/tournaments/{id}/matches
 func (r *Router) listMatches(w http.ResponseWriter, req *http.Request) {
 	tournamentID, ok := pathUUIDOr400(w, req, "id", "tournament")
 	if !ok {
@@ -22,7 +21,6 @@ func (r *Router) listMatches(w http.ResponseWriter, req *http.Request) {
 	respondJSON(w, http.StatusOK, mapSlice(matches, toMatchDTO))
 }
 
-// POST /v1/tournaments/{id}/matches
 func (r *Router) createMatch(w http.ResponseWriter, req *http.Request) {
 	tournamentID, ok := pathUUIDOr400(w, req, "id", "tournament")
 	if !ok {
@@ -49,7 +47,6 @@ func (r *Router) createMatch(w http.ResponseWriter, req *http.Request) {
 	respondJSON(w, http.StatusCreated, toMatchDTO(*match))
 }
 
-// PUT /v1/matches/{id}
 func (r *Router) updateMatch(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "match")
 	if !ok {
@@ -90,7 +87,6 @@ func toMatchDTO(m golf.Match) sdk.Match {
 	}
 }
 
-// GET /v1/tournaments/{id}/results
 func (r *Router) listResults(w http.ResponseWriter, req *http.Request) {
 	tournamentID, ok := pathUUIDOr400(w, req, "id", "tournament")
 	if !ok {
@@ -105,7 +101,6 @@ func (r *Router) listResults(w http.ResponseWriter, req *http.Request) {
 	respondJSON(w, http.StatusOK, mapSlice(results, toMatchResultDTO))
 }
 
-// GET /v1/matches/{id}/holes
 func (r *Router) getMatchHoles(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "match")
 	if !ok {
@@ -119,7 +114,6 @@ func (r *Router) getMatchHoles(w http.ResponseWriter, req *http.Request) {
 	respondJSON(w, http.StatusOK, mapSlice(holes, toHoleDTO))
 }
 
-// GET /v1/matches/{id}/participants
 func (r *Router) listParticipants(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "match")
 	if !ok {
@@ -133,7 +127,6 @@ func (r *Router) listParticipants(w http.ResponseWriter, req *http.Request) {
 	respondJSON(w, http.StatusOK, mapSlice(participants, toMatchParticipantDTO))
 }
 
-// PUT /v1/matches/{id}/participants
 func (r *Router) setLineup(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "match")
 	if !ok {
@@ -163,8 +156,7 @@ func toMatchParticipantDTO(p golf.MatchParticipant) sdk.MatchParticipant {
 	}
 }
 
-// GET /v1/matches/{id}/scores
-// Returns the hole-by-hole match-play state.
+// getMatchScores returns the hole-by-hole match-play state.
 func (r *Router) getMatchScores(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "match")
 	if !ok {
@@ -178,9 +170,8 @@ func (r *Router) getMatchScores(w http.ResponseWriter, req *http.Request) {
 	respondJSON(w, http.StatusOK, mapSlice(scores, toHoleStatusDTO))
 }
 
-// POST /v1/matches/{id}/scores
-// Records a hole's scores as a unit and recomputes the match's materialized result, which
-// it returns so the client sees the hole's effect on the match without a second read.
+// submitScore records a hole's scores as a unit and recomputes the match's materialized
+// result, which it returns so the client sees the hole's effect without a second read.
 func (r *Router) submitScore(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "match")
 	if !ok {
@@ -202,8 +193,7 @@ func (r *Router) submitScore(w http.ResponseWriter, req *http.Request) {
 	respondJSON(w, http.StatusOK, toMatchStatusDTO(result))
 }
 
-// DELETE /v1/matches/{id}
-// Removes a match and its lineup. A match that has been scored is refused rather than
+// deleteMatch removes a match and its lineup. A scored match is refused rather than
 // taking its results with it; reset it first.
 func (r *Router) deleteMatch(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "match")
@@ -217,8 +207,8 @@ func (r *Router) deleteMatch(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// DELETE /v1/matches/{id}/scores
-// A match with nothing to clear is a 204, not a 404, so a repeated reset is harmless.
+// resetMatch clears a match's scores. Nothing to clear is a 204, not a 404, so a repeated
+// reset is harmless.
 func (r *Router) resetMatch(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "match")
 	if !ok {
@@ -231,10 +221,9 @@ func (r *Router) resetMatch(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// GET /v1/matches/{id}/winner
-// GET /v1/matches/{id}/status
-// Both report the match's outcome, in the same shape a score write returns — the winner
-// and "is it over" are two questions about one state, so they get one answer.
+// getMatchStatus answers both the status and winner routes: one outcome shape, because the
+// winner and "is it over" are two questions about one state. Neither route can be dropped
+// without a client change.
 func (r *Router) getMatchStatus(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "match")
 	if !ok {

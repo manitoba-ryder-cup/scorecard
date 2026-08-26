@@ -18,8 +18,6 @@ import (
 // and the window never opens. Holding it open from here makes it deterministic.
 //
 // The returned commit closes the transaction; the caller must call it.
-//
-//commentcap:allow -- why this is not a goroutine race is the whole point of the helper
 func scoreLandingNow(t *testing.T, fix *util.Fixture) (commit func()) {
 	t.Helper()
 	ctx := context.Background()

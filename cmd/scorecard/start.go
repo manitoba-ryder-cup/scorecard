@@ -27,10 +27,8 @@ var startCmd = &cli.Command{
 		PublicTenantIDFlag,
 	},
 	Action: func(c *cli.Context) error {
-		// Convert CLI config to app config
 		appConfig := config.ToAppConfig()
 
-		// Create server with our API handlers
 		server, err := app.NewServer(c.Context, appConfig)
 		if err != nil {
 			return err
@@ -43,13 +41,11 @@ var startCmd = &cli.Command{
 
 		group, ctx := errgroup.WithContext(ctx)
 
-		// Start server
 		group.Go(func() error {
 			slog.Info("Listening for connections", "http_address", httpAddr)
 			return server.Start()
 		})
 
-		// Handle shutdown
 		group.Go(func() error {
 			<-ctx.Done()
 			slog.Info("Shutting down gracefully")

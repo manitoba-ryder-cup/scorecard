@@ -95,8 +95,9 @@ func TestUpdatePlayer_LeavesAnOmittedTierAlone(t *testing.T) {
 	}
 }
 
-// Only the captain clear that follows an undraft is exercised here.
-type fakeTeamDB struct{}
+type fakeTeamDB struct {
+	captainCleared []uuid.UUID
+}
 
 func (f *fakeTeamDB) GetTeam(ctx context.Context, id uuid.UUID) (*Team, error) { return nil, nil }
 func (f *fakeTeamDB) ListTeamsByTournament(ctx context.Context, tournamentID uuid.UUID) ([]TeamWithCaptain, error) {
@@ -106,6 +107,7 @@ func (f *fakeTeamDB) SetTeamCaptain(ctx context.Context, teamID, captainID uuid.
 	return nil, nil
 }
 func (f *fakeTeamDB) ClearCaptainForPlayer(ctx context.Context, teamID, playerID uuid.UUID) error {
+	f.captainCleared = append(f.captainCleared, playerID)
 	return nil
 }
 func (f *fakeTeamDB) ClearCaptain(ctx context.Context, teamID uuid.UUID) error { return nil }
@@ -132,5 +134,18 @@ func TestUndraftPlayer_AllowedBeforeTheyHaveBeenScored(t *testing.T) {
 	}
 	if len(db.undrafted) != 1 || db.undrafted[0] != playerA {
 		t.Errorf("undrafted = %v, want the player", db.undrafted)
+	}
+}
+
+// A side's name derives from its captain, so one who has left the team cannot stay it.
+func TestUndraftPlayer_ClearsThemAsCaptain(t *testing.T) {
+	teams := &fakeTeamDB{}
+	svc := &RosterService{TeamMemberDB: &fakeTeamMemberDB{}, TeamDB: teams}
+
+	if err := svc.UndraftPlayer(context.Background(), teamA, playerA); err != nil {
+		t.Fatalf("UndraftPlayer: %v", err)
+	}
+	if len(teams.captainCleared) != 1 || teams.captainCleared[0] != playerA {
+		t.Errorf("captain cleared for = %v, want the undrafted player", teams.captainCleared)
 	}
 }

@@ -18,7 +18,6 @@ type Services struct {
 	Seed       *golf.SeedService
 }
 
-// NewServices constructs the repository adapters and wires the domain services.
 func NewServices(db *postgres.DB) *Services {
 	playersDB := postgres.NewPlayersDB(db)
 	matchesDB := postgres.NewMatchesDB(db)

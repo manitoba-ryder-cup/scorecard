@@ -7,8 +7,7 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
-// GET /v1/match-formats
-// Lists the global, code-defined match formats. No tenant involved (global data).
+// listMatchFormats lists the seeded match formats. No tenant involved (global data).
 func (r *Router) listMatchFormats(w http.ResponseWriter, req *http.Request) {
 	formats, err := r.FormatService.ListFormats(req.Context())
 	if err != nil {

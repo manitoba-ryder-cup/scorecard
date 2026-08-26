@@ -51,6 +51,7 @@ func (r *Router) Handler() http.Handler {
 	mux := http.NewServeMux()
 	r.registerRoutes(mux)
 
+	// Assembled inner-to-outer, so the last one wrapped is the first to run.
 	var handler http.Handler = mux
 	handler = identity.UserAgent(handler)
 	handler = identity.ClientIP(r.TrustedProxyMode)(handler)
@@ -133,6 +134,4 @@ func (r *Router) registerRoutes(mux *http.ServeMux) {
 	scoped("DELETE", sdk.RouteV1TeamMember, sdk.ScopeTournamentsWrite, r.undraftPlayer)
 	scoped("PUT", sdk.RouteV1TeamCaptain, sdk.ScopeTournamentsWrite, r.setCaptain)
 	scoped("DELETE", sdk.RouteV1TeamCaptain, sdk.ScopeTournamentsWrite, r.clearCaptain)
-
-	// Assembled inner-to-outer, so the last one wrapped is the first to run.
 }

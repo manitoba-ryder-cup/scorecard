@@ -17,8 +17,6 @@ import (
 // Holes 1-10 only: that is the whole match at 10 & 8, and a finished match refuses scores for
 // holes it never reached. Ten is also the earliest the lead can be decided, so no interleaving
 // can finish the match while one of these holes is still unwritten.
-//
-//commentcap:allow -- the hole range is a constraint of the test, not an arbitrary choice
 func TestConcurrentScoreSubmissionsMaterializeEveryHole(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

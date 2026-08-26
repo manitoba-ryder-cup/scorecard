@@ -7,7 +7,6 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
-// GET /v1/players
 func (r *Router) listPlayers(w http.ResponseWriter, req *http.Request) {
 	players, err := r.PlayerService.ListPlayers(req.Context())
 	if err != nil {
@@ -17,7 +16,6 @@ func (r *Router) listPlayers(w http.ResponseWriter, req *http.Request) {
 	respondJSON(w, http.StatusOK, mapSlice(players, toPlayerProfileDTO))
 }
 
-// POST /v1/players
 func (r *Router) createPlayer(w http.ResponseWriter, req *http.Request) {
 	// The SDK client validates before sending; this guards a caller that does not.
 	body, ok := decodeAndValidate[sdk.CreatePlayerRequest](w, req)
@@ -37,8 +35,7 @@ func (r *Router) createPlayer(w http.ResponseWriter, req *http.Request) {
 	respondJSON(w, http.StatusCreated, toPlayerDTO(*player))
 }
 
-// PUT /v1/players/{id}
-// Updates a player's own attributes. Omitted fields keep their stored value.
+// updatePlayer writes a player's own attributes. Omitted fields keep their stored value.
 func (r *Router) updatePlayer(w http.ResponseWriter, req *http.Request) {
 	playerID, ok := pathUUIDOr400(w, req, "id", "player")
 	if !ok {
@@ -62,7 +59,6 @@ func (r *Router) updatePlayer(w http.ResponseWriter, req *http.Request) {
 	respondJSON(w, http.StatusOK, toPlayerDTO(*player))
 }
 
-// GET /v1/players/{id}
 func (r *Router) getPlayer(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "player")
 	if !ok {
@@ -76,7 +72,6 @@ func (r *Router) getPlayer(w http.ResponseWriter, req *http.Request) {
 	respondJSON(w, http.StatusOK, toPlayerProfileDTO(*player))
 }
 
-// GET /v1/players/{id}/stats
 func (r *Router) getPlayerStats(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "player")
 	if !ok {
@@ -90,7 +85,6 @@ func (r *Router) getPlayerStats(w http.ResponseWriter, req *http.Request) {
 	respondJSON(w, http.StatusOK, toPlayerStatsDTO(*stats))
 }
 
-// GET /v1/players/{id}/tournaments
 func (r *Router) listPlayerTournaments(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "player")
 	if !ok {

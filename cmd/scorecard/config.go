@@ -4,27 +4,20 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/internal/app"
 )
 
-// Config holds all configuration for the application
 type Config struct {
-	// Debug
 	Debug bool
 
 	// LogFormat selects the slog handler: "json" (default) or "text"
 	LogFormat string
 
-	// Database
 	DatabaseURL string
 
-	// Server address
 	HTTPAddress string
 
-	// JWT configuration
 	JWTPublicKeyPath string
 
-	// Environment
 	Environment string
 
-	// Proxy configuration
 	TrustedProxyMode bool
 
 	// ProxySecret gates all non-health requests on a matching X-Proxy-Secret header
@@ -39,7 +32,6 @@ type Config struct {
 // config is the global configuration populated by CLI flags
 var config = &Config{}
 
-// ToAppConfig converts the CLI config to an app.Config
 func (c *Config) ToAppConfig() *app.Config {
 	return &app.Config{
 		DatabaseURL:      c.DatabaseURL,

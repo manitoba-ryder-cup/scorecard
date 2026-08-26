@@ -8,8 +8,8 @@ import (
 )
 
 // CourseService owns course setup reference data: tee colors (tenant-level markers),
-// courses (venues), and — later — their tee sets and holes. Request-shape validation
-// happens at the API boundary; these methods persist and surface repository errors.
+// courses (venues), and their tee sets and holes. Request-shape validation happens at the
+// API boundary; these methods persist and surface repository errors.
 type CourseService struct {
 	TeeColorDB teeColorDB
 	CourseDB   courseDB

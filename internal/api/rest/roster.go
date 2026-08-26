@@ -7,7 +7,6 @@ import (
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 )
 
-// GET /v1/tournaments/{id}/players
 func (r *Router) listTournamentPlayers(w http.ResponseWriter, req *http.Request) {
 	tournamentID, ok := pathUUIDOr400(w, req, "id", "tournament")
 	if !ok {
@@ -21,7 +20,6 @@ func (r *Router) listTournamentPlayers(w http.ResponseWriter, req *http.Request)
 	respondJSON(w, http.StatusOK, mapSlice(players, toTournamentPlayerDTO))
 }
 
-// POST /v1/tournaments/{id}/players
 func (r *Router) enterPlayer(w http.ResponseWriter, req *http.Request) {
 	tournamentID, ok := pathUUIDOr400(w, req, "id", "tournament")
 	if !ok {
@@ -45,7 +43,6 @@ func (r *Router) enterPlayer(w http.ResponseWriter, req *http.Request) {
 	respondJSON(w, http.StatusCreated, toTournamentPlayerDTO(*entry))
 }
 
-// PUT /v1/tournaments/{id}/players/{playerId}
 func (r *Router) updateTournamentPlayer(w http.ResponseWriter, req *http.Request) {
 	tournamentID, ok := pathUUIDOr400(w, req, "id", "tournament")
 	if !ok {
@@ -73,8 +70,7 @@ func (r *Router) updateTournamentPlayer(w http.ResponseWriter, req *http.Request
 	respondJSON(w, http.StatusOK, toTournamentPlayerDTO(*entry))
 }
 
-// POST /v1/teams/{id}/members
-// Drafts an entered player onto the team (the tournament is the team's).
+// draftPlayer drafts an entered player onto the team (the tournament is the team's).
 func (r *Router) draftPlayer(w http.ResponseWriter, req *http.Request) {
 	teamID, ok := pathUUIDOr400(w, req, "id", "team")
 	if !ok {
@@ -92,8 +88,8 @@ func (r *Router) draftPlayer(w http.ResponseWriter, req *http.Request) {
 	respondJSON(w, http.StatusCreated, toTeamMemberDTO(*member))
 }
 
-// DELETE /v1/teams/{id}/members/{playerId}
-// Undrafts a player from the team; 404 if they weren't on it.
+// undraftPlayer removes a player from the team; 404 if they weren't on it, 409 while they
+// hold a lineup place.
 func (r *Router) undraftPlayer(w http.ResponseWriter, req *http.Request) {
 	teamID, ok := pathUUIDOr400(w, req, "id", "team")
 	if !ok {
@@ -110,7 +106,6 @@ func (r *Router) undraftPlayer(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// GET /v1/teams/{id}/members
 func (r *Router) listTeamMembers(w http.ResponseWriter, req *http.Request) {
 	teamID, ok := pathUUIDOr400(w, req, "id", "team")
 	if !ok {

@@ -21,8 +21,7 @@ type validatable interface {
 }
 
 // decodeAndValidate reads a size-limited JSON body into a T and validates its shape,
-// writing a 400 and returning ok=false on any failure. It collapses the identical
-// decode -> validate -> respond preamble every write handler shared.
+// writing a 400 and returning ok=false on any failure.
 func decodeAndValidate[T validatable](w http.ResponseWriter, req *http.Request) (T, bool) {
 	var body T
 	req.Body = http.MaxBytesReader(w, req.Body, maxRequestBody)
@@ -41,7 +40,6 @@ func decodeAndValidate[T validatable](w http.ResponseWriter, req *http.Request) 
 	return body, true
 }
 
-// respondJSON sends a JSON response
 func respondJSON(writer http.ResponseWriter, status int, data any) {
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(status)

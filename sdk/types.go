@@ -2,7 +2,6 @@ package sdk
 
 import "github.com/google/uuid"
 
-// HealthResponse represents the health check response
 type HealthResponse struct {
 	Status string `json:"status"`
 }
@@ -32,7 +31,7 @@ type Player struct {
 }
 
 // PlayerRecord is a player's win/loss/tie tally across finished matches, derived on
-// read from match_results (never stored — the old app's stale columns are gone).
+// read from match_results and never stored, so it cannot go stale.
 type PlayerRecord struct {
 	Wins   int32 `json:"wins"`
 	Losses int32 `json:"losses"`
@@ -76,8 +75,8 @@ type CreateCourseRequest struct {
 	TimeZone string `json:"time_zone"`
 }
 
-// MatchFormat is a code-defined scoring format (e.g. Singles, Fourball). Global,
-// seeded reference data — read-only over the API.
+// MatchFormat is a scoring format (e.g. Singles, Fourball). Global, seeded reference
+// data — read-only over the API. players_per_side and scores_per_player are its rules.
 type MatchFormat struct {
 	ID              uuid.UUID `json:"id"`
 	Name            string    `json:"name"`
@@ -306,8 +305,8 @@ type TournamentTeam struct {
 }
 
 // Match is a scheduled match within a tournament. tee_time is RFC3339 and required — it
-// is the instant the match's scoring window opens and closes around; handicapped toggles
-// net scoring for this match.
+// is the instant the match's scoring window opens and closes around. handicapped is stored
+// for a net-scoring mode that does not exist yet; every match is scored gross.
 type Match struct {
 	ID            uuid.UUID `json:"id"`
 	TournamentID  uuid.UUID `json:"tournament_id"`
@@ -333,11 +332,9 @@ type CreateMatchRequest struct {
 // UpdateMatchRequest is the body for PUT /v1/matches/{id}. Omitted fields keep their
 // stored value; a body that sets none is rejected rather than treated as a no-op.
 //
-// The tournament is deliberately absent — a match's scores and participants reference it,
-// so moving one between cups is not an edit.
-// The format is not here on purpose: it decides how many play a side and whether a hole is
-// recorded per player, so changing it reinterprets a match rather than adjusting it. Set it
-// once at creation, and delete the match to change it.
+// The tournament and the format are absent on purpose. Scores and participants reference the
+// tournament, and the format decides how many play a side and whether a hole is recorded per
+// player — changing either reinterprets a match rather than adjusting it. Delete it instead.
 type UpdateMatchRequest struct {
 	CourseID    *uuid.UUID `json:"course_id,omitempty"`
 	TeeColorID  *uuid.UUID `json:"tee_color_id,omitempty"`
