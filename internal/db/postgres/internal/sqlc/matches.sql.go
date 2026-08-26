@@ -181,8 +181,8 @@ type ListMatchesWithDetailsByTournamentRow struct {
 }
 
 // Joined with the format and course so the results view resolves all of it in one query. The
-// format's rules ride along: a client reading a hole or drawing an unfilled one needs them, and
-// deriving them from the name would be this table's data copied into a list somewhere else.
+// format's rules ride along, because deriving them from its name copies this table's data into
+// a list somewhere else.
 func (q *Queries) ListMatchesWithDetailsByTournament(ctx context.Context, arg ListMatchesWithDetailsByTournamentParams) ([]ListMatchesWithDetailsByTournamentRow, error) {
 	rows, err := q.db.Query(ctx, listMatchesWithDetailsByTournament, arg.TournamentID, arg.TenantID)
 	if err != nil {
