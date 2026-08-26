@@ -25,19 +25,18 @@ func NewParticipantsDB(db *DB) *ParticipantsDB {
 // stored — which is the reason a lineup arrives whole rather than a player at a time.
 func (p *ParticipantsDB) SetMatchLineup(ctx context.Context, matchID uuid.UUID, entries []golf.MatchParticipant) error {
 	return withTenantExec(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
-		if err := lockMatch(ctx, q, matchID, tenantID); err != nil {
+		match, err := lockMatch(ctx, q, matchID, tenantID)
+		if err != nil {
 			return err
 		}
 		if err := refuseIfScored(ctx, q, matchID, tenantID, golf.ErrScoredMatchLineup); err != nil {
 			return err
 		}
-		match, err := q.GetMatch(ctx, sqlc.GetMatchParams{ID: matchID, TenantID: tenantID})
-		if err != nil {
-			return fmt.Errorf("reading match %s: %w", matchID, mapReadErr(err, golf.ErrMatchNotFound))
-		}
+		// A match whose format has gone is a broken row here, not a request for something that
+		// does not exist, so it must not answer the caller as a 404.
 		format, err := q.GetMatchFormat(ctx, match.MatchFormatID)
 		if err != nil {
-			return fmt.Errorf("reading format %s: %w", match.MatchFormatID, mapReadErr(err, golf.ErrNotFound))
+			return fmt.Errorf("reading format %s for match %s: %w", match.MatchFormatID, matchID, err)
 		}
 		if !golf.LineupFits(entries, format.PlayersPerSide) {
 			return fmt.Errorf("%w: format %s takes %d a side", golf.ErrLineupSize, match.MatchFormatID, format.PlayersPerSide)

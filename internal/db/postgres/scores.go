@@ -43,11 +43,8 @@ func (s *ScoresDB) SaveScoresAndRecompute(
 		}
 
 		// Before the write, so the guard's decision cannot be raced by another writer.
-		if _, err := q.LockMatch(ctx, sqlc.LockMatchParams{
-			ID:       matchID,
-			TenantID: tenantID,
-		}); err != nil {
-			return zero, fmt.Errorf("locking match %s: %w", matchID, mapReadErr(err, golf.ErrMatchNotFound))
+		if _, err := lockMatch(ctx, q, matchID, tenantID); err != nil {
+			return zero, err
 		}
 
 		before, err := list()
@@ -87,11 +84,8 @@ func (s *ScoresDB) SaveScoresAndRecompute(
 
 func (s *ScoresDB) ResetMatch(ctx context.Context, matchID uuid.UUID) error {
 	return withTenantExec(ctx, s.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
-		if _, err := q.LockMatch(ctx, sqlc.LockMatchParams{
-			ID:       matchID,
-			TenantID: tenantID,
-		}); err != nil {
-			return fmt.Errorf("locking match %s: %w", matchID, mapReadErr(err, golf.ErrMatchNotFound))
+		if _, err := lockMatch(ctx, q, matchID, tenantID); err != nil {
+			return err
 		}
 		if _, err := q.DeleteScoresByMatch(ctx, sqlc.DeleteScoresByMatchParams{
 			MatchID:  matchID,

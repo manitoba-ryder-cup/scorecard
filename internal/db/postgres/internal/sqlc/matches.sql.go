@@ -213,7 +213,7 @@ func (q *Queries) ListMatchesWithDetailsByTournament(ctx context.Context, arg Li
 }
 
 const lockMatch = `-- name: LockMatch :one
-SELECT id FROM matches
+SELECT id, tournament_id, course_id, tee_color_id, match_format_id, tenant_id, tee_time, handicapped, created_at, updated_at FROM matches
 WHERE id = $1 AND tenant_id = $2
 FOR UPDATE
 `
@@ -227,11 +227,24 @@ type LockMatchParams struct {
 // scored, how many players a side already holds — and then writes on that answer, so without
 // this lock two can decide against the same snapshot and the later one acts on an answer that
 // stopped being true before it landed.
-func (q *Queries) LockMatch(ctx context.Context, arg LockMatchParams) (uuid.UUID, error) {
+// Returns the row, not just its id: a caller that locks a match to decide something about it
+// needs the match, and reading it again inside the lock cannot say anything different.
+func (q *Queries) LockMatch(ctx context.Context, arg LockMatchParams) (Match, error) {
 	row := q.db.QueryRow(ctx, lockMatch, arg.ID, arg.TenantID)
-	var id uuid.UUID
-	err := row.Scan(&id)
-	return id, err
+	var i Match
+	err := row.Scan(
+		&i.ID,
+		&i.TournamentID,
+		&i.CourseID,
+		&i.TeeColorID,
+		&i.MatchFormatID,
+		&i.TenantID,
+		&i.TeeTime,
+		&i.Handicapped,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const updateMatch = `-- name: UpdateMatch :one
