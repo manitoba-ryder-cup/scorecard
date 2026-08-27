@@ -23,6 +23,15 @@ This is a ground-up rewrite of the original Python/Flask application.
   scoped token
 - **Multi-tenancy** — PostgreSQL Row-Level Security behind explicit tenant predicates
 - **JWT authentication** — integrated with the Heimdall authentication service
+- **Tournament phase** — upcoming / live / finished, derived on read from the cup's own
+  matches rather than its dates, so a cup whose start date has arrived is still upcoming
+  until somebody records a score
+- **Published scoring window** — each match result carries the two instants its scores are
+  accepted between, so a client gates its UI on the server's rule rather than a second copy
+- **Formats as data** — `players_per_side` and `scores_per_player` ride on the wire, so a
+  client reads a hole at the right grain without matching on format names
+- **Edge caching** — anonymous reads carry a `Cache-Control` tier chosen by the cup's phase:
+  none while it is being played, a minute by default, an hour once it is settled
 - **JSON API** — snake_case, with a typed Go client in `sdk/`
 
 Handicapped play is **not** implemented. The schema carries `matches.handicapped` and per-hole
@@ -107,7 +116,9 @@ Migrations run automatically on server startup, or apply them manually:
 │   │   ├── services.go         # Repository and service graph
 │   │   └── seed.go             # Tournament seeding
 │   ├── api/rest/               # HTTP layer (stdlib http.ServeMux)
-│   │   ├── server.go           # Routes, middleware, optional auth
+│   │   ├── router.go           # Routes and the middleware chain
+│   │   ├── middleware.go       # Optional auth, panic recovery
+│   │   ├── cache.go            # Edge-cache tiers for anonymous reads
 │   │   ├── dto.go              # Domain -> SDK DTO mapping
 │   │   ├── json.go             # Response and error helpers
 │   │   └── ...                 # One file per resource
@@ -169,6 +180,7 @@ to the configured public tenant (401 if none is configured). Writes require the 
 |---|---|---|
 | GET | `/v1/players` | public read |
 | POST | `/v1/players` | `scorecard:players:write` |
+| PUT | `/v1/players/{id}` | `scorecard:players:write` |
 | GET | `/v1/players/{id}` | public read |
 | GET | `/v1/players/{id}/tournaments` | public read |
 | GET | `/v1/players/{id}/stats` | public read |
@@ -217,16 +229,28 @@ to the configured public tenant (401 if none is configured). Writes require the 
 |---|---|---|
 | GET | `/v1/tournaments/{id}/matches` | public read |
 | POST | `/v1/tournaments/{id}/matches` | `scorecard:tournaments:write` |
+| PUT | `/v1/matches/{id}` | `scorecard:tournaments:write` |
+| DELETE | `/v1/matches/{id}` | `scorecard:tournaments:write` |
 | GET | `/v1/matches/{id}/participants` | public read |
 | PUT | `/v1/matches/{id}/participants` | `scorecard:tournaments:write` |
 | GET | `/v1/matches/{id}/holes` | public read |
 | GET | `/v1/matches/{id}/scores` | public read |
 | POST | `/v1/matches/{id}/scores` | `scorecard:scores:write` |
+| DELETE | `/v1/matches/{id}/scores` | `scorecard:tournaments:write` |
 | GET | `/v1/matches/{id}/winner` | public read |
 | GET | `/v1/matches/{id}/status` | public read |
 
 A match's `/winner` and `/status` are the same handler and return the same shape — one outcome
 type covers a finished match and one still in progress. `/status` is the name to prefer.
+
+Clearing a match (`DELETE /v1/matches/{id}/scores`) takes `tournaments:write`, not
+`scores:write`. Recording a score is the grant handed to somebody standing on the course;
+throwing a played match away is not.
+
+A match that has been scored refuses the edits that would reinterpret those scores: deleting
+it, changing its lineup, and moving its course or tee colour all answer 409, naming the reset
+that makes them possible. Its tee time stays editable, because a group that went out late
+needs it and the scoring window is measured from it on every submission.
 
 ## Development
 
@@ -264,7 +288,7 @@ Every push to `main`/`master` and every pull request runs eight jobs:
 
 | Job | What it gates |
 |---|---|
-| Format | `gofmt`/`goimports` cleanliness |
+| Format | `make fmt` leaves no diff — it runs gofmt, goimports and gci, so `gofmt -l` alone can report a clean tree that CI rejects |
 | Lint | `make lint` (golangci-lint) |
 | Build | `make dev`, then `./bin/scorecard version` actually runs |
 | Test | `make unit`, then the integration suite against a real stack |
