@@ -367,14 +367,13 @@ func buildMatchResult(m MatchDetail, sides []MatchSide, scores []Score) MatchRes
 	}
 
 	teamA, teamB := sides[0].TeamID, sides[1].TeamID
-	progress := ComputeMatchProgress(scores, teamA, teamB)
-	holeResults := make([]*uuid.UUID, len(progress))
-	for i, h := range progress {
+	state := ComputeMatchState(scores, teamA, teamB)
+	holeResults := make([]*uuid.UUID, len(state.Holes))
+	for i, h := range state.Holes {
 		holeResults[i] = HoleWinner(h)
 	}
 	result.HoleResults = holeResults
-
-	result.StoredResult = ComputeStoredResult(scores, teamA, teamB)
+	result.StoredResult = state.StoredResult
 	return result
 }
 
