@@ -65,7 +65,7 @@ type fakeScoreDB struct {
 	scores        []Score
 	saved         []Score
 	recomputedFor []uuid.UUID
-	recomputed    []StoredResult
+	recomputed    []MatchState
 	resetFor      []uuid.UUID
 }
 
@@ -89,19 +89,19 @@ func (f *fakeScoreDB) SaveScoresAndRecompute(
 	scores []Score,
 	tournamentID uuid.UUID,
 	guard func([]Score) error,
-	recompute func([]Score) StoredResult,
-) (StoredResult, error) {
+	recompute func([]Score) MatchState,
+) (MatchState, error) {
 	if err := guard(f.scores); err != nil {
-		return StoredResult{}, err
+		return MatchState{}, err
 	}
 	for _, s := range scores {
 		f.saved = append(f.saved, s)
 		f.scores = upsert(f.scores, s)
 	}
 	f.recomputedFor = append(f.recomputedFor, matchID)
-	result := recompute(f.scores)
-	f.recomputed = append(f.recomputed, result)
-	return result, nil
+	state := recompute(f.scores)
+	f.recomputed = append(f.recomputed, state)
+	return state, nil
 }
 
 // upsert replaces the row for the same hole/team/player, matching the repo's ON CONFLICT
@@ -720,5 +720,34 @@ func TestLineupFits(t *testing.T) {
 				t.Errorf("LineupFits = %v, want %v", got, tc.want)
 			}
 		})
+	}
+}
+
+// The point of the write's answer: a client holds the whole card from it, so the series has
+// to carry the hole just written and every one before it, not only the match's new status.
+func TestSubmitHoleScores_AnswersWithTheWholeSeries(t *testing.T) {
+	m, p := twoTeamMatch()
+	sdb := &fakeScoreDB{scores: []Score{
+		{MatchID: matchID, TeamID: teamA, HoleNumber: 1, Strokes: 4},
+		{MatchID: matchID, TeamID: teamB, HoleNumber: 1, Strokes: 5},
+	}}
+	svc := matchService(m, p, sdb)
+
+	state, err := svc.SubmitHoleScores(context.Background(), matchID, 2, []ScoreEntry{
+		{TeamID: teamA, Strokes: 3},
+		{TeamID: teamB, Strokes: 4},
+	})
+	if err != nil {
+		t.Fatalf("SubmitHoleScores: %v", err)
+	}
+
+	if len(state.Holes) != 2 {
+		t.Fatalf("want hole 1 as well as the hole written, got %+v", state.Holes)
+	}
+	if state.Holes[1].HoleNumber != 2 || state.Holes[1].Lead != 2 {
+		t.Errorf("want the written hole to read 2 up, got %+v", state.Holes[1])
+	}
+	if state.Lead != 2 || state.Finished {
+		t.Errorf("want a live match 2 up, got %+v", state.StoredResult)
 	}
 }

@@ -171,7 +171,7 @@ func (r *Router) getMatchScores(w http.ResponseWriter, req *http.Request) {
 }
 
 // submitScore records a hole's scores as a unit and recomputes the match's materialized
-// result, which it returns so the client sees the hole's effect without a second read.
+// result, returning it with the hole-by-hole series so a client needs no second read.
 func (r *Router) submitScore(w http.ResponseWriter, req *http.Request) {
 	id, ok := pathUUIDOr400(w, req, "id", "match")
 	if !ok {
@@ -185,12 +185,12 @@ func (r *Router) submitScore(w http.ResponseWriter, req *http.Request) {
 		return golf.ScoreEntry{TeamID: s.TeamID, PlayerID: s.PlayerID, Strokes: s.Strokes}
 	})
 	// Shape is validated above; the domain still owns its own invariants.
-	result, err := r.MatchService.SubmitHoleScores(req.Context(), id, body.HoleNumber, entries)
+	state, err := r.MatchService.SubmitHoleScores(req.Context(), id, body.HoleNumber, entries)
 	if err != nil {
 		respondDomainError(req.Context(), w, err)
 		return
 	}
-	respondJSON(w, http.StatusOK, toMatchStatusDTO(result))
+	respondJSON(w, http.StatusOK, toScoreSubmissionResultDTO(state))
 }
 
 // deleteMatch removes a match and its lineup. A scored match is refused rather than

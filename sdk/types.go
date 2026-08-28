@@ -459,6 +459,14 @@ type MatchStatus struct {
 	HolesRemaining int        `json:"holes_remaining"`
 }
 
+// ScoreSubmissionResult answers POST /v1/matches/{id}/scores with the match's new state
+// and the hole-by-hole series behind it, so a client can hold the write's answer as the
+// whole scorecard rather than reading it back.
+type ScoreSubmissionResult struct {
+	MatchStatus
+	Holes []HoleStatus `json:"holes"`
+}
+
 // WinnerResponse reports a winning team by id (null = tie/undecided) for a tournament.
 // A match answers with the richer MatchStatus.
 type WinnerResponse struct {

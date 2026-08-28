@@ -143,6 +143,13 @@ func toMatchStatusDTO(r golf.StoredResult) sdk.MatchStatus {
 	}
 }
 
+func toScoreSubmissionResultDTO(state golf.MatchState) sdk.ScoreSubmissionResult {
+	return sdk.ScoreSubmissionResult{
+		MatchStatus: toMatchStatusDTO(state.StoredResult),
+		Holes:       mapSlice(state.Holes, toHoleStatusDTO),
+	}
+}
+
 func toTeamHoleScoreDTO(t golf.TeamHoleScore) sdk.TeamHoleScore {
 	return sdk.TeamHoleScore{
 		TeamID:       t.TeamID,

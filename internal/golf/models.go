@@ -353,6 +353,13 @@ type HoleResult struct {
 	Decided        bool
 }
 
+// MatchState is everything a recompute produces: the hole-by-hole progression, and the
+// stored result its last hole implies.
+type MatchState struct {
+	StoredResult
+	Holes []HoleResult
+}
+
 // TeamWithCaptain is a team plus its resolved captain (nil if unset). Returned by the
 // team listing so the tournament summary needs no per-team captain lookup.
 type TeamWithCaptain struct {

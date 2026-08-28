@@ -27,10 +27,10 @@ func (s *ScoresDB) SaveScoresAndRecompute(
 	scores []golf.Score,
 	tournamentID uuid.UUID,
 	guard func([]golf.Score) error,
-	recompute func([]golf.Score) golf.StoredResult,
-) (golf.StoredResult, error) {
-	return withTenant(ctx, s.db, func(q *sqlc.Queries, tenantID uuid.UUID) (golf.StoredResult, error) {
-		var zero golf.StoredResult
+	recompute func([]golf.Score) golf.MatchState,
+) (golf.MatchState, error) {
+	return withTenant(ctx, s.db, func(q *sqlc.Queries, tenantID uuid.UUID) (golf.MatchState, error) {
+		var zero golf.MatchState
 		list := func() ([]golf.Score, error) {
 			rows, err := q.ListScoresByMatch(ctx, sqlc.ListScoresByMatchParams{
 				MatchID:  matchID,
@@ -66,19 +66,19 @@ func (s *ScoresDB) SaveScoresAndRecompute(
 			return zero, err
 		}
 
-		result := recompute(after)
+		state := recompute(after)
 		if _, err := q.UpsertMatchResult(ctx, sqlc.UpsertMatchResultParams{
 			MatchID:        matchID,
 			TournamentID:   tournamentID,
 			TenantID:       tenantID,
-			Finished:       result.Finished,
-			LeaderTeamID:   result.LeaderTeamID,
-			Lead:           int32(result.Lead),
-			HolesRemaining: int32(result.HolesRemaining),
+			Finished:       state.Finished,
+			LeaderTeamID:   state.LeaderTeamID,
+			Lead:           int32(state.Lead),
+			HolesRemaining: int32(state.HolesRemaining),
 		}); err != nil {
 			return zero, fmt.Errorf("upserting match result %s: %w", matchID, mapWriteErr(err))
 		}
-		return result, nil
+		return state, nil
 	})
 }
 
