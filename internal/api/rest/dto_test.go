@@ -1,6 +1,8 @@
 package rest
 
 import (
+	"bytes"
+	"encoding/json"
 	"testing"
 
 	"github.com/google/uuid"
@@ -87,5 +89,47 @@ func TestToHoleStatusDTO_OneBallHoleHasNoPlayerScores(t *testing.T) {
 
 	if got.TeamScores[0].PlayerScores == nil || len(got.TeamScores[0].PlayerScores) != 0 {
 		t.Errorf("want empty non-nil player scores, got %+v", got.TeamScores[0].PlayerScores)
+	}
+}
+
+// The status fields stay flat in the JSON, which is what lets a client written against the
+// old response keep decoding this one. Asserting the Go shape would not catch a tag that
+// nested them, so this reads the encoded bytes.
+func TestToScoreSubmissionResultDTO_KeepsTheStatusFlatAndAddsHoles(t *testing.T) {
+	leader := uuid.New()
+	state := golf.MatchState{
+		StoredResult: golf.StoredResult{Finished: true, LeaderTeamID: &leader, Lead: 3, HolesRemaining: 2},
+		Holes:        []golf.HoleResult{{HoleNumber: 16, Lead: 3, HolesRemaining: 2, Decided: true}},
+	}
+
+	raw, err := json.Marshal(toScoreSubmissionResultDTO(state))
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	for _, key := range []string{"finished", "winner_team_id", "leader_team_id", "lead", "holes_remaining"} {
+		if _, ok := got[key]; !ok {
+			t.Errorf("want %q at the top level, got %s", key, raw)
+		}
+	}
+	holes, ok := got["holes"].([]any)
+	if !ok || len(holes) != 1 {
+		t.Fatalf("want one hole under holes, got %s", raw)
+	}
+}
+
+// An empty series encodes as [] rather than null: a client that replaces its cache with
+// this would otherwise have to tell "no holes" apart from "no field".
+func TestToScoreSubmissionResultDTO_EmptySeriesIsNotNull(t *testing.T) {
+	raw, err := json.Marshal(toScoreSubmissionResultDTO(golf.MatchState{}))
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !bytes.Contains(raw, []byte(`"holes":[]`)) {
+		t.Errorf("want an empty array, got %s", raw)
 	}
 }

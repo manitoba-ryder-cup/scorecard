@@ -223,10 +223,11 @@ func (c *Client) SetLineup(ctx context.Context, matchID uuid.UUID, req SetLineup
 	return c.do(ctx, http.MethodPut, pathID(RouteV1MatchParticipants, matchID), req, nil)
 }
 
-// SubmitScore records a hole's scores and returns the match's recomputed state, so a
-// caller knows whether that hole closed the match out. The hole lands whole or not at all.
-func (c *Client) SubmitScore(ctx context.Context, matchID uuid.UUID, req ScoreSubmission) (MatchStatus, error) {
-	var out MatchStatus
+// SubmitScore records a hole's scores and returns the match's recomputed state with the
+// hole-by-hole series behind it, so a caller learns what the hole did and holds the whole
+// scorecard without a second read. The hole lands whole or not at all.
+func (c *Client) SubmitScore(ctx context.Context, matchID uuid.UUID, req ScoreSubmission) (ScoreSubmissionResult, error) {
+	var out ScoreSubmissionResult
 	return out, c.do(ctx, http.MethodPost, pathID(RouteV1MatchScores, matchID), req, &out)
 }
 

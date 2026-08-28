@@ -175,10 +175,10 @@ func scoringOpen(now, teeTime time.Time) bool {
 // SubmitHoleScores persists every score for one hole and recomputes the match's
 // materialized result — the single write path that keeps match_results in sync. The hole
 // is written as a unit, so a caller cannot leave one side scored and the other not. It
-// returns the recomputed result, so a caller learns the hole closed the match out without
-// having to re-derive the close-out rule.
-func (s *MatchService) SubmitHoleScores(ctx context.Context, matchID uuid.UUID, hole int32, entries []ScoreEntry) (StoredResult, error) {
-	var zero StoredResult
+// returns the recomputed state, so a caller learns what the hole did to the match without
+// re-deriving the close-out rule or reading the scores back.
+func (s *MatchService) SubmitHoleScores(ctx context.Context, matchID uuid.UUID, hole int32, entries []ScoreEntry) (MatchState, error) {
+	var zero MatchState
 	match, err := s.MatchDB.GetMatch(ctx, matchID)
 	if err != nil {
 		return zero, fmt.Errorf("failed to get match: %w", err)
@@ -220,14 +220,14 @@ func (s *MatchService) SubmitHoleScores(ctx context.Context, matchID uuid.UUID, 
 		}
 		return nil
 	}
-	recompute := func(after []Score) StoredResult {
-		return ComputeStoredResult(after, teamA, teamB)
+	recompute := func(after []Score) MatchState {
+		return ComputeMatchState(after, teamA, teamB)
 	}
-	result, err := s.ScoreDB.SaveScoresAndRecompute(ctx, matchID, scores, match.TournamentID, guard, recompute)
+	state, err := s.ScoreDB.SaveScoresAndRecompute(ctx, matchID, scores, match.TournamentID, guard, recompute)
 	if err != nil {
 		return zero, fmt.Errorf("failed to save scores: %w", err)
 	}
-	return result, nil
+	return state, nil
 }
 
 // holeIsScored reports whether a hole already carries any score, which is what separates
@@ -367,14 +367,13 @@ func buildMatchResult(m MatchDetail, sides []MatchSide, scores []Score) MatchRes
 	}
 
 	teamA, teamB := sides[0].TeamID, sides[1].TeamID
-	progress := ComputeMatchProgress(scores, teamA, teamB)
-	holeResults := make([]*uuid.UUID, len(progress))
-	for i, h := range progress {
+	state := ComputeMatchState(scores, teamA, teamB)
+	holeResults := make([]*uuid.UUID, len(state.Holes))
+	for i, h := range state.Holes {
 		holeResults[i] = HoleWinner(h)
 	}
 	result.HoleResults = holeResults
-
-	result.StoredResult = ComputeStoredResult(scores, teamA, teamB)
+	result.StoredResult = state.StoredResult
 	return result
 }
 

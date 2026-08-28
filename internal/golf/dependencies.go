@@ -39,17 +39,17 @@ type scoreDB interface {
 	ResetMatch(ctx context.Context, matchID uuid.UUID) error
 	// SaveScoresAndRecompute upserts a hole's scores (per-player when PlayerID is set,
 	// else one team row) and rewrites the match's stored result, all in one transaction,
-	// returning that result. Every score lands or none does, and the repo serializes
-	// concurrent submissions on a match so neither lands a stale result. guard sees the
-	// match's scores before the write and can refuse it; recompute sees them after.
+	// returning the recomputed state. Every score lands or none does, and the repo
+	// serializes concurrent submissions on a match so neither lands a stale result. guard
+	// sees the match's scores before the write and can refuse it; recompute sees them after.
 	SaveScoresAndRecompute(
 		ctx context.Context,
 		matchID uuid.UUID,
 		scores []Score,
 		tournamentID uuid.UUID,
 		guard func(before []Score) error,
-		recompute func(after []Score) StoredResult,
-	) (StoredResult, error)
+		recompute func(after []Score) MatchState,
+	) (MatchState, error)
 }
 
 // holeDB reads a tee set's holes (course setup).

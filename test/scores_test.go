@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
@@ -61,7 +62,7 @@ func authedClient(t *testing.T) (*sdk.Client, *util.Fixture) {
 }
 
 // playHole records both sides' scores for one hole, the way the app does: one request.
-func playHole(t *testing.T, client *sdk.Client, fix *util.Fixture, hole, red, blue int32) sdk.MatchStatus {
+func playHole(t *testing.T, client *sdk.Client, fix *util.Fixture, hole, red, blue int32) sdk.ScoreSubmissionResult {
 	t.Helper()
 	rp, bp := fix.RedPlayer, fix.BluePlayer
 	status, err := client.SubmitScore(context.Background(), fix.MatchID, sdk.ScoreSubmission{
@@ -138,7 +139,7 @@ func TestSubmitScoreReturnsTheRecomputedStatus(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)
 
-	var status sdk.MatchStatus
+	var status sdk.ScoreSubmissionResult
 	for h := int32(1); h <= 10; h++ {
 		status = playHole(t, client, fix, h, 4, 5)
 		// Only the hole that closes it out reports finished.
@@ -361,3 +362,75 @@ func TestUnauthenticatedWriteRejected(t *testing.T) {
 // cupStart/cupEnd bracket today, so a seeded tournament reads as one being played. The
 // scoring window is measured from each match's tee time, not from these.
 var cupStart, cupEnd = util.LiveCupDates()
+
+// TestSubmitScoreAnswersWithTheSameSeriesTheReadServes is what makes the write's answer
+// safe to cache: a client that stores it instead of re-reading must not end up holding
+// something the next read contradicts. Checked on a live match and again once it is
+// closed out, since the series stops at the deciding hole.
+func TestSubmitScoreAnswersWithTheSameSeriesTheReadServes(t *testing.T) {
+	t.Parallel()
+	client, fix := authedClient(t)
+	ctx := context.Background()
+
+	assertMatchesTheRead := func(written []sdk.HoleStatus, when string) {
+		t.Helper()
+		read, err := client.GetMatchScores(ctx, fix.MatchID)
+		if err != nil {
+			t.Fatalf("%s: read scores: %v", when, err)
+		}
+		if len(written) == 0 {
+			t.Fatalf("%s: the write sent no series, so the comparison proves nothing", when)
+		}
+		if !reflect.DeepEqual(written, read) {
+			t.Errorf("%s: the write's series differs from the read's\nwrite: %+v\nread:  %+v", when, written, read)
+		}
+	}
+
+	// Red takes the first three, so the match is live and the series is growing.
+	var status sdk.ScoreSubmissionResult
+	for h := int32(1); h <= 3; h++ {
+		status = playHole(t, client, fix, h, 4, 5)
+	}
+	if status.Finished {
+		t.Fatalf("three holes cannot close a match out: %+v", status)
+	}
+	assertMatchesTheRead(status.Holes, "live")
+
+	// Ten in a row is 10 & 8, and the series must stop on the hole that ended it.
+	for h := int32(4); h <= 10; h++ {
+		status = playHole(t, client, fix, h, 4, 5)
+	}
+	if !status.Finished {
+		t.Fatalf("want the match closed out, got %+v", status)
+	}
+	assertMatchesTheRead(status.Holes, "closed out")
+}
+
+// A correction to an earlier hole restates every hole after it, which is the case a client
+// cannot derive for itself — the write has to send the whole series back, not just the row
+// that changed.
+func TestSubmitScoreRestatesLaterHolesAfterACorrection(t *testing.T) {
+	t.Parallel()
+	client, fix := authedClient(t)
+
+	// Red wins 1 and 2, so Red is 2 up.
+	playHole(t, client, fix, 1, 4, 5)
+	before := playHole(t, client, fix, 2, 4, 5)
+	if before.Lead != 2 {
+		t.Fatalf("want Red 2 up, got %+v", before.MatchStatus)
+	}
+
+	// Hole 1 was entered wrong: Blue actually won it. That makes the match all square, and
+	// hole 2's own state changes even though hole 2 was not written.
+	after := playHole(t, client, fix, 1, 5, 4)
+
+	if len(after.Holes) != 2 {
+		t.Fatalf("want both holes restated, got %+v", after.Holes)
+	}
+	if after.Holes[1].HoleNumber != 2 || after.Holes[1].LeaderTeamID != nil {
+		t.Errorf("want hole 2 restated as all square, got %+v", after.Holes[1])
+	}
+	if after.LeaderTeamID != nil {
+		t.Errorf("want the match all square, got %+v", after.MatchStatus)
+	}
+}
