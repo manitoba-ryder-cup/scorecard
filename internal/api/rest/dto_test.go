@@ -133,3 +133,41 @@ func TestToScoreSubmissionResultDTO_EmptySeriesIsNotNull(t *testing.T) {
 		t.Errorf("want an empty array, got %s", raw)
 	}
 }
+
+func TestToScoreSubmissionResultDTO_CarriesThePerHoleOutcome(t *testing.T) {
+	red, blue := uuid.New(), uuid.New()
+	hole := func(n int32, a, b int32) golf.HoleResult {
+		return golf.HoleResult{
+			HoleNumber: n,
+			TeamScores: []golf.TeamHoleScore{{TeamID: red, Strokes: a}, {TeamID: blue, Strokes: b}},
+		}
+	}
+	state := golf.MatchState{Holes: []golf.HoleResult{hole(1, 4, 5), hole(2, 4, 4), hole(3, 5, 4)}}
+
+	got := toScoreSubmissionResultDTO(state)
+
+	if len(got.HoleResults) != 3 {
+		t.Fatalf("want one entry per played hole, got %v", got.HoleResults)
+	}
+	if got.HoleResults[0] == nil || *got.HoleResults[0] != red {
+		t.Errorf("want Red to have won hole 1, got %v", got.HoleResults[0])
+	}
+	if got.HoleResults[1] != nil {
+		t.Errorf("want hole 2 halved, got %v", got.HoleResults[1])
+	}
+	if got.HoleResults[2] == nil || *got.HoleResults[2] != blue {
+		t.Errorf("want Blue to have won hole 3, got %v", got.HoleResults[2])
+	}
+}
+
+// Length is the contract, so an unplayed match has to be a list of no holes rather than an
+// absent one.
+func TestToScoreSubmissionResultDTO_EmptyHoleResultsIsNotNull(t *testing.T) {
+	raw, err := json.Marshal(toScoreSubmissionResultDTO(golf.MatchState{}))
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !bytes.Contains(raw, []byte(`"hole_results":[]`)) {
+		t.Errorf("want an empty array, got %s", raw)
+	}
+}

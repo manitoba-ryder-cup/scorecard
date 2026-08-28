@@ -96,6 +96,15 @@ func storedResultFrom(progress []HoleResult) StoredResult {
 	}
 }
 
+// HoleWinners is the per-hole outcome in order: the winner's id, or nil for a halved hole.
+func HoleWinners(holes []HoleResult) []*uuid.UUID {
+	winners := make([]*uuid.UUID, len(holes))
+	for i, h := range holes {
+		winners[i] = HoleWinner(h)
+	}
+	return winners
+}
+
 // HoleWinner returns the team that won a scored hole (lower gross), or nil if halved.
 func HoleWinner(h HoleResult) *uuid.UUID {
 	if len(h.TeamScores) != 2 {

@@ -465,6 +465,10 @@ type MatchStatus struct {
 type ScoreSubmissionResult struct {
 	MatchStatus
 	Holes []HoleStatus `json:"holes"`
+	// Holes and HoleResults are the same holes counted two ways: the series a scorecard
+	// reads, and the per-hole outcome a MatchResult carries. A score moves nothing else in
+	// that result, so the row for this match can be updated in place rather than re-read.
+	HoleResults []*uuid.UUID `json:"hole_results"`
 }
 
 // WinnerResponse reports a winning team by id (null = tie/undecided) for a tournament.

@@ -368,11 +368,7 @@ func buildMatchResult(m MatchDetail, sides []MatchSide, scores []Score) MatchRes
 
 	teamA, teamB := sides[0].TeamID, sides[1].TeamID
 	state := ComputeMatchState(scores, teamA, teamB)
-	holeResults := make([]*uuid.UUID, len(state.Holes))
-	for i, h := range state.Holes {
-		holeResults[i] = HoleWinner(h)
-	}
-	result.HoleResults = holeResults
+	result.HoleResults = HoleWinners(state.Holes)
 	result.StoredResult = state.StoredResult
 	return result
 }
