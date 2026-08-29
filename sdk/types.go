@@ -466,7 +466,7 @@ type ScoreSubmissionResult struct {
 	MatchStatus
 	Holes []HoleStatus `json:"holes"`
 	// The same holes counted two ways: the series a scorecard reads, and the per-hole outcome
-	// a MatchResult carries — which is all of that result a score moves.
+	// a match result carries.
 	HoleResults []*uuid.UUID `json:"hole_results"`
 }
 

@@ -3,6 +3,7 @@ package rest
 import (
 	"bytes"
 	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/google/uuid"
@@ -124,19 +125,22 @@ func TestToScoreSubmissionResultDTO_KeepsTheStatusFlatAndAddsHoles(t *testing.T)
 
 func TestToScoreSubmissionResultDTO_CarriesThePerHoleOutcome(t *testing.T) {
 	red, blue := uuid.New(), uuid.New()
-	state := golf.MatchState{HoleResults: []*uuid.UUID{&red, nil, &blue}}
+	hole := func(n int32, a, b int32) golf.HoleResult {
+		return golf.HoleResult{HoleNumber: n, TeamScores: []golf.TeamHoleScore{{TeamID: red, Strokes: a}, {TeamID: blue, Strokes: b}}}
+	}
+	state := golf.MatchState{Holes: []golf.HoleResult{hole(1, 4, 5), hole(2, 4, 4), hole(3, 5, 4)}}
 
 	got := toScoreSubmissionResultDTO(state)
 
-	if len(got.HoleResults) != 3 || got.HoleResults[0] != &red || got.HoleResults[1] != nil || got.HoleResults[2] != &blue {
-		t.Errorf("want the domain's outcome carried through, got %v", got.HoleResults)
+	if !reflect.DeepEqual(got.HoleResults, []*uuid.UUID{&red, nil, &blue}) {
+		t.Errorf("want Red, halved, Blue, got %v", got.HoleResults)
 	}
 }
 
 // Empty rather than null for both lists: their length is how far a match has got, and a client
 // would otherwise have to tell an absent field from a match nobody has started.
 func TestToScoreSubmissionResultDTO_EmptyListsAreNotNull(t *testing.T) {
-	raw, err := json.Marshal(toScoreSubmissionResultDTO(golf.MatchState{}))
+	raw, err := json.Marshal(toScoreSubmissionResultDTO(golf.ComputeMatchState(nil, uuid.New(), uuid.New())))
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}

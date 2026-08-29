@@ -233,7 +233,7 @@ func TestHoleWinners_NamesTheWinnerAndNilsAHalve(t *testing.T) {
 		{TeamID: teamB, HoleNumber: 3, Strokes: 5},
 	}
 
-	got := HoleWinners(ComputeMatchProgress(scores, teamA, teamB))
+	got := ComputeMatchState(scores, teamA, teamB).HoleWinners()
 
 	want := []*uuid.UUID{pUUID(teamA), nil, pUUID(teamB)}
 	if !reflect.DeepEqual(got, want) {
@@ -243,7 +243,7 @@ func TestHoleWinners_NamesTheWinnerAndNilsAHalve(t *testing.T) {
 
 // The length is the holes played, so it has to survive a match with none of them.
 func TestHoleWinners_UnplayedMatchIsAnEmptyList(t *testing.T) {
-	got := HoleWinners(nil)
+	got := ComputeMatchState(nil, teamA, teamB).HoleWinners()
 
 	if got == nil || len(got) != 0 {
 		t.Errorf("want an empty list, got %v", got)

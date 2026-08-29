@@ -143,20 +143,11 @@ func toMatchStatusDTO(r golf.StoredResult) sdk.MatchStatus {
 	}
 }
 
-// Empty (not null) so the client always gets an array to iterate, and both the write's answer
-// and the read's row promise that in the same place.
-func holeResultsDTO(ids []*uuid.UUID) []*uuid.UUID {
-	if ids == nil {
-		return []*uuid.UUID{}
-	}
-	return ids
-}
-
 func toScoreSubmissionResultDTO(state golf.MatchState) sdk.ScoreSubmissionResult {
 	return sdk.ScoreSubmissionResult{
 		MatchStatus: toMatchStatusDTO(state.StoredResult),
 		Holes:       mapSlice(state.Holes, toHoleStatusDTO),
-		HoleResults: holeResultsDTO(state.HoleResults),
+		HoleResults: state.HoleWinners(),
 	}
 }
 
@@ -185,7 +176,7 @@ func toMatchResultDTO(m golf.MatchResult) sdk.MatchResult {
 		PlayersPerSide:  m.PlayersPerSide,
 		ScoresPerPlayer: m.ScoresPerPlayer,
 		Sides:           mapSlice(m.Sides, toMatchSideDTO),
-		HoleResults:     holeResultsDTO(m.HoleResults),
+		HoleResults:     m.HoleResults,
 		TeeTime:         m.TeeTime.Format(time.RFC3339),
 		CourseName:      m.CourseName,
 		ScoringOpensAt:  opens.Format(time.RFC3339),

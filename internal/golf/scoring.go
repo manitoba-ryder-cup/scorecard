@@ -73,7 +73,7 @@ func ComputeMatchProgress(scores []Score, teamAID, teamBID uuid.UUID) []HoleResu
 // last hole implies, walking the scores once for both.
 func ComputeMatchState(scores []Score, teamAID, teamBID uuid.UUID) MatchState {
 	progress := ComputeMatchProgress(scores, teamAID, teamBID)
-	return MatchState{StoredResult: storedResultFrom(progress), Holes: progress, HoleResults: HoleWinners(progress)}
+	return MatchState{StoredResult: storedResultFrom(progress), Holes: progress}
 }
 
 // ComputeStoredResult derives a match's materialized state from the hole-by-hole
@@ -94,15 +94,6 @@ func storedResultFrom(progress []HoleResult) StoredResult {
 		Lead:           last.Lead,
 		HolesRemaining: last.HolesRemaining,
 	}
-}
-
-// HoleWinners is the per-hole outcome in order: the winner's id, or nil for a halved hole.
-func HoleWinners(holes []HoleResult) []*uuid.UUID {
-	winners := make([]*uuid.UUID, len(holes))
-	for i, h := range holes {
-		winners[i] = HoleWinner(h)
-	}
-	return winners
 }
 
 // HoleWinner returns the team that won a scored hole (lower gross), or nil if halved.
