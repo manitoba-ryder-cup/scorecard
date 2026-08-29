@@ -3,6 +3,7 @@ package rest
 import (
 	"bytes"
 	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/google/uuid"
@@ -122,14 +123,30 @@ func TestToScoreSubmissionResultDTO_KeepsTheStatusFlatAndAddsHoles(t *testing.T)
 	}
 }
 
-// An empty series encodes as [] rather than null: a client that replaces its cache with
-// this would otherwise have to tell "no holes" apart from "no field".
-func TestToScoreSubmissionResultDTO_EmptySeriesIsNotNull(t *testing.T) {
-	raw, err := json.Marshal(toScoreSubmissionResultDTO(golf.MatchState{}))
+func TestToScoreSubmissionResultDTO_CarriesThePerHoleOutcome(t *testing.T) {
+	red, blue := uuid.New(), uuid.New()
+	hole := func(n int32, a, b int32) golf.HoleResult {
+		return golf.HoleResult{HoleNumber: n, TeamScores: []golf.TeamHoleScore{{TeamID: red, Strokes: a}, {TeamID: blue, Strokes: b}}}
+	}
+	state := golf.MatchState{Holes: []golf.HoleResult{hole(1, 4, 5), hole(2, 4, 4), hole(3, 5, 4)}}
+
+	got := toScoreSubmissionResultDTO(state)
+
+	if !reflect.DeepEqual(got.HoleResults, []*uuid.UUID{&red, nil, &blue}) {
+		t.Errorf("want Red, halved, Blue, got %v", got.HoleResults)
+	}
+}
+
+// Empty rather than null for both lists: their length is how far a match has got, and a client
+// would otherwise have to tell an absent field from a match nobody has started.
+func TestToScoreSubmissionResultDTO_EmptyListsAreNotNull(t *testing.T) {
+	raw, err := json.Marshal(toScoreSubmissionResultDTO(golf.ComputeMatchState(nil, uuid.New(), uuid.New())))
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	if !bytes.Contains(raw, []byte(`"holes":[]`)) {
-		t.Errorf("want an empty array, got %s", raw)
+	for _, want := range []string{`"holes":[]`, `"hole_results":[]`} {
+		if !bytes.Contains(raw, []byte(want)) {
+			t.Errorf("want %s, got %s", want, raw)
+		}
 	}
 }

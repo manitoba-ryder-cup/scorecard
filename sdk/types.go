@@ -447,8 +447,8 @@ type MatchResult struct {
 }
 
 // MatchStatus is a match's outcome state: the one shape for it, returned by the match
-// status/winner reads, by a score write (so the client learns the new state from the
-// write instead of re-deriving the close-out rule), and embedded in MatchResult.
+// status/winner reads and embedded in MatchResult and ScoreSubmissionResult, so a client
+// learns what a score did without re-deriving the close-out rule.
 // winner_team_id is the leader once finished, null otherwise; leader_team_id reports who
 // is ahead at any point (null = all square) so a live leaderboard needs no derivation.
 type MatchStatus struct {
@@ -465,6 +465,9 @@ type MatchStatus struct {
 type ScoreSubmissionResult struct {
 	MatchStatus
 	Holes []HoleStatus `json:"holes"`
+	// The same holes counted two ways: the series a scorecard reads, and the per-hole outcome
+	// a match result carries.
+	HoleResults []*uuid.UUID `json:"hole_results"`
 }
 
 // WinnerResponse reports a winning team by id (null = tie/undecided) for a tournament.

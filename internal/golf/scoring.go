@@ -113,6 +113,16 @@ func HoleWinner(h HoleResult) *uuid.UUID {
 	}
 }
 
+// HoleWinners is the per-hole outcome in order: the winner's id, or nil for a halved hole.
+// Never nil, so its length is the holes played however few that is.
+func (s MatchState) HoleWinners() []*uuid.UUID {
+	winners := make([]*uuid.UUID, len(s.Holes))
+	for i, h := range s.Holes {
+		winners[i] = HoleWinner(h)
+	}
+	return winners
+}
+
 // teamScoresByHole groups the given team's scores by hole: the minimum strokes recorded
 // (best-ball for two players; the single score for singles/one-ball), plus the individual
 // scores behind it so a client can recover what each player shot. Sorted by player ID

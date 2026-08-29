@@ -434,3 +434,53 @@ func TestSubmitScoreRestatesLaterHolesAfterACorrection(t *testing.T) {
 		t.Errorf("want the match all square, got %+v", after.MatchStatus)
 	}
 }
+
+// The write's answer stands in for a read of the tournament's results, so it has to describe
+// that match's row exactly as the read would. Only the status and hole_results move on a
+// score, which is what this compares.
+func TestSubmitScoreAnswersWithTheLeaderboardRowTheReadServes(t *testing.T) {
+	t.Parallel()
+	client, fix := authedClient(t)
+	ctx := context.Background()
+
+	assertMatchesTheRead := func(written sdk.ScoreSubmissionResult, when string) {
+		t.Helper()
+		results, err := client.GetTournamentResults(ctx, fix.TournamentID)
+		if err != nil {
+			t.Fatalf("%s: read results: %v", when, err)
+		}
+		var row *sdk.MatchResult
+		for i := range results {
+			if results[i].MatchID == fix.MatchID {
+				row = &results[i]
+			}
+		}
+		if row == nil {
+			t.Fatalf("%s: the match is missing from the tournament's results", when)
+		}
+		if len(written.HoleResults) == 0 {
+			t.Fatalf("%s: the write sent no hole results, so the comparison proves nothing", when)
+		}
+		if !reflect.DeepEqual(written.HoleResults, row.HoleResults) {
+			t.Errorf("%s: hole_results differ\nwrite: %v\nread:  %v", when, written.HoleResults, row.HoleResults)
+		}
+		if !reflect.DeepEqual(written.MatchStatus, row.MatchStatus) {
+			t.Errorf("%s: status differs\nwrite: %+v\nread:  %+v", when, written.MatchStatus, row.MatchStatus)
+		}
+	}
+
+	// Red takes the first two, then a halve — so hole_results carries a null as well as ids.
+	playHole(t, client, fix, 1, 4, 5)
+	playHole(t, client, fix, 2, 4, 5)
+	assertMatchesTheRead(playHole(t, client, fix, 3, 4, 4), "live")
+
+	// With hole 3 halved, Red reaches 9 up with 8 to play on the 10th, which ends it there.
+	for h := int32(4); h <= 9; h++ {
+		playHole(t, client, fix, h, 4, 5)
+	}
+	final := playHole(t, client, fix, 10, 4, 5)
+	if !final.Finished {
+		t.Fatalf("want the match closed out, got %+v", final.MatchStatus)
+	}
+	assertMatchesTheRead(final, "closed out")
+}

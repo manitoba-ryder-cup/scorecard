@@ -3,6 +3,8 @@ package golf
 import (
 	"reflect"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 func TestComputeMatchProgress_LeaderWinsHole(t *testing.T) {
@@ -219,4 +221,43 @@ func TestComputeMatchProgress_HalvedAfterEighteenIsDecided(t *testing.T) {
 	if !last.Decided || last.LeaderTeamID != nil || last.Lead != 0 {
 		t.Errorf("hole 18: want decided and all square, got %+v", last)
 	}
+}
+
+func TestHoleWinners_NamesTheWinnerAndNilsAHalve(t *testing.T) {
+	scores := []Score{
+		{TeamID: teamA, HoleNumber: 1, Strokes: 4},
+		{TeamID: teamB, HoleNumber: 1, Strokes: 5},
+		{TeamID: teamA, HoleNumber: 2, Strokes: 4},
+		{TeamID: teamB, HoleNumber: 2, Strokes: 4},
+		{TeamID: teamA, HoleNumber: 3, Strokes: 6},
+		{TeamID: teamB, HoleNumber: 3, Strokes: 5},
+	}
+
+	got := ComputeMatchState(scores, teamA, teamB).HoleWinners()
+
+	want := []*uuid.UUID{pUUID(teamA), nil, pUUID(teamB)}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", derefAll(got), derefAll(want))
+	}
+}
+
+// The length is the holes played, so it has to survive a match with none of them.
+func TestHoleWinners_UnplayedMatchIsAnEmptyList(t *testing.T) {
+	got := ComputeMatchState(nil, teamA, teamB).HoleWinners()
+
+	if got == nil || len(got) != 0 {
+		t.Errorf("want an empty list, got %v", got)
+	}
+}
+
+func derefAll(ids []*uuid.UUID) []string {
+	out := make([]string, len(ids))
+	for i, id := range ids {
+		if id == nil {
+			out[i] = "halved"
+			continue
+		}
+		out[i] = id.String()
+	}
+	return out
 }
