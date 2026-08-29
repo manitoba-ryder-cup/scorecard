@@ -73,7 +73,7 @@ func ComputeMatchProgress(scores []Score, teamAID, teamBID uuid.UUID) []HoleResu
 // last hole implies, walking the scores once for both.
 func ComputeMatchState(scores []Score, teamAID, teamBID uuid.UUID) MatchState {
 	progress := ComputeMatchProgress(scores, teamAID, teamBID)
-	return MatchState{StoredResult: storedResultFrom(progress), Holes: progress}
+	return MatchState{StoredResult: storedResultFrom(progress), Holes: progress, HoleResults: HoleWinners(progress)}
 }
 
 // ComputeStoredResult derives a match's materialized state from the hole-by-hole

@@ -368,7 +368,7 @@ func buildMatchResult(m MatchDetail, sides []MatchSide, scores []Score) MatchRes
 
 	teamA, teamB := sides[0].TeamID, sides[1].TeamID
 	state := ComputeMatchState(scores, teamA, teamB)
-	result.HoleResults = HoleWinners(state.Holes)
+	result.HoleResults = state.HoleResults
 	result.StoredResult = state.StoredResult
 	return result
 }

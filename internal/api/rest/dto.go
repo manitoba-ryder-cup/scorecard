@@ -143,11 +143,20 @@ func toMatchStatusDTO(r golf.StoredResult) sdk.MatchStatus {
 	}
 }
 
+// Empty (not null) so the client always gets an array to iterate, and both the write's answer
+// and the read's row promise that in the same place.
+func holeResultsDTO(ids []*uuid.UUID) []*uuid.UUID {
+	if ids == nil {
+		return []*uuid.UUID{}
+	}
+	return ids
+}
+
 func toScoreSubmissionResultDTO(state golf.MatchState) sdk.ScoreSubmissionResult {
 	return sdk.ScoreSubmissionResult{
 		MatchStatus: toMatchStatusDTO(state.StoredResult),
 		Holes:       mapSlice(state.Holes, toHoleStatusDTO),
-		HoleResults: golf.HoleWinners(state.Holes),
+		HoleResults: holeResultsDTO(state.HoleResults),
 	}
 }
 
@@ -168,11 +177,6 @@ func toHoleDTO(h golf.Hole) sdk.Hole {
 }
 
 func toMatchResultDTO(m golf.MatchResult) sdk.MatchResult {
-	// Empty (not null) so the client always gets an array to iterate.
-	holeResults := m.HoleResults
-	if holeResults == nil {
-		holeResults = []*uuid.UUID{}
-	}
 	opens, closes := golf.ScoringWindow(m.TeeTime)
 	return sdk.MatchResult{
 		MatchStatus:     toMatchStatusDTO(m.StoredResult),
@@ -181,7 +185,7 @@ func toMatchResultDTO(m golf.MatchResult) sdk.MatchResult {
 		PlayersPerSide:  m.PlayersPerSide,
 		ScoresPerPlayer: m.ScoresPerPlayer,
 		Sides:           mapSlice(m.Sides, toMatchSideDTO),
-		HoleResults:     holeResults,
+		HoleResults:     holeResultsDTO(m.HoleResults),
 		TeeTime:         m.TeeTime.Format(time.RFC3339),
 		CourseName:      m.CourseName,
 		ScoringOpensAt:  opens.Format(time.RFC3339),

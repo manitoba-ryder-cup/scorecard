@@ -358,6 +358,9 @@ type HoleResult struct {
 type MatchState struct {
 	StoredResult
 	Holes []HoleResult
+	// The same holes as the outcome a match result reports, derived here so the one rule for
+	// deciding a hole has one caller rather than one per layer that needs the answer.
+	HoleResults []*uuid.UUID
 }
 
 // TeamWithCaptain is a team plus its resolved captain (nil if unset). Returned by the

@@ -122,52 +122,27 @@ func TestToScoreSubmissionResultDTO_KeepsTheStatusFlatAndAddsHoles(t *testing.T)
 	}
 }
 
-// An empty series encodes as [] rather than null: a client that replaces its cache with
-// this would otherwise have to tell "no holes" apart from "no field".
-func TestToScoreSubmissionResultDTO_EmptySeriesIsNotNull(t *testing.T) {
-	raw, err := json.Marshal(toScoreSubmissionResultDTO(golf.MatchState{}))
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
-	}
-	if !bytes.Contains(raw, []byte(`"holes":[]`)) {
-		t.Errorf("want an empty array, got %s", raw)
-	}
-}
-
 func TestToScoreSubmissionResultDTO_CarriesThePerHoleOutcome(t *testing.T) {
 	red, blue := uuid.New(), uuid.New()
-	hole := func(n int32, a, b int32) golf.HoleResult {
-		return golf.HoleResult{
-			HoleNumber: n,
-			TeamScores: []golf.TeamHoleScore{{TeamID: red, Strokes: a}, {TeamID: blue, Strokes: b}},
-		}
-	}
-	state := golf.MatchState{Holes: []golf.HoleResult{hole(1, 4, 5), hole(2, 4, 4), hole(3, 5, 4)}}
+	state := golf.MatchState{HoleResults: []*uuid.UUID{&red, nil, &blue}}
 
 	got := toScoreSubmissionResultDTO(state)
 
-	if len(got.HoleResults) != 3 {
-		t.Fatalf("want one entry per played hole, got %v", got.HoleResults)
-	}
-	if got.HoleResults[0] == nil || *got.HoleResults[0] != red {
-		t.Errorf("want Red to have won hole 1, got %v", got.HoleResults[0])
-	}
-	if got.HoleResults[1] != nil {
-		t.Errorf("want hole 2 halved, got %v", got.HoleResults[1])
-	}
-	if got.HoleResults[2] == nil || *got.HoleResults[2] != blue {
-		t.Errorf("want Blue to have won hole 3, got %v", got.HoleResults[2])
+	if len(got.HoleResults) != 3 || got.HoleResults[0] != &red || got.HoleResults[1] != nil || got.HoleResults[2] != &blue {
+		t.Errorf("want the domain's outcome carried through, got %v", got.HoleResults)
 	}
 }
 
-// Length is the contract, so an unplayed match has to be a list of no holes rather than an
-// absent one.
-func TestToScoreSubmissionResultDTO_EmptyHoleResultsIsNotNull(t *testing.T) {
+// Empty rather than null for both lists: their length is how far a match has got, and a client
+// would otherwise have to tell an absent field from a match nobody has started.
+func TestToScoreSubmissionResultDTO_EmptyListsAreNotNull(t *testing.T) {
 	raw, err := json.Marshal(toScoreSubmissionResultDTO(golf.MatchState{}))
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	if !bytes.Contains(raw, []byte(`"hole_results":[]`)) {
-		t.Errorf("want an empty array, got %s", raw)
+	for _, want := range []string{`"holes":[]`, `"hole_results":[]`} {
+		if !bytes.Contains(raw, []byte(want)) {
+			t.Errorf("want %s, got %s", want, raw)
+		}
 	}
 }

@@ -243,14 +243,19 @@ to the configured public tenant (401 if none is configured). Writes require the 
 A match's `/winner` and `/status` are the same handler and return the same shape — one outcome
 type covers a finished match and one still in progress. `/status` is the name to prefer.
 
-Recording a hole (`POST /v1/matches/{id}/scores`) answers with everything that write moved:
-the match's new status, the hole-by-hole series under `holes` — the same shape
+Recording a hole (`POST /v1/matches/{id}/scores`) answers with everything that write moved
+**about the match**: its new status, the hole-by-hole series under `holes` — the same shape
 `GET /v1/matches/{id}/scores` serves — and `hole_results`, the per-hole outcome as
-`GET /v1/tournaments/{id}/results` reports it. Between them a client updates both its
-scorecard and its leaderboard row without reading either back, including the earlier holes
+`GET /v1/tournaments/{id}/results` reports it. Between them a client updates its scorecard and
+that match's row in the leaderboard without reading either back, including the earlier holes
 that a correction restates. Nothing else in a match result depends on a score, so the rest of
 the row it already holds stays good. The status fields stay at the top level of the response,
 so a client that only reads those needs no change.
+
+The answer stops at the match. A hole that closes one out also moves the team points from
+`GET /v1/tournaments/{id}/teams` and the tournament's phase, and the response carries no
+signal for either — a client that treats it as the whole picture will show a finished match
+beside a stale cup score. Re-read those, or let them go stale deliberately.
 
 Clearing a match (`DELETE /v1/matches/{id}/scores`) takes `tournaments:write`, not
 `scores:write`. Recording a score is the grant handed to somebody standing on the course;
