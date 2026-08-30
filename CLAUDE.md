@@ -274,8 +274,9 @@ naming them, so a side padded out with one name twice is a side of one.
 
 It is read **after** the scored refusal, not before. Both answer 409, so a caller who is told
 the size is wrong, fixes it, and sends again would only then learn the match was closed to them
-all along. Lifting the rule into `MatchService` inverts that, which is what the third attempt at
-handing a `guard` down was for; the order is why it was reverted a third time.
+all along. Lifting the rule into `MatchService` inverts that, and handing the repository a
+`guard` puts it back — but the order is the repository's for free, which is why that was
+reverted too.
 
 `UpdateMatch` is the only one whose refusal has a condition, and the condition is
 `golf.UpdateMatchInput.ChangesSetup`: the course and tee colour a score takes its par and
@@ -290,8 +291,8 @@ three times: once for the deletes, where the closure carried a constant; once he
 only chose between two sentences that turned out to be one; and once here again, where it
 carried a real computation and still cost two reads outside the transaction, a `FormatDB` on
 `MatchService`, and one rule spread over three files to get back an order the repository
-already had. A repository that reads and
-refuses, and an API layer that turns the sentinel into a sentence, needs neither.
+already had. A repository that reads and refuses, and an API layer that turns the sentinel
+into a sentence, needs neither.
 
 **Nothing else may delete a score.** `scores` referenced `match_participants` with
 `ON DELETE CASCADE`, which let a played match be destroyed without anything recomputing what
