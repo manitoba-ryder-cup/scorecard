@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -172,10 +171,7 @@ func TestSubmitScoreRejectsHolesAfterTheCloseOut(t *testing.T) {
 	_, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
 		HoleNumber: 11, Scores: []sdk.ScoreEntry{{TeamID: fix.TeamRed, PlayerID: &red, Strokes: 4}},
 	})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Fatalf("want 409 for a hole after the close-out, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusConflict)
 
 	// A hole that was played stays correctable: a typo can be what ended the match early.
 	status, err := client.SubmitScore(ctx, fix.MatchID, sdk.ScoreSubmission{
@@ -213,7 +209,7 @@ func TestSubmitScoreRejectsAMatchOutsideItsScoringWindow(t *testing.T) {
 			match, err := client.CreateMatch(ctx, fix.TournamentID, sdk.CreateMatchRequest{
 				CourseID:      fix.CourseID,
 				TeeColorID:    fix.TeeColorID,
-				MatchFormatID: formatNamed(t, client, "Singles").ID,
+				MatchFormatID: formatNamed(t, client, "Singles"),
 				TeeTime:       tc.teeTime.UTC().Format(time.RFC3339),
 			})
 			if err != nil {
@@ -236,10 +232,7 @@ func TestSubmitScoreRejectsAMatchOutsideItsScoringWindow(t *testing.T) {
 				}
 				return
 			}
-			var apiErr *sdk.APIError
-			if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-				t.Fatalf("want 409 outside the window, got %v", err)
-			}
+			wantsStatus(t, err, http.StatusConflict)
 		})
 	}
 }
@@ -260,10 +253,7 @@ func TestSubmitScoreWritesTheHoleAtomically(t *testing.T) {
 			{TeamID: uuid.New(), PlayerID: &blue, Strokes: 5}, // a team not in this match
 		},
 	})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
-		t.Fatalf("want 400 for a team not in the match, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusBadRequest)
 
 	// Red's valid score must not have landed on its own.
 	scores, err := client.GetMatchScores(ctx, fix.MatchID)
@@ -342,10 +332,7 @@ func TestSubmitScoreToNonexistentMatchReturns404(t *testing.T) {
 	_, err := client.SubmitScore(context.Background(), uuid.New(), sdk.ScoreSubmission{
 		HoleNumber: 1, Scores: []sdk.ScoreEntry{{TeamID: uuid.New(), Strokes: 4}},
 	})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
-		t.Fatalf("want 404 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusNotFound)
 }
 
 // TestUnauthenticatedWriteRejected confirms writes require a token: reads are public

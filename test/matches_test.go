@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"testing"
 	"time"
@@ -103,10 +102,7 @@ func TestCreateMatchUnknownFormatRejected(t *testing.T) {
 	_, err = client.CreateMatch(ctx, tour.ID, sdk.CreateMatchRequest{
 		CourseID: courseID, TeeColorID: teeColorID, MatchFormatID: uuid.New(), TeeTime: fixtureTeeTime(),
 	})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
-		t.Fatalf("want 400 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusBadRequest)
 }
 
 func TestCreateMatchWithoutTeeSetRejected(t *testing.T) {
@@ -134,10 +130,7 @@ func TestCreateMatchWithoutTeeSetRejected(t *testing.T) {
 	_, err = client.CreateMatch(ctx, tour.ID, sdk.CreateMatchRequest{
 		CourseID: course.ID, TeeColorID: tc.ID, MatchFormatID: formats[0].ID, TeeTime: fixtureTeeTime(),
 	})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
-		t.Fatalf("want 400 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusBadRequest)
 }
 
 func TestUpdateMatchLeavesUnmentionedFieldsAlone(t *testing.T) {
@@ -225,8 +218,5 @@ func TestUpdateMatchUnknownMatchIsNotFound(t *testing.T) {
 	if err == nil {
 		t.Fatal("want an error updating a match that does not exist")
 	}
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
-		t.Fatalf("want 404, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusNotFound)
 }

@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"testing"
 
@@ -13,38 +12,9 @@ import (
 
 // anotherDraftedPlayer enters a player in the tournament and drafts them onto a team, so a
 // side has somebody to be filled with. The fixture seeds exactly one a side.
-func anotherDraftedPlayer(t *testing.T, fix *util.Fixture, teamID uuid.UUID) uuid.UUID {
+func anotherDraftedPlayer(t *testing.T, client *sdk.Client, fix *util.Fixture, teamID uuid.UUID) uuid.UUID {
 	t.Helper()
-	ctx := context.Background()
-
-	conn, err := util.Connect(ctx, util.LoadConfig().DatabaseURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = conn.Close(ctx) })
-	if _, err := conn.Exec(ctx, "SET app.current_tenant_id = '"+fix.TenantID.String()+"'"); err != nil {
-		t.Fatal(err)
-	}
-
-	var id uuid.UUID
-	if err := conn.QueryRow(ctx,
-		`INSERT INTO players (tenant_id, first_name, last_name) VALUES ($1, 'Spare', $2) RETURNING id`,
-		fix.TenantID, uuid.NewString()[:8],
-	).Scan(&id); err != nil {
-		t.Fatalf("player: %v", err)
-	}
-	// Entering precedes drafting: the team_members FK requires it.
-	if _, err := conn.Exec(ctx,
-		`INSERT INTO tournament_players (tournament_id, player_id, tenant_id) VALUES ($1, $2, $3)`,
-		fix.TournamentID, id, fix.TenantID); err != nil {
-		t.Fatalf("enter: %v", err)
-	}
-	if _, err := conn.Exec(ctx,
-		`INSERT INTO team_members (team_id, player_id, tournament_id, tenant_id) VALUES ($1, $2, $3, $4)`,
-		teamID, id, fix.TournamentID, fix.TenantID); err != nil {
-		t.Fatalf("draft: %v", err)
-	}
-	return id
+	return enterAndDraft(t, client, fix.TournamentID, teamID, "Spare", uuid.NewString()[:8])
 }
 
 // The fixture plays Singles, which takes one a side.
@@ -52,7 +22,7 @@ func TestASinglesLineupTakesOneASide(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)
 	ctx := context.Background()
-	spare := anotherDraftedPlayer(t, fix, fix.TeamRed)
+	spare := anotherDraftedPlayer(t, client, fix, fix.TeamRed)
 
 	err := client.SetLineup(ctx, fix.MatchID, theLineup(
 		onSide(fix.RedPlayer, fix.TeamRed),
@@ -60,12 +30,9 @@ func TestASinglesLineupTakesOneASide(t *testing.T) {
 		onSide(fix.BluePlayer, fix.TeamBlue),
 	))
 
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Fatalf("want 409 for two on a singles side, got %v", err)
-	}
-	if apiErr.Message != "That lineup isn't the right size for this match's format." {
-		t.Errorf("message = %q", apiErr.Message)
+	msg := wantsStatus(t, err, http.StatusConflict)
+	if msg != "That lineup isn't the right size for this match's format." {
+		t.Errorf("message = %q", msg)
 	}
 
 	participants, err := client.ListParticipants(ctx, fix.MatchID)
@@ -84,10 +51,7 @@ func TestALineupMissingASideIsRefused(t *testing.T) {
 
 	err := client.SetLineup(context.Background(), fix.MatchID, theLineup(onSide(fix.RedPlayer, fix.TeamRed)))
 
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Fatalf("want 409 for one side only, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusConflict)
 }
 
 // A format with room takes the players the smaller one refused. A separate match, because a
@@ -99,9 +63,9 @@ func TestAFourballLineupTakesTwoASide(t *testing.T) {
 
 	err := client.SetLineup(context.Background(), fourball, theLineup(
 		onSide(fix.RedPlayer, fix.TeamRed),
-		onSide(anotherDraftedPlayer(t, fix, fix.TeamRed), fix.TeamRed),
+		onSide(anotherDraftedPlayer(t, client, fix, fix.TeamRed), fix.TeamRed),
 		onSide(fix.BluePlayer, fix.TeamBlue),
-		onSide(anotherDraftedPlayer(t, fix, fix.TeamBlue), fix.TeamBlue),
+		onSide(anotherDraftedPlayer(t, client, fix, fix.TeamBlue), fix.TeamBlue),
 	))
 
 	if err != nil {
@@ -115,7 +79,7 @@ func TestSettingALineupReplacesTheOneBefore(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)
 	ctx := context.Background()
-	replacement := anotherDraftedPlayer(t, fix, fix.TeamRed)
+	replacement := anotherDraftedPlayer(t, client, fix, fix.TeamRed)
 
 	if err := client.SetLineup(ctx, fix.MatchID, theLineup(
 		onSide(replacement, fix.TeamRed),

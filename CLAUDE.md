@@ -269,7 +269,14 @@ one rule only: a scored match's lineup may not move, which is read before the wr
 on it. **The size rule needs no lock** — `LineupFits` is checked against the set being written,
 not the one stored — and that is the reason a lineup arrives whole rather than a player at a
 time. Two sides, each holding exactly what the format takes; a lineup one short is not
-half-written, it is a match nobody can play.
+half-written, it is a match nobody can play. It counts the players on a side, not the rows
+naming them, so a side padded out with one name twice is a side of one.
+
+It is read **after** the scored refusal, not before. Both answer 409, so a caller who is told
+the size is wrong, fixes it, and sends again would only then learn the match was closed to them
+all along. Lifting the rule into `MatchService` inverts that, and handing the repository a
+`guard` puts it back — but the order is the repository's for free, which is why that was
+reverted too.
 
 `UpdateMatch` is the only one whose refusal has a condition, and the condition is
 `golf.UpdateMatchInput.ChangesSetup`: the course and tee colour a score takes its par and
@@ -279,10 +286,13 @@ sits outside that set on purpose — a group that went out late needs it, and th
 is measured from it on every submission.
 
 **The refusal travels up as a sentinel; nothing is handed down.** Passing the domain a
-`guard` callback so the rule could live in `internal/golf` was built twice and reverted
-twice: once for the deletes, where the closure carried a constant, and once here, where it
-only chose between two sentences that turned out to be one. A repository that reads and
-refuses, and an API layer that turns the sentinel into a sentence, needs neither.
+`guard` callback so the rule could live in `internal/golf` was built three times and reverted
+three times: once for the deletes, where the closure carried a constant; once here, where it
+only chose between two sentences that turned out to be one; and once here again, where it
+carried a real computation and still cost two reads outside the transaction, a `FormatDB` on
+`MatchService`, and one rule spread over three files to get back an order the repository
+already had. A repository that reads and refuses, and an API layer that turns the sentinel
+into a sentence, needs neither.
 
 **Nothing else may delete a score.** `scores` referenced `match_participants` with
 `ON DELETE CASCADE`, which let a played match be destroyed without anything recomputing what
@@ -308,7 +318,7 @@ reset is not: it clears the scores, not who was named to play.
 
 **The test for whether a refusal can be a constraint**: it can when the rule is *refuse to
 delete X while Y exists* and Y already references X. An update (`ChangesSetup`), a rule
-counting rows (`LineupFits`), or a reference that cannot see everything (003, above) all still
+counting a side (`LineupFits`), or a reference that cannot see everything (003, above) all still
 need the code. Weigh it against the cost — an applied migration is frozen, so a constraint
 that turns out wrong needs another migration where a guard would need an edit.
 

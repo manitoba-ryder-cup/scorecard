@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"testing"
 
@@ -59,10 +58,7 @@ func TestSetCaptainUnknownTeamReturns404(t *testing.T) {
 	t.Parallel()
 	client := freshClient(t)
 	err := client.SetTeamCaptain(context.Background(), uuid.New(), sdk.SetTeamCaptainRequest{CaptainID: uuid.New()})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
-		t.Fatalf("want 404 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusNotFound)
 }
 
 func TestClearTeamCaptain(t *testing.T) {
@@ -116,10 +112,7 @@ func TestClearCaptainUnknownTeamReturns404(t *testing.T) {
 	t.Parallel()
 	client := freshClient(t)
 	err := client.ClearTeamCaptain(context.Background(), uuid.New())
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
-		t.Fatalf("want 404 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusNotFound)
 }
 
 func TestSetCaptainUnknownPlayerRejected(t *testing.T) {
@@ -136,8 +129,5 @@ func TestSetCaptainUnknownPlayerRejected(t *testing.T) {
 
 	// captain_id references a nonexistent player -> FK violation -> 400.
 	err = client.SetTeamCaptain(ctx, redTeam, sdk.SetTeamCaptainRequest{CaptainID: uuid.New()})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
-		t.Fatalf("want 400 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusBadRequest)
 }

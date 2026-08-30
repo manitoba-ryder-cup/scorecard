@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"testing"
 
@@ -66,10 +65,7 @@ func TestCreateCourseDuplicateNameConflicts(t *testing.T) {
 		t.Fatalf("create first: %v", err)
 	}
 	_, err := client.CreateCourse(ctx, sdk.CreateCourseRequest{Name: "Dup Course"})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Fatalf("want 409 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusConflict)
 }
 
 func TestCreateTeeColorDuplicateConflicts(t *testing.T) {
@@ -81,10 +77,7 @@ func TestCreateTeeColorDuplicateConflicts(t *testing.T) {
 		t.Fatalf("create first: %v", err)
 	}
 	_, err := client.CreateTeeColor(ctx, sdk.CreateTeeColorRequest{Color: "Blue"})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Fatalf("want 409 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusConflict)
 }
 
 func TestGetNonexistentCourseReturns404(t *testing.T) {
@@ -92,10 +85,7 @@ func TestGetNonexistentCourseReturns404(t *testing.T) {
 	client := freshClient(t)
 
 	_, err := client.GetCourse(context.Background(), uuid.New())
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
-		t.Fatalf("want 404 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusNotFound)
 }
 
 // TestCreateCourseCarriesItsTimeZone covers a venue away from home: the zone is what a

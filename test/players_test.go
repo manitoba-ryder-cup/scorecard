@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"testing"
 
@@ -152,10 +151,7 @@ func TestUpdatePlayerToATakenEmailConflicts(t *testing.T) {
 	}
 
 	_, err = client.UpdatePlayer(ctx, second.ID, sdk.UpdatePlayerRequest{Email: &taken})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Fatalf("want 409, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusConflict)
 }
 
 func strptrLocal(s string) *string { return &s }
@@ -165,10 +161,7 @@ func TestUpdateNonexistentPlayerReturns404(t *testing.T) {
 	client := freshClient(t)
 	name := "Ghost"
 	_, err := client.UpdatePlayer(context.Background(), uuid.New(), sdk.UpdatePlayerRequest{FirstName: &name})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
-		t.Fatalf("want 404, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusNotFound)
 }
 
 func TestCreatePlayerRosterOnly(t *testing.T) {
@@ -199,10 +192,7 @@ func TestCreatePlayerDuplicateEmailConflicts(t *testing.T) {
 
 	// Same email under the same tenant collides with UNIQUE(tenant_id, email) -> 409.
 	_, err := client.CreatePlayer(ctx, sdk.CreatePlayerRequest{FirstName: "Second", LastName: "Player", Email: &email})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Fatalf("want 409 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusConflict)
 }
 
 // TestAnonymousReadUsesPublicTenant confirms a request with no token can read data
@@ -240,10 +230,7 @@ func TestGetNonexistentPlayerReturns404(t *testing.T) {
 	client := freshClient(t)
 
 	_, err := client.GetPlayer(context.Background(), uuid.New())
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
-		t.Fatalf("want 404 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusNotFound)
 }
 
 // Raw request (bypassing the SDK client's validation) confirms the server rejects a

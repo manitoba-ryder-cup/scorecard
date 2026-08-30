@@ -1,16 +1,16 @@
 package test
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 	util "github.com/manitoba-ryder-cup/scorecard/test/_util"
 	testjwt "github.com/manitoba-ryder-cup/scorecard/test/_util/jwt"
+	"github.com/manitoba-ryder-cup/scorecard/test/_util/request"
 )
 
 // theMatch reads the fixture's match back off the tournament listing; the SDK has no
@@ -30,19 +30,14 @@ func theMatch(t *testing.T, client *sdk.Client, fix *util.Fixture) sdk.Match {
 	return sdk.Match{}
 }
 
-func formatNamed(t *testing.T, client *sdk.Client, name string) sdk.MatchFormat {
+// Fatal on a name nothing seeded: a zero id would fail later as something else.
+func formatNamed(t *testing.T, client *sdk.Client, name string) uuid.UUID {
 	t.Helper()
-	formats, err := client.ListMatchFormats(context.Background())
-	if err != nil {
-		t.Fatalf("list formats: %v", err)
+	id, ok := formatsByName(t, client)[name]
+	if !ok {
+		t.Fatalf("no %s format seeded", name)
 	}
-	for _, f := range formats {
-		if f.Name == name {
-			return f
-		}
-	}
-	t.Fatalf("no %s format seeded", name)
-	return sdk.MatchFormat{}
+	return id
 }
 
 // matchInFormat creates a match in the named format. A format is chosen once, so a test that
@@ -52,7 +47,7 @@ func matchInFormat(t *testing.T, client *sdk.Client, fix *util.Fixture, name str
 	m, err := client.CreateMatch(context.Background(), fix.TournamentID, sdk.CreateMatchRequest{
 		CourseID:      fix.CourseID,
 		TeeColorID:    fix.TeeColorID,
-		MatchFormatID: formatNamed(t, client, name).ID,
+		MatchFormatID: formatNamed(t, client, name),
 		TeeTime:       theMatch(t, client, fix).TeeTime,
 	})
 	if err != nil {
@@ -68,25 +63,16 @@ func TestAMatchFormatCannotBeChanged(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)
 	before := theMatch(t, client, fix).MatchFormatID
-	other := formatNamed(t, client, "Alt Shot")
+	otherFormat := formatNamed(t, client, "Alt Shot")
 
-	body, _ := json.Marshal(map[string]string{"match_format_id": other.ID.String()})
-	req, err := http.NewRequest(http.MethodPut,
-		util.LoadConfig().BaseURL+"/v1/matches/"+fix.MatchID.String(), bytes.NewReader(body))
-	if err != nil {
-		t.Fatal(err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+testjwt.MintAccessToken(t, fix.TenantID, uuid.New(), writeScopes...))
+	// Sent raw, not through the SDK: the point is a caller that puts a field the contract
+	// does not carry, which the typed request cannot express.
+	path := strings.Replace(sdk.RouteV1Match, "{id}", fix.MatchID.String(), 1)
+	token := testjwt.MintAccessToken(t, fix.TenantID, uuid.New(), writeScopes...)
+	status, _ := request.Raw(t, http.MethodPut, path, `{"match_format_id":"`+otherFormat.String()+`"}`, token)
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("put: %v", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("want 400 for a field the contract does not carry, got %d", resp.StatusCode)
+	if status != http.StatusBadRequest {
+		t.Errorf("want 400 for a field the contract does not carry, got %d", status)
 	}
 	if now := theMatch(t, client, fix).MatchFormatID; now != before {
 		t.Errorf("the format changed to %s", now)

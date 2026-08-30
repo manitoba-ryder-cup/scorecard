@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"testing"
 
@@ -69,10 +68,7 @@ func TestAddTeeSetUnknownTeeColorRejected(t *testing.T) {
 	_, err = client.AddTeeSet(ctx, course.ID, sdk.CreateTeeSetRequest{
 		TeeColorID: uuid.New(), Slope: 113, Rating: 71.2, Holes: eighteenHoles(),
 	})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
-		t.Fatalf("want 400 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusBadRequest)
 }
 
 func TestAddTeeSetToNonexistentCourseReturns404(t *testing.T) {
@@ -82,10 +78,7 @@ func TestAddTeeSetToNonexistentCourseReturns404(t *testing.T) {
 	_, err := client.AddTeeSet(context.Background(), uuid.New(), sdk.CreateTeeSetRequest{
 		TeeColorID: uuid.New(), Slope: 113, Rating: 71.2, Holes: eighteenHoles(),
 	})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
-		t.Fatalf("want 404 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusNotFound)
 }
 
 func TestListCourseTeeSets(t *testing.T) {

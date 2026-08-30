@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"testing"
 
@@ -110,10 +109,7 @@ func TestEnterTournamentPlayerDuplicateConflicts(t *testing.T) {
 		t.Fatalf("first enter: %v", err)
 	}
 	_, err := client.EnterTournamentPlayer(ctx, tournamentID, sdk.EnterTournamentPlayerRequest{PlayerID: playerID})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Fatalf("want 409 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusConflict)
 }
 
 func TestEnterUnknownPlayerRejected(t *testing.T) {
@@ -129,10 +125,7 @@ func TestEnterUnknownPlayerRejected(t *testing.T) {
 
 	// player_id uuid.New() doesn't exist -> FK violation -> 400.
 	_, err = client.EnterTournamentPlayer(ctx, tour.ID, sdk.EnterTournamentPlayerRequest{PlayerID: uuid.New()})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
-		t.Fatalf("want 400 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusBadRequest)
 }
 
 // teamByColor returns the tournament's team of the given color.
@@ -197,10 +190,7 @@ func TestDraftUnenteredPlayerRejected(t *testing.T) {
 
 	// Not a tournament_player -> composite FK violation -> 400.
 	_, err := client.DraftPlayer(ctx, redTeam, sdk.DraftPlayerRequest{PlayerID: playerID})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
-		t.Fatalf("want 400 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusBadRequest)
 }
 
 func TestDraftAlreadyDraftedConflicts(t *testing.T) {
@@ -218,10 +208,7 @@ func TestDraftAlreadyDraftedConflicts(t *testing.T) {
 
 	// Drafting the same player again -> 409.
 	_, err := client.DraftPlayer(ctx, redTeam, sdk.DraftPlayerRequest{PlayerID: playerID})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Fatalf("want 409 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusConflict)
 }
 
 func TestDraftToNonexistentTeamReturns404(t *testing.T) {
@@ -229,10 +216,7 @@ func TestDraftToNonexistentTeamReturns404(t *testing.T) {
 	client := freshClient(t)
 
 	_, err := client.DraftPlayer(context.Background(), uuid.New(), sdk.DraftPlayerRequest{PlayerID: uuid.New()})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
-		t.Fatalf("want 404 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusNotFound)
 }
 
 func TestUpdateUnenteredPlayerReturns404(t *testing.T) {
@@ -244,10 +228,7 @@ func TestUpdateUnenteredPlayerReturns404(t *testing.T) {
 	// Player exists but was never entered in this tournament.
 	gold := "gold"
 	_, err := client.UpdateTournamentPlayer(ctx, tournamentID, playerID, sdk.UpdateTournamentPlayerRequest{Tier: &gold})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
-		t.Fatalf("want 404 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusNotFound)
 }
 
 func TestUndraftPlayer(t *testing.T) {
@@ -336,8 +317,5 @@ func TestUndraftPlayerNotOnTeamReturns404(t *testing.T) {
 
 	// Entered but never drafted -> not a member -> 404.
 	err := client.UndraftPlayer(ctx, redTeam, playerID)
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
-		t.Fatalf("want 404 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusNotFound)
 }

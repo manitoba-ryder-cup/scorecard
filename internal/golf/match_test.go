@@ -53,6 +53,7 @@ func (f *fakeParticipantDB) ListMatchParticipants(ctx context.Context, matchID u
 func (f *fakeParticipantDB) ListParticipantsWithPlayersByTournament(ctx context.Context, tournamentID uuid.UUID) ([]MatchParticipantPlayer, error) {
 	return f.withPlayers, nil
 }
+
 func (f *fakeParticipantDB) SetMatchLineup(ctx context.Context, matchID uuid.UUID, entries []MatchParticipant) error {
 	if f.setErr != nil {
 		return f.setErr
@@ -697,6 +698,10 @@ func TestLineupFits(t *testing.T) {
 	lineup := func(red, blue int) []MatchParticipant {
 		return append(side(teamA, red), side(teamB, blue)...)
 	}
+	twice := func(team uuid.UUID) []MatchParticipant {
+		p := MatchParticipant{MatchID: matchID, TeamID: team, PlayerID: uuid.New()}
+		return []MatchParticipant{p, p}
+	}
 
 	cases := []struct {
 		name           string
@@ -713,6 +718,9 @@ func TestLineupFits(t *testing.T) {
 		// Both of these are a complete side and no opponent, which is not a match.
 		{"one side only", lineup(2, 0), 2, false},
 		{"everyone on one side", side(teamA, 4), 2, false},
+		// A side is the players on it, not the rows naming them: one player written twice is a
+		// side of one, and the size this reports is what the request would actually field.
+		{"a side padded out with the same player twice", append(twice(teamA), side(teamB, 2)...), 2, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

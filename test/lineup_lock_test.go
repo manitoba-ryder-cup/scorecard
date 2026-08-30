@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -21,10 +20,7 @@ func TestRemovingAParticipantFromAScoredMatchIsRefused(t *testing.T) {
 	playHole(t, client, fix, 1, 4, 5)
 
 	err := setTheSameLineup(t, client, fix)
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Fatalf("want 409 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusConflict)
 
 	participants, err := client.ListParticipants(ctx, fix.MatchID)
 	if err != nil {
@@ -42,12 +38,33 @@ func TestUndraftingAScoredPlayerIsRefused(t *testing.T) {
 	playHole(t, client, fix, 1, 4, 5)
 
 	err := client.UndraftPlayer(ctx, fix.TeamRed, fix.RedPlayer)
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Fatalf("want 409 APIError, got %v", err)
+	msg := wantsStatus(t, err, http.StatusConflict)
+	if msg != "That player is participating in a match." {
+		t.Errorf("message = %q", msg)
 	}
-	if apiErr.Message != "That player is participating in a match." {
-		t.Errorf("message = %q", apiErr.Message)
+}
+
+// A scored match refuses a lineup change outright, so that is the answer even when the lineup
+// is also the wrong size — otherwise a captain fixes the size, sends it again, and only then
+// learns the match was closed to them all along. Both refusals are 409, so the status says
+// nothing here; the sentence is the whole of what a caller gets.
+func TestAScoredMatchSaysItIsScoredBeforeItSaysTheSizeIsWrong(t *testing.T) {
+	t.Parallel()
+	client, fix := authedClient(t)
+	ctx := context.Background()
+	spare := anotherDraftedPlayer(t, client, fix, fix.TeamRed)
+	playHole(t, client, fix, 1, 4, 5)
+
+	// Two a side on Red against one on Blue: wrong for Singles, on a match already scored.
+	err := client.SetLineup(ctx, fix.MatchID, theLineup(
+		onSide(fix.RedPlayer, fix.TeamRed),
+		onSide(spare, fix.TeamRed),
+		onSide(fix.BluePlayer, fix.TeamBlue),
+	))
+
+	msg := wantsStatus(t, err, http.StatusConflict)
+	if msg != "That match has scores. Reset it before changing its lineup." {
+		t.Errorf("want the scored refusal ahead of the size one, got %q", msg)
 	}
 }
 
@@ -69,13 +86,8 @@ func TestAOneBallScoreAlsoLocksTheLineup(t *testing.T) {
 		t.Fatalf("submit a team score: %v", err)
 	}
 
-	var apiErr *sdk.APIError
-	if err := setTheSameLineup(t, client, fix); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Errorf("set lineup: want 409, got %v", err)
-	}
-	if err := client.UndraftPlayer(ctx, fix.TeamRed, fix.RedPlayer); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Errorf("undraft: want 409, got %v", err)
-	}
+	wantsStatus(t, setTheSameLineup(t, client, fix), http.StatusConflict)
+	wantsStatus(t, client.UndraftPlayer(ctx, fix.TeamRed, fix.RedPlayer), http.StatusConflict)
 }
 
 // Reset is the way through, which is what makes it more than a testing tool: clear the
@@ -105,7 +117,7 @@ func TestUndraftingWorksOnceThePlayerIsSubstitutedOut(t *testing.T) {
 		t.Fatal("want the undraft refused while she holds a lineup place")
 	}
 	if err := client.SetLineup(ctx, fix.MatchID, theLineup(
-		onSide(anotherDraftedPlayer(t, fix, fix.TeamRed), fix.TeamRed),
+		onSide(anotherDraftedPlayer(t, client, fix, fix.TeamRed), fix.TeamRed),
 		onSide(fix.BluePlayer, fix.TeamBlue),
 	)); err != nil {
 		t.Fatalf("substitute her out: %v", err)
@@ -127,16 +139,8 @@ func TestTheDatabaseRefusesToOrphanAScoredParticipant(t *testing.T) {
 	ctx := context.Background()
 	playHole(t, client, fix, 1, 4, 5)
 
-	conn, err := util.Connect(ctx, util.LoadConfig().DatabaseURL)
-	if err != nil {
-		t.Fatalf("connect: %v", err)
-	}
-	defer func() { _ = conn.Close(ctx) }()
-
-	if _, err := conn.Exec(ctx, "SET LOCAL app.current_tenant_id = '"+fix.TenantID.String()+"'"); err != nil {
-		t.Fatalf("set tenant: %v", err)
-	}
-	_, err = conn.Exec(ctx,
+	conn := util.ConnectAs(t, fix.TenantID)
+	_, err := conn.Exec(ctx,
 		"DELETE FROM match_participants WHERE match_id = $1 AND player_id = $2 AND tenant_id = $3",
 		fix.MatchID, fix.RedPlayer, fix.TenantID)
 	// Named, not merely non-nil: RLS refusing the row would read as the constraint working.
