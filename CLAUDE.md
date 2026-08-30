@@ -266,10 +266,13 @@ with the sentinel naming what was attempted. `DeleteTeamMember` takes no lock at
 
 `SetMatchLineup` takes the lock for the lineup rather than for the scores, and it takes it for
 one rule only: a scored match's lineup may not move, which is read before the write that acts
-on it. **The size rule needs no lock** — `LineupFits` is checked against the set being written,
-not the one stored — and that is the reason a lineup arrives whole rather than a player at a
-time. Two sides, each holding exactly what the format takes; a lineup one short is not
-half-written, it is a match nobody can play.
+on it. **The size rule needs no lock, and so does not live there** — `LineupFits` is settled in
+`MatchService.SetLineup` before the write, because it is read against the set arriving and a
+match's format cannot change, so neither half of it can move while the write is in flight. That
+a lineup is checked whole is the reason it arrives whole rather than a player at a time. Two
+sides, each holding exactly what the format takes; a lineup one short is not half-written, it is
+a match nobody can play. It counts the players on a side, not the rows naming them, so it stands
+on its own rather than only after a request validator has refused a repeated player.
 
 `UpdateMatch` is the only one whose refusal has a condition, and the condition is
 `golf.UpdateMatchInput.ChangesSetup`: the course and tee colour a score takes its par and
@@ -308,7 +311,7 @@ reset is not: it clears the scores, not who was named to play.
 
 **The test for whether a refusal can be a constraint**: it can when the rule is *refuse to
 delete X while Y exists* and Y already references X. An update (`ChangesSetup`), a rule
-counting rows (`LineupFits`), or a reference that cannot see everything (003, above) all still
+counting a side (`LineupFits`), or a reference that cannot see everything (003, above) all still
 need the code. Weigh it against the cost — an applied migration is frozen, so a constraint
 that turns out wrong needs another migration where a guard would need an edit.
 
