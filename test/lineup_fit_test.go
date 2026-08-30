@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"testing"
 
@@ -31,12 +30,9 @@ func TestASinglesLineupTakesOneASide(t *testing.T) {
 		onSide(fix.BluePlayer, fix.TeamBlue),
 	))
 
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Fatalf("want 409 for two on a singles side, got %v", err)
-	}
-	if apiErr.Message != "That lineup isn't the right size for this match's format." {
-		t.Errorf("message = %q", apiErr.Message)
+	msg := wantsStatus(t, err, http.StatusConflict)
+	if msg != "That lineup isn't the right size for this match's format." {
+		t.Errorf("message = %q", msg)
 	}
 
 	participants, err := client.ListParticipants(ctx, fix.MatchID)
@@ -55,10 +51,7 @@ func TestALineupMissingASideIsRefused(t *testing.T) {
 
 	err := client.SetLineup(context.Background(), fix.MatchID, theLineup(onSide(fix.RedPlayer, fix.TeamRed)))
 
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Fatalf("want 409 for one side only, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusConflict)
 }
 
 // A format with room takes the players the smaller one refused. A separate match, because a

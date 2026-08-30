@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"testing"
 
@@ -86,10 +85,7 @@ func TestWriteWithoutScopeForbidden(t *testing.T) {
 	_, err := client.CreateTournament(context.Background(), sdk.CreateTournamentRequest{
 		Name: "Unauthorized Cup", StartDate: "2026-08-01", EndDate: "2026-08-03", Location: "Winnipeg",
 	})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusForbidden {
-		t.Fatalf("want 403 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusForbidden)
 }
 
 func TestGetNonexistentTournamentReturns404(t *testing.T) {
@@ -97,10 +93,7 @@ func TestGetNonexistentTournamentReturns404(t *testing.T) {
 	client := freshClient(t)
 
 	_, err := client.GetTournament(context.Background(), uuid.New())
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
-		t.Fatalf("want 404 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusNotFound)
 }
 
 // The SDK client would reject end-before-start before sending, so this hits the

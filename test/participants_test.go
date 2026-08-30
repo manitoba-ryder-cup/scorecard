@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -124,10 +123,7 @@ func TestALineupNamingAnUndraftedPlayerIsRejected(t *testing.T) {
 
 	err = client.SetLineup(ctx, matchID, theLineup(onSide(other.ID, redTeam), onSide(bluePlayer, blueTeam)))
 
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
-		t.Fatalf("want 400 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusBadRequest)
 }
 
 // A player named twice would pass the size rule by filling a side on their own, so the shape
@@ -152,10 +148,7 @@ func TestSettingALineupOnAnUnknownMatchIs404(t *testing.T) {
 	err := client.SetLineup(context.Background(), uuid.New(),
 		theLineup(onSide(uuid.New(), uuid.New()), onSide(uuid.New(), uuid.New())))
 
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
-		t.Fatalf("want 404 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusNotFound)
 }
 
 // A lineup is who plays this match, not who is on the team. Replacing it leaves the draft be.
@@ -191,12 +184,9 @@ func TestUndraftingAPlayerInAMatchIsRefused(t *testing.T) {
 
 	err := client.UndraftPlayer(ctx, redTeam, redPlayer)
 
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Fatalf("want 409 APIError, got %v", err)
-	}
-	if apiErr.Message != "That player is participating in a match." {
-		t.Errorf("message = %q", apiErr.Message)
+	msg := wantsStatus(t, err, http.StatusConflict)
+	if msg != "That player is participating in a match." {
+		t.Errorf("message = %q", msg)
 	}
 
 	parts, err := client.ListParticipants(ctx, matchID)

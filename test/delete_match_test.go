@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -69,10 +68,7 @@ func TestDeleteAScoredMatchIsRefused(t *testing.T) {
 	if err == nil {
 		t.Fatal("want a scored match refused, got a delete")
 	}
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Fatalf("want 409, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusConflict)
 
 	// Refused, and nothing taken on the way out.
 	scores, err := client.GetMatchScores(ctx, fix.MatchID)

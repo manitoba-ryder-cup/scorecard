@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"testing"
 	"time"
@@ -182,10 +181,7 @@ func TestMatchHolesForNonexistentMatchReturns404(t *testing.T) {
 	client := freshClient(t)
 
 	_, err := client.GetMatchHoles(context.Background(), uuid.New())
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
-		t.Fatalf("want 404 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusNotFound)
 }
 
 func TestRosterCarriesRecordAndCups(t *testing.T) {

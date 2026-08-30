@@ -79,18 +79,6 @@ func refusedAfterTheScoreCommits(t *testing.T, fix *util.Fixture, write func() e
 	}
 }
 
-// Returns the refusal's own sentence, so a caller that also cares what it said can go on to
-// check it rather than taking the error apart a second time.
-func wantsConflict(t *testing.T, err error, what string) string {
-	t.Helper()
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Errorf("%s: want 409, got %v", what, err)
-		return ""
-	}
-	return apiErr.Message
-}
-
 // Each of these reads whether the match has been scored and then writes on the answer. The
 // lock is what stops the answer going stale in between, and these are what fail if it goes.
 func TestAWriteCannotDecideWhileAScoreIsLanding(t *testing.T) {
@@ -103,7 +91,7 @@ func TestAWriteCannotDecideWhileAScoreIsLanding(t *testing.T) {
 		err := refusedAfterTheScoreCommits(t, fix, func() error {
 			return client.DeleteMatch(ctx, fix.MatchID)
 		})
-		wantsConflict(t, err, "delete")
+		wantsStatus(t, err, http.StatusConflict)
 	})
 
 	t.Run("moving the tee set", func(t *testing.T) {
@@ -114,7 +102,7 @@ func TestAWriteCannotDecideWhileAScoreIsLanding(t *testing.T) {
 			_, err := client.UpdateMatch(ctx, fix.MatchID, sdk.UpdateMatchRequest{TeeColorID: &gold})
 			return err
 		})
-		wantsConflict(t, err, "tee set move")
+		wantsStatus(t, err, http.StatusConflict)
 	})
 
 	t.Run("setting the lineup", func(t *testing.T) {
@@ -123,6 +111,6 @@ func TestAWriteCannotDecideWhileAScoreIsLanding(t *testing.T) {
 		err := refusedAfterTheScoreCommits(t, fix, func() error {
 			return setTheSameLineup(t, client, fix)
 		})
-		wantsConflict(t, err, "set lineup")
+		wantsStatus(t, err, http.StatusConflict)
 	})
 }

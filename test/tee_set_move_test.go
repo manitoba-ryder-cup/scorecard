@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -116,7 +117,7 @@ func TestARefusalSaysWhyAndWhatToDo(t *testing.T) {
 // the way through rather than only for the status.
 func saysScored(t *testing.T, err error, what, wayThrough string) {
 	t.Helper()
-	msg := wantsConflict(t, err, what)
+	msg := wantsStatus(t, err, http.StatusConflict)
 	if !strings.HasPrefix(msg, "That match has scores.") || !strings.Contains(msg, wayThrough) {
 		t.Errorf("%s: want a refusal naming the reset and %q, got %q", what, wayThrough, msg)
 	}

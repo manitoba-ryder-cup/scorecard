@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -21,10 +20,7 @@ func TestRemovingAParticipantFromAScoredMatchIsRefused(t *testing.T) {
 	playHole(t, client, fix, 1, 4, 5)
 
 	err := setTheSameLineup(t, client, fix)
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Fatalf("want 409 APIError, got %v", err)
-	}
+	wantsStatus(t, err, http.StatusConflict)
 
 	participants, err := client.ListParticipants(ctx, fix.MatchID)
 	if err != nil {
@@ -42,12 +38,9 @@ func TestUndraftingAScoredPlayerIsRefused(t *testing.T) {
 	playHole(t, client, fix, 1, 4, 5)
 
 	err := client.UndraftPlayer(ctx, fix.TeamRed, fix.RedPlayer)
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Fatalf("want 409 APIError, got %v", err)
-	}
-	if apiErr.Message != "That player is participating in a match." {
-		t.Errorf("message = %q", apiErr.Message)
+	msg := wantsStatus(t, err, http.StatusConflict)
+	if msg != "That player is participating in a match." {
+		t.Errorf("message = %q", msg)
 	}
 }
 
@@ -69,13 +62,8 @@ func TestAOneBallScoreAlsoLocksTheLineup(t *testing.T) {
 		t.Fatalf("submit a team score: %v", err)
 	}
 
-	var apiErr *sdk.APIError
-	if err := setTheSameLineup(t, client, fix); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Errorf("set lineup: want 409, got %v", err)
-	}
-	if err := client.UndraftPlayer(ctx, fix.TeamRed, fix.RedPlayer); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Errorf("undraft: want 409, got %v", err)
-	}
+	wantsStatus(t, setTheSameLineup(t, client, fix), http.StatusConflict)
+	wantsStatus(t, client.UndraftPlayer(ctx, fix.TeamRed, fix.RedPlayer), http.StatusConflict)
 }
 
 // Reset is the way through, which is what makes it more than a testing tool: clear the
