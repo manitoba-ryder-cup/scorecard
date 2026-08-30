@@ -53,9 +53,15 @@ func (f *fakeParticipantDB) ListMatchParticipants(ctx context.Context, matchID u
 func (f *fakeParticipantDB) ListParticipantsWithPlayersByTournament(ctx context.Context, tournamentID uuid.UUID) ([]MatchParticipantPlayer, error) {
 	return f.withPlayers, nil
 }
-func (f *fakeParticipantDB) SetMatchLineup(ctx context.Context, matchID uuid.UUID, entries []MatchParticipant) error {
+
+// Mirrors the repository: its own refusal is read first, and the domain's guard only after,
+// so a test can tell which of the two answered.
+func (f *fakeParticipantDB) SetMatchLineup(ctx context.Context, matchID uuid.UUID, entries []MatchParticipant, guard func() error) error {
 	if f.setErr != nil {
 		return f.setErr
+	}
+	if err := guard(); err != nil {
+		return err
 	}
 	f.lineup = entries
 	return nil

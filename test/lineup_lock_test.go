@@ -44,6 +44,30 @@ func TestUndraftingAScoredPlayerIsRefused(t *testing.T) {
 	}
 }
 
+// A scored match refuses a lineup change outright, so that is the answer even when the lineup
+// is also the wrong size — otherwise a captain fixes the size, sends it again, and only then
+// learns the match was closed to them all along. Both refusals are 409, so the status says
+// nothing here; the sentence is the whole of what a caller gets.
+func TestAScoredMatchSaysItIsScoredBeforeItSaysTheSizeIsWrong(t *testing.T) {
+	t.Parallel()
+	client, fix := authedClient(t)
+	ctx := context.Background()
+	spare := anotherDraftedPlayer(t, client, fix, fix.TeamRed)
+	playHole(t, client, fix, 1, 4, 5)
+
+	// Two a side on Red against one on Blue: wrong for Singles, on a match already scored.
+	err := client.SetLineup(ctx, fix.MatchID, theLineup(
+		onSide(fix.RedPlayer, fix.TeamRed),
+		onSide(spare, fix.TeamRed),
+		onSide(fix.BluePlayer, fix.TeamBlue),
+	))
+
+	msg := wantsStatus(t, err, http.StatusConflict)
+	if msg != "That match has scores. Reset it before changing its lineup." {
+		t.Errorf("want the scored refusal ahead of the size one, got %q", msg)
+	}
+}
+
 // The grain the scores foreign key cannot see: a one-ball format records against the team with
 // no player, so those rows reference no participant and the guard is all that stops the lineup
 // moving. The undraft beside it is refused by a constraint that does not depend on the format.

@@ -13,7 +13,6 @@ import (
 
 // secondTeeSet adds another playable tee on the fixture's course, so a move has somewhere
 // legitimate to go — an unknown id would be refused for a different reason entirely.
-// A second tee on the fixture's own course, so a match has somewhere to be moved to.
 func secondTeeSet(t *testing.T, client *sdk.Client, fix *util.Fixture) uuid.UUID {
 	t.Helper()
 	ctx := context.Background()
@@ -89,9 +88,8 @@ func TestResendingTheSameTeeSetIsNotAMove(t *testing.T) {
 }
 
 // The refusal is only useful if the reason reaches whoever is reading it. Every route that
-// refuses a scored match says which reset makes it possible, on the wire and not only in the log.
-// Every edit that would reinterpret a scored match is refused, each naming the reset that
-// makes it possible, and the refusals leave the scores where they were.
+// refuses a scored match says which reset makes it possible, and leaves the scores where
+// they were.
 func TestARefusalSaysWhyAndWhatToDo(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)

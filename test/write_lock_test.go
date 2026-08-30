@@ -27,7 +27,6 @@ func scoreLandingNow(t *testing.T, fix *util.Fixture) (commit func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = conn.Close(ctx) })
 
 	// The same order the score write path takes: lock the match, then write against it.
 	var locked string

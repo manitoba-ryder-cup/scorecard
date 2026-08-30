@@ -116,22 +116,27 @@ func (s *MatchService) ListMatches(ctx context.Context, tournamentID uuid.UUID) 
 	return matches, nil
 }
 
-// SetLineup replaces a match's lineup with entries. The size rule is settled before the write
-// rather than inside it: it is read against the set arriving, and a match's format cannot
-// change, so neither half of it can move while the write is in flight.
+// SetLineup replaces a match's lineup with entries. The size rule is the domain's, but it is
+// handed down rather than run here: a scored match refuses a lineup change outright, and that
+// answer has to come first or a caller fixes the size only to be told the match is closed.
 func (s *MatchService) SetLineup(ctx context.Context, matchID uuid.UUID, entries []MatchParticipant) error {
 	match, err := s.MatchDB.GetMatch(ctx, matchID)
 	if err != nil {
 		return fmt.Errorf("failed to get match: %w", err)
 	}
+	// Read before the write rather than inside it: a match's format cannot change, so nothing
+	// this is measured against can move while the write is in flight.
 	format, err := s.FormatDB.GetMatchFormat(ctx, match.MatchFormatID)
 	if err != nil {
 		return fmt.Errorf("failed to get match format: %w", err)
 	}
-	if !LineupFits(entries, format.PlayersPerSide) {
-		return fmt.Errorf("%w: format %s takes %d a side", ErrLineupSize, match.MatchFormatID, format.PlayersPerSide)
+	fits := func() error {
+		if !LineupFits(entries, format.PlayersPerSide) {
+			return fmt.Errorf("%w: format %s takes %d a side", ErrLineupSize, match.MatchFormatID, format.PlayersPerSide)
+		}
+		return nil
 	}
-	if err := s.ParticipantDB.SetMatchLineup(ctx, matchID, entries); err != nil {
+	if err := s.ParticipantDB.SetMatchLineup(ctx, matchID, entries, fits); err != nil {
 		return fmt.Errorf("failed to set lineup: %w", err)
 	}
 	return nil

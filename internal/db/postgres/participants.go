@@ -20,13 +20,18 @@ func NewParticipantsDB(db *DB) *ParticipantsDB {
 // SetMatchLineup replaces a match's lineup with entries. The lock spans the whole exchange:
 // the scored check that decides whether the lineup may move at all is read before the write
 // that acts on it, and a score landing in between would make that answer untrue.
-func (p *ParticipantsDB) SetMatchLineup(ctx context.Context, matchID uuid.UUID, entries []golf.MatchParticipant) error {
+func (p *ParticipantsDB) SetMatchLineup(ctx context.Context, matchID uuid.UUID, entries []golf.MatchParticipant, guard func() error) error {
 	return withTenantExec(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
 		match, err := lockMatch(ctx, q, matchID, tenantID)
 		if err != nil {
 			return err
 		}
 		if err := refuseIfScored(ctx, q, matchID, tenantID, golf.ErrScoredMatchLineup); err != nil {
+			return err
+		}
+		// After the scored refusal, which is the one a caller must hear first: a lineup on a
+		// closed match is refused whatever size it is.
+		if err := guard(); err != nil {
 			return err
 		}
 		if err := q.DeleteMatchLineup(ctx, sqlc.DeleteMatchLineupParams{MatchID: matchID, TenantID: tenantID}); err != nil {
