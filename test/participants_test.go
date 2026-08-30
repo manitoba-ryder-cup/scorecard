@@ -99,21 +99,8 @@ func draftedMatch(t *testing.T, client *sdk.Client) (matchID, redTeam, redPlayer
 	}
 	redTeam = teamByColor(t, client, tour.ID, sdk.TeamColorRed)
 	blueTeam = teamByColor(t, client, tour.ID, sdk.TeamColorBlue)
-	onto := func(name string, team uuid.UUID) uuid.UUID {
-		p, err := client.CreatePlayer(ctx, sdk.CreatePlayerRequest{FirstName: name, LastName: "Player"})
-		if err != nil {
-			t.Fatalf("create player: %v", err)
-		}
-		if _, err := client.EnterTournamentPlayer(ctx, tour.ID, sdk.EnterTournamentPlayerRequest{PlayerID: p.ID}); err != nil {
-			t.Fatalf("enter: %v", err)
-		}
-		if _, err := client.DraftPlayer(ctx, team, sdk.DraftPlayerRequest{PlayerID: p.ID}); err != nil {
-			t.Fatalf("draft: %v", err)
-		}
-		return p.ID
-	}
-	redPlayer = onto("Red", redTeam)
-	bluePlayer = onto("Blue", blueTeam)
+	redPlayer = enterAndDraft(t, client, tour.ID, redTeam, "Red", "Player")
+	bluePlayer = enterAndDraft(t, client, tour.ID, blueTeam, "Blue", "Player")
 	courseID, teeColorID, formatID := playableCourse(t, client)
 	match, err := client.CreateMatch(ctx, tour.ID, sdk.CreateMatchRequest{CourseID: courseID, TeeColorID: teeColorID, MatchFormatID: formatID, TeeTime: fixtureTeeTime()})
 	if err != nil {

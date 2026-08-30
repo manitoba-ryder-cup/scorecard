@@ -17,14 +17,7 @@ func anotherDraftedPlayer(t *testing.T, fix *util.Fixture, teamID uuid.UUID) uui
 	t.Helper()
 	ctx := context.Background()
 
-	conn, err := util.Connect(ctx, util.LoadConfig().DatabaseURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = conn.Close(ctx) })
-	if _, err := conn.Exec(ctx, "SET app.current_tenant_id = '"+fix.TenantID.String()+"'"); err != nil {
-		t.Fatal(err)
-	}
+	conn := util.ConnectAs(t, fix.TenantID)
 
 	var id uuid.UUID
 	if err := conn.QueryRow(ctx,

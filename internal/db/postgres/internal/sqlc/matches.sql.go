@@ -62,7 +62,7 @@ func (q *Queries) CreateMatch(ctx context.Context, arg CreateMatchParams) (Match
 	return i, err
 }
 
-const deleteMatch = `-- name: DeleteMatch :execrows
+const deleteMatch = `-- name: DeleteMatch :exec
 DELETE FROM matches WHERE id = $1 AND tenant_id = $2
 `
 
@@ -71,12 +71,9 @@ type DeleteMatchParams struct {
 	TenantID uuid.UUID `json:"tenant_id"`
 }
 
-func (q *Queries) DeleteMatch(ctx context.Context, arg DeleteMatchParams) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteMatch, arg.ID, arg.TenantID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+func (q *Queries) DeleteMatch(ctx context.Context, arg DeleteMatchParams) error {
+	_, err := q.db.Exec(ctx, deleteMatch, arg.ID, arg.TenantID)
+	return err
 }
 
 const getMatch = `-- name: GetMatch :one

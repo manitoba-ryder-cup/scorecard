@@ -3,6 +3,7 @@ package util
 import (
 	"context"
 	"fmt"
+	"testing"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -27,6 +28,23 @@ type Fixture struct {
 // Connect opens a single pgx connection for seeding. The caller closes it.
 func Connect(ctx context.Context, databaseURL string) (*pgx.Conn, error) {
 	return pgx.Connect(ctx, databaseURL)
+}
+
+// ConnectAs opens a connection with the tenant already set, for a test staging rows the API
+// has no route for. Closed when the test ends. Plain SET, not SET LOCAL — there is no
+// transaction here, and SET LOCAL outside one sets nothing at all.
+func ConnectAs(t *testing.T, tenantID uuid.UUID) *pgx.Conn {
+	t.Helper()
+	ctx := context.Background()
+	conn, err := Connect(ctx, LoadConfig().DatabaseURL)
+	if err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	t.Cleanup(func() { _ = conn.Close(ctx) })
+	if _, err := conn.Exec(ctx, "SET app.current_tenant_id = '"+tenantID.String()+"'"); err != nil {
+		t.Fatalf("set tenant: %v", err)
+	}
+	return conn
 }
 
 // SeedPlayer inserts one player under the given tenant and returns its ID. Used to

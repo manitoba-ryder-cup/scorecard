@@ -18,14 +18,7 @@ func secondTeeSet(t *testing.T, fix *util.Fixture) uuid.UUID {
 	t.Helper()
 	ctx := context.Background()
 
-	conn, err := util.Connect(ctx, util.LoadConfig().DatabaseURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = conn.Close(ctx) })
-	if _, err := conn.Exec(ctx, "SET app.current_tenant_id = '"+fix.TenantID.String()+"'"); err != nil {
-		t.Fatal(err)
-	}
+	conn := util.ConnectAs(t, fix.TenantID)
 
 	var id uuid.UUID
 	if err := conn.QueryRow(ctx, `INSERT INTO tee_colors (tenant_id, color) VALUES ($1, $2) RETURNING id`,
@@ -136,27 +129,17 @@ func TestARefusalSaysWhyAndWhatToDo(t *testing.T) {
 	closeOutRedWin(t, client, fix)
 
 	_, err := client.UpdateMatch(ctx, fix.MatchID, sdk.UpdateMatchRequest{TeeColorID: &gold})
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) {
-		t.Fatalf("want an APIError, got %v", err)
-	}
-	if apiErr.Message != "That match has scores. Reset it before changing its course or tees." {
-		t.Errorf("want the way through, got %q", apiErr.Message)
-	}
-
-	if err := setTheSameLineup(t, client, fix); !saysScored(t, err, "changing its lineup") {
-		t.Errorf("setting the lineup: want the way through, got %v", err)
-	}
-	if err := client.DeleteMatch(ctx, fix.MatchID); !saysScored(t, err, "deleting it") {
-		t.Errorf("deleting: want the way through, got %v", err)
-	}
+	saysScored(t, err, "moving the tee set", "changing its course or tees")
+	saysScored(t, setTheSameLineup(t, client, fix), "setting the lineup", "changing its lineup")
+	saysScored(t, client.DeleteMatch(ctx, fix.MatchID), "deleting", "deleting it")
 }
 
-func saysScored(t *testing.T, err error, wayThrough string) bool {
+// Every refusal a scored match makes names the reset that undoes it, so each is checked for
+// the way through rather than only for the status.
+func saysScored(t *testing.T, err error, what, wayThrough string) {
 	t.Helper()
-	var apiErr *sdk.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		return false
+	msg := wantsConflict(t, err, what)
+	if !strings.HasPrefix(msg, "That match has scores.") || !strings.Contains(msg, wayThrough) {
+		t.Errorf("%s: want a refusal naming the reset and %q, got %q", what, wayThrough, msg)
 	}
-	return strings.HasPrefix(apiErr.Message, "That match has scores.") && strings.Contains(apiErr.Message, wayThrough)
 }

@@ -22,13 +22,7 @@ func scoreLandingNow(t *testing.T, fix *util.Fixture) (commit func()) {
 	t.Helper()
 	ctx := context.Background()
 
-	conn, err := util.Connect(ctx, util.LoadConfig().DatabaseURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := conn.Exec(ctx, "SET app.current_tenant_id = '"+fix.TenantID.String()+"'"); err != nil {
-		t.Fatal(err)
-	}
+	conn := util.ConnectAs(t, fix.TenantID)
 	tx, err := conn.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -85,12 +79,16 @@ func refusedAfterTheScoreCommits(t *testing.T, fix *util.Fixture, write func() e
 	}
 }
 
-func wantsConflict(t *testing.T, err error, what string) {
+// Returns the refusal's own sentence, so a caller that also cares what it said can go on to
+// check it rather than taking the error apart a second time.
+func wantsConflict(t *testing.T, err error, what string) string {
 	t.Helper()
 	var apiErr *sdk.APIError
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-		t.Errorf("%s: want 409 once the score landed, got %v", what, err)
+		t.Errorf("%s: want 409, got %v", what, err)
+		return ""
 	}
+	return apiErr.Message
 }
 
 // Each of these reads whether the match has been scored and then writes on the answer. The

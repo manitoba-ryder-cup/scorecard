@@ -76,15 +76,18 @@ func (in UpdateMatchInput) ChangesSetup(current Match) bool {
 // holding exactly what it takes. A match is one side against the other, so a lineup missing a
 // player is not half-written — it is a match nobody can play.
 func LineupFits(participants []MatchParticipant, playersPerSide int32) bool {
-	perSide := map[uuid.UUID]int{}
+	perSide := map[uuid.UUID]map[uuid.UUID]struct{}{}
 	for _, p := range participants {
-		perSide[p.TeamID]++
+		if perSide[p.TeamID] == nil {
+			perSide[p.TeamID] = map[uuid.UUID]struct{}{}
+		}
+		perSide[p.TeamID][p.PlayerID] = struct{}{}
 	}
 	if len(perSide) != 2 {
 		return false
 	}
-	for _, n := range perSide {
-		if n != int(playersPerSide) {
+	for _, side := range perSide {
+		if len(side) != int(playersPerSide) {
 			return false
 		}
 	}

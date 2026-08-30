@@ -1,16 +1,16 @@
 package test
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/manitoba-ryder-cup/scorecard/sdk"
 	util "github.com/manitoba-ryder-cup/scorecard/test/_util"
 	testjwt "github.com/manitoba-ryder-cup/scorecard/test/_util/jwt"
+	"github.com/manitoba-ryder-cup/scorecard/test/_util/request"
 )
 
 // theMatch reads the fixture's match back off the tournament listing; the SDK has no
@@ -70,23 +70,14 @@ func TestAMatchFormatCannotBeChanged(t *testing.T) {
 	before := theMatch(t, client, fix).MatchFormatID
 	other := formatNamed(t, client, "Alt Shot")
 
-	body, _ := json.Marshal(map[string]string{"match_format_id": other.ID.String()})
-	req, err := http.NewRequest(http.MethodPut,
-		util.LoadConfig().BaseURL+"/v1/matches/"+fix.MatchID.String(), bytes.NewReader(body))
-	if err != nil {
-		t.Fatal(err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+testjwt.MintAccessToken(t, fix.TenantID, uuid.New(), writeScopes...))
+	// Sent raw, not through the SDK: the point is a caller that puts a field the contract
+	// does not carry, which the typed request cannot express.
+	path := strings.Replace(sdk.RouteV1Match, "{id}", fix.MatchID.String(), 1)
+	token := testjwt.MintAccessToken(t, fix.TenantID, uuid.New(), writeScopes...)
+	status, _ := request.Raw(t, http.MethodPut, path, `{"match_format_id":"`+other.ID.String()+`"}`, token)
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("put: %v", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("want 400 for a field the contract does not carry, got %d", resp.StatusCode)
+	if status != http.StatusBadRequest {
+		t.Errorf("want 400 for a field the contract does not carry, got %d", status)
 	}
 	if now := theMatch(t, client, fix).MatchFormatID; now != before {
 		t.Errorf("the format changed to %s", now)

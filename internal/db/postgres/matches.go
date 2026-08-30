@@ -81,21 +81,13 @@ func lockMatch(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid.UUID
 	return match, nil
 }
 
-func matchHasScores(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid.UUID) (bool, error) {
+func refuseIfScored(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid.UUID, refusal error) error {
 	scored, err := q.MatchHasScores(ctx, sqlc.MatchHasScoresParams{
 		MatchID:  matchID,
 		TenantID: tenantID,
 	})
 	if err != nil {
-		return false, fmt.Errorf("checking scores for match %s: %w", matchID, err)
-	}
-	return scored, nil
-}
-
-func refuseIfScored(ctx context.Context, q *sqlc.Queries, matchID, tenantID uuid.UUID, refusal error) error {
-	scored, err := matchHasScores(ctx, q, matchID, tenantID)
-	if err != nil {
-		return err
+		return fmt.Errorf("checking scores for match %s: %w", matchID, err)
 	}
 	if scored {
 		return fmt.Errorf("%w: match %s", refusal, matchID)
@@ -113,7 +105,7 @@ func (m *MatchesDB) DeleteMatch(ctx context.Context, id uuid.UUID) error {
 		if err := refuseIfScored(ctx, q, id, tenantID, golf.ErrScoredMatchDelete); err != nil {
 			return err
 		}
-		if _, err := q.DeleteMatch(ctx, sqlc.DeleteMatchParams{
+		if err := q.DeleteMatch(ctx, sqlc.DeleteMatchParams{
 			ID:       id,
 			TenantID: tenantID,
 		}); err != nil {

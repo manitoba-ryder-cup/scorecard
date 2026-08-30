@@ -53,5 +53,5 @@ JOIN courses c ON c.id = m.course_id AND c.tenant_id = m.tenant_id
 WHERE m.tournament_id = @tournament_id AND m.tenant_id = @tenant_id
 ORDER BY m.tee_time NULLS LAST, m.id;
 
--- name: DeleteMatch :execrows
+-- name: DeleteMatch :exec
 DELETE FROM matches WHERE id = @id AND tenant_id = @tenant_id;
