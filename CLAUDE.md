@@ -266,13 +266,16 @@ with the sentinel naming what was attempted. `DeleteTeamMember` takes no lock at
 
 `SetMatchLineup` takes the lock for the lineup rather than for the scores, and it takes it for
 one rule only: a scored match's lineup may not move, which is read before the write that acts
-on it. **The size rule needs no lock, and so does not live there** — `LineupFits` is settled in
-`MatchService.SetLineup` before the write, because it is read against the set arriving and a
-match's format cannot change, so neither half of it can move while the write is in flight. That
-a lineup is checked whole is the reason it arrives whole rather than a player at a time. Two
-sides, each holding exactly what the format takes; a lineup one short is not half-written, it is
-a match nobody can play. It counts the players on a side, not the rows naming them, so it stands
-on its own rather than only after a request validator has refused a repeated player.
+on it. **The size rule needs no lock** — `LineupFits` is checked against the set being written,
+not the one stored — and that is the reason a lineup arrives whole rather than a player at a
+time. Two sides, each holding exactly what the format takes; a lineup one short is not
+half-written, it is a match nobody can play. It counts the players on a side, not the rows
+naming them, so a side padded out with one name twice is a side of one.
+
+It is read **after** the scored refusal, not before. Both answer 409, so a caller who is told
+the size is wrong, fixes it, and sends again would only then learn the match was closed to them
+all along. Lifting the rule into `MatchService` inverts that, which is what the third attempt at
+handing a `guard` down was for; the order is why it was reverted a third time.
 
 `UpdateMatch` is the only one whose refusal has a condition, and the condition is
 `golf.UpdateMatchInput.ChangesSetup`: the course and tee colour a score takes its par and
@@ -282,9 +285,12 @@ sits outside that set on purpose — a group that went out late needs it, and th
 is measured from it on every submission.
 
 **The refusal travels up as a sentinel; nothing is handed down.** Passing the domain a
-`guard` callback so the rule could live in `internal/golf` was built twice and reverted
-twice: once for the deletes, where the closure carried a constant, and once here, where it
-only chose between two sentences that turned out to be one. A repository that reads and
+`guard` callback so the rule could live in `internal/golf` was built three times and reverted
+three times: once for the deletes, where the closure carried a constant; once here, where it
+only chose between two sentences that turned out to be one; and once here again, where it
+carried a real computation and still cost two reads outside the transaction, a `FormatDB` on
+`MatchService`, and one rule spread over three files to get back an order the repository
+already had. A repository that reads and
 refuses, and an API layer that turns the sentinel into a sentence, needs neither.
 
 **Nothing else may delete a score.** `scores` referenced `match_participants` with

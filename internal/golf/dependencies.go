@@ -30,9 +30,7 @@ type matchDB interface {
 type participantDB interface {
 	ListMatchParticipants(ctx context.Context, matchID uuid.UUID) ([]MatchParticipant, error)
 	ListParticipantsWithPlayersByTournament(ctx context.Context, tournamentID uuid.UUID) ([]MatchParticipantPlayer, error)
-	// SetMatchLineup replaces a match's lineup. guard is the domain's own refusal, run inside
-	// the lock and after the repository's, so a scored match says so before anything else.
-	SetMatchLineup(ctx context.Context, matchID uuid.UUID, entries []MatchParticipant, guard func() error) error
+	SetMatchLineup(ctx context.Context, matchID uuid.UUID, entries []MatchParticipant) error
 }
 
 type scoreDB interface {
@@ -103,7 +101,6 @@ type teeSetDB interface {
 }
 
 type formatDB interface {
-	GetMatchFormat(ctx context.Context, id uuid.UUID) (*MatchFormat, error)
 	ListMatchFormats(ctx context.Context) ([]MatchFormat, error)
 }
 
