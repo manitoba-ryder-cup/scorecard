@@ -101,6 +101,7 @@ type teeSetDB interface {
 }
 
 type formatDB interface {
+	GetMatchFormat(ctx context.Context, id uuid.UUID) (*MatchFormat, error)
 	ListMatchFormats(ctx context.Context) ([]MatchFormat, error)
 }
 

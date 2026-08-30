@@ -155,8 +155,23 @@ var (
 
 func matchService(m *fakeMatchDB, p *fakeParticipantDB, sdb *fakeScoreDB) *MatchService {
 	return &MatchService{
-		MatchDB: m, ParticipantDB: p, ScoreDB: sdb, ResultDB: &fakeResultDB{},
-		Now: func() time.Time { return duringTheRound },
+		MatchDB: m, FormatDB: &fakeFormatDB{playersPerSide: 1}, ParticipantDB: p, ScoreDB: sdb,
+		ResultDB: &fakeResultDB{},
+		Now:      func() time.Time { return duringTheRound },
+	}
+}
+
+type fakeFormatDB struct{ playersPerSide int32 }
+
+func (f *fakeFormatDB) GetMatchFormat(context.Context, uuid.UUID) (*MatchFormat, error) {
+	return &MatchFormat{ID: uuid.New(), Name: "Singles", PlayersPerSide: f.playersPerSide}, nil
+}
+func (f *fakeFormatDB) ListMatchFormats(context.Context) ([]MatchFormat, error) { return nil, nil }
+
+func oneASide() []MatchParticipant {
+	return []MatchParticipant{
+		{MatchID: matchID, TeamID: teamA, PlayerID: playerA},
+		{MatchID: matchID, TeamID: teamB, PlayerID: playerB},
 	}
 }
 
@@ -489,7 +504,7 @@ func TestSetLineup_PropagatesARefusal(t *testing.T) {
 	m, p := twoTeamMatch()
 	p.setErr = ErrScoredMatchLineup
 
-	err := matchService(m, p, &fakeScoreDB{}).SetLineup(context.Background(), matchID, nil)
+	err := matchService(m, p, &fakeScoreDB{}).SetLineup(context.Background(), matchID, oneASide())
 	if !errors.Is(err, ErrScoredMatchLineup) {
 		t.Fatalf("want ErrScoredMatchLineup, got %v", err)
 	}
@@ -756,5 +771,22 @@ func TestSubmitHoleScores_AnswersWithTheWholeSeries(t *testing.T) {
 	}
 	if state.Lead != 2 || state.Finished {
 		t.Errorf("want a live match 2 up, got %+v", state.StoredResult)
+	}
+}
+
+// The size rule lives above the write now, so it holds for any caller rather than only for
+// one that has been through an HTTP body validator first.
+func TestSetLineup_RefusesALineupTheFormatCannotHold(t *testing.T) {
+	m, p := twoTeamMatch()
+	svc := matchService(m, p, &fakeScoreDB{})
+	svc.FormatDB = &fakeFormatDB{playersPerSide: 2}
+
+	err := svc.SetLineup(context.Background(), matchID, oneASide())
+
+	if !errors.Is(err, ErrLineupSize) {
+		t.Fatalf("want ErrLineupSize for one a side in a two-a-side format, got %v", err)
+	}
+	if p.lineup != nil {
+		t.Errorf("must not reach the write, but it was handed %v", p.lineup)
 	}
 }

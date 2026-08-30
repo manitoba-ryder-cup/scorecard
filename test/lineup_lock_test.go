@@ -127,16 +127,8 @@ func TestTheDatabaseRefusesToOrphanAScoredParticipant(t *testing.T) {
 	ctx := context.Background()
 	playHole(t, client, fix, 1, 4, 5)
 
-	conn, err := util.Connect(ctx, util.LoadConfig().DatabaseURL)
-	if err != nil {
-		t.Fatalf("connect: %v", err)
-	}
-	defer func() { _ = conn.Close(ctx) }()
-
-	if _, err := conn.Exec(ctx, "SET LOCAL app.current_tenant_id = '"+fix.TenantID.String()+"'"); err != nil {
-		t.Fatalf("set tenant: %v", err)
-	}
-	_, err = conn.Exec(ctx,
+	conn := util.ConnectAs(t, fix.TenantID)
+	_, err := conn.Exec(ctx,
 		"DELETE FROM match_participants WHERE match_id = $1 AND player_id = $2 AND tenant_id = $3",
 		fix.MatchID, fix.RedPlayer, fix.TenantID)
 	// Named, not merely non-nil: RLS refusing the row would read as the constraint working.

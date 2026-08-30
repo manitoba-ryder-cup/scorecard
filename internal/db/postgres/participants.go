@@ -20,9 +20,6 @@ func NewParticipantsDB(db *DB) *ParticipantsDB {
 // SetMatchLineup replaces a match's lineup with entries. The lock spans the whole exchange:
 // the scored check that decides whether the lineup may move at all is read before the write
 // that acts on it, and a score landing in between would make that answer untrue.
-//
-// The size rule needs no lock — it is checked against the set being written, not the one
-// stored — which is the reason a lineup arrives whole rather than a player at a time.
 func (p *ParticipantsDB) SetMatchLineup(ctx context.Context, matchID uuid.UUID, entries []golf.MatchParticipant) error {
 	return withTenantExec(ctx, p.db, func(q *sqlc.Queries, tenantID uuid.UUID) error {
 		match, err := lockMatch(ctx, q, matchID, tenantID)
@@ -32,16 +29,6 @@ func (p *ParticipantsDB) SetMatchLineup(ctx context.Context, matchID uuid.UUID, 
 		if err := refuseIfScored(ctx, q, matchID, tenantID, golf.ErrScoredMatchLineup); err != nil {
 			return err
 		}
-		// A match whose format has gone is a broken row here, not a request for something that
-		// does not exist, so it must not answer the caller as a 404.
-		format, err := q.GetMatchFormat(ctx, match.MatchFormatID)
-		if err != nil {
-			return fmt.Errorf("reading format %s for match %s: %w", match.MatchFormatID, matchID, err)
-		}
-		if !golf.LineupFits(entries, format.PlayersPerSide) {
-			return fmt.Errorf("%w: format %s takes %d a side", golf.ErrLineupSize, match.MatchFormatID, format.PlayersPerSide)
-		}
-
 		if err := q.DeleteMatchLineup(ctx, sqlc.DeleteMatchLineupParams{MatchID: matchID, TenantID: tenantID}); err != nil {
 			return fmt.Errorf("clearing lineup for match %s: %w", matchID, mapWriteErr(err))
 		}

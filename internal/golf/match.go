@@ -14,6 +14,7 @@ import (
 // and recomputing/persisting the materialized result on score writes).
 type MatchService struct {
 	MatchDB       matchDB
+	FormatDB      formatDB
 	ParticipantDB participantDB
 	ScoreDB       scoreDB
 	ResultDB      resultDB
@@ -115,8 +116,21 @@ func (s *MatchService) ListMatches(ctx context.Context, tournamentID uuid.UUID) 
 	return matches, nil
 }
 
-// SetLineup replaces a match's lineup with entries.
+// SetLineup replaces a match's lineup with entries. The size rule is settled before the write
+// rather than inside it: it is read against the set arriving, and a match's format cannot
+// change, so neither half of it can move while the write is in flight.
 func (s *MatchService) SetLineup(ctx context.Context, matchID uuid.UUID, entries []MatchParticipant) error {
+	match, err := s.MatchDB.GetMatch(ctx, matchID)
+	if err != nil {
+		return fmt.Errorf("failed to get match: %w", err)
+	}
+	format, err := s.FormatDB.GetMatchFormat(ctx, match.MatchFormatID)
+	if err != nil {
+		return fmt.Errorf("failed to get match format: %w", err)
+	}
+	if !LineupFits(entries, format.PlayersPerSide) {
+		return fmt.Errorf("%w: format %s takes %d a side", ErrLineupSize, match.MatchFormatID, format.PlayersPerSide)
+	}
 	if err := s.ParticipantDB.SetMatchLineup(ctx, matchID, entries); err != nil {
 		return fmt.Errorf("failed to set lineup: %w", err)
 	}
