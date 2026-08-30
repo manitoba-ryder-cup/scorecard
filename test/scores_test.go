@@ -213,7 +213,7 @@ func TestSubmitScoreRejectsAMatchOutsideItsScoringWindow(t *testing.T) {
 			match, err := client.CreateMatch(ctx, fix.TournamentID, sdk.CreateMatchRequest{
 				CourseID:      fix.CourseID,
 				TeeColorID:    fix.TeeColorID,
-				MatchFormatID: formatNamed(t, client, "Singles").ID,
+				MatchFormatID: formatNamed(t, client, "Singles"),
 				TeeTime:       tc.teeTime.UTC().Format(time.RFC3339),
 			})
 			if err != nil {

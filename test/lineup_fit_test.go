@@ -13,31 +13,9 @@ import (
 
 // anotherDraftedPlayer enters a player in the tournament and drafts them onto a team, so a
 // side has somebody to be filled with. The fixture seeds exactly one a side.
-func anotherDraftedPlayer(t *testing.T, fix *util.Fixture, teamID uuid.UUID) uuid.UUID {
+func anotherDraftedPlayer(t *testing.T, client *sdk.Client, fix *util.Fixture, teamID uuid.UUID) uuid.UUID {
 	t.Helper()
-	ctx := context.Background()
-
-	conn := util.ConnectAs(t, fix.TenantID)
-
-	var id uuid.UUID
-	if err := conn.QueryRow(ctx,
-		`INSERT INTO players (tenant_id, first_name, last_name) VALUES ($1, 'Spare', $2) RETURNING id`,
-		fix.TenantID, uuid.NewString()[:8],
-	).Scan(&id); err != nil {
-		t.Fatalf("player: %v", err)
-	}
-	// Entering precedes drafting: the team_members FK requires it.
-	if _, err := conn.Exec(ctx,
-		`INSERT INTO tournament_players (tournament_id, player_id, tenant_id) VALUES ($1, $2, $3)`,
-		fix.TournamentID, id, fix.TenantID); err != nil {
-		t.Fatalf("enter: %v", err)
-	}
-	if _, err := conn.Exec(ctx,
-		`INSERT INTO team_members (team_id, player_id, tournament_id, tenant_id) VALUES ($1, $2, $3, $4)`,
-		teamID, id, fix.TournamentID, fix.TenantID); err != nil {
-		t.Fatalf("draft: %v", err)
-	}
-	return id
+	return enterAndDraft(t, client, fix.TournamentID, teamID, "Spare", uuid.NewString()[:8])
 }
 
 // The fixture plays Singles, which takes one a side.
@@ -45,7 +23,7 @@ func TestASinglesLineupTakesOneASide(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)
 	ctx := context.Background()
-	spare := anotherDraftedPlayer(t, fix, fix.TeamRed)
+	spare := anotherDraftedPlayer(t, client, fix, fix.TeamRed)
 
 	err := client.SetLineup(ctx, fix.MatchID, theLineup(
 		onSide(fix.RedPlayer, fix.TeamRed),
@@ -92,9 +70,9 @@ func TestAFourballLineupTakesTwoASide(t *testing.T) {
 
 	err := client.SetLineup(context.Background(), fourball, theLineup(
 		onSide(fix.RedPlayer, fix.TeamRed),
-		onSide(anotherDraftedPlayer(t, fix, fix.TeamRed), fix.TeamRed),
+		onSide(anotherDraftedPlayer(t, client, fix, fix.TeamRed), fix.TeamRed),
 		onSide(fix.BluePlayer, fix.TeamBlue),
-		onSide(anotherDraftedPlayer(t, fix, fix.TeamBlue), fix.TeamBlue),
+		onSide(anotherDraftedPlayer(t, client, fix, fix.TeamBlue), fix.TeamBlue),
 	))
 
 	if err != nil {
@@ -108,7 +86,7 @@ func TestSettingALineupReplacesTheOneBefore(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)
 	ctx := context.Background()
-	replacement := anotherDraftedPlayer(t, fix, fix.TeamRed)
+	replacement := anotherDraftedPlayer(t, client, fix, fix.TeamRed)
 
 	if err := client.SetLineup(ctx, fix.MatchID, theLineup(
 		onSide(replacement, fix.TeamRed),

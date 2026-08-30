@@ -30,19 +30,14 @@ func theMatch(t *testing.T, client *sdk.Client, fix *util.Fixture) sdk.Match {
 	return sdk.Match{}
 }
 
-func formatNamed(t *testing.T, client *sdk.Client, name string) sdk.MatchFormat {
+// Fatal on a name nothing seeded: a zero id would fail later as something else.
+func formatNamed(t *testing.T, client *sdk.Client, name string) uuid.UUID {
 	t.Helper()
-	formats, err := client.ListMatchFormats(context.Background())
-	if err != nil {
-		t.Fatalf("list formats: %v", err)
+	id, ok := formatsByName(t, client)[name]
+	if !ok {
+		t.Fatalf("no %s format seeded", name)
 	}
-	for _, f := range formats {
-		if f.Name == name {
-			return f
-		}
-	}
-	t.Fatalf("no %s format seeded", name)
-	return sdk.MatchFormat{}
+	return id
 }
 
 // matchInFormat creates a match in the named format. A format is chosen once, so a test that
@@ -52,7 +47,7 @@ func matchInFormat(t *testing.T, client *sdk.Client, fix *util.Fixture, name str
 	m, err := client.CreateMatch(context.Background(), fix.TournamentID, sdk.CreateMatchRequest{
 		CourseID:      fix.CourseID,
 		TeeColorID:    fix.TeeColorID,
-		MatchFormatID: formatNamed(t, client, name).ID,
+		MatchFormatID: formatNamed(t, client, name),
 		TeeTime:       theMatch(t, client, fix).TeeTime,
 	})
 	if err != nil {
@@ -68,13 +63,13 @@ func TestAMatchFormatCannotBeChanged(t *testing.T) {
 	t.Parallel()
 	client, fix := authedClient(t)
 	before := theMatch(t, client, fix).MatchFormatID
-	other := formatNamed(t, client, "Alt Shot")
+	otherFormat := formatNamed(t, client, "Alt Shot")
 
 	// Sent raw, not through the SDK: the point is a caller that puts a field the contract
 	// does not carry, which the typed request cannot express.
 	path := strings.Replace(sdk.RouteV1Match, "{id}", fix.MatchID.String(), 1)
 	token := testjwt.MintAccessToken(t, fix.TenantID, uuid.New(), writeScopes...)
-	status, _ := request.Raw(t, http.MethodPut, path, `{"match_format_id":"`+other.ID.String()+`"}`, token)
+	status, _ := request.Raw(t, http.MethodPut, path, `{"match_format_id":"`+otherFormat.String()+`"}`, token)
 
 	if status != http.StatusBadRequest {
 		t.Errorf("want 400 for a field the contract does not carry, got %d", status)

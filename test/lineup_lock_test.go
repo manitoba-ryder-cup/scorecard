@@ -105,7 +105,7 @@ func TestUndraftingWorksOnceThePlayerIsSubstitutedOut(t *testing.T) {
 		t.Fatal("want the undraft refused while she holds a lineup place")
 	}
 	if err := client.SetLineup(ctx, fix.MatchID, theLineup(
-		onSide(anotherDraftedPlayer(t, fix, fix.TeamRed), fix.TeamRed),
+		onSide(anotherDraftedPlayer(t, client, fix, fix.TeamRed), fix.TeamRed),
 		onSide(fix.BluePlayer, fix.TeamBlue),
 	)); err != nil {
 		t.Fatalf("substitute her out: %v", err)

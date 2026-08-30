@@ -109,7 +109,7 @@ func TestAWriteCannotDecideWhileAScoreIsLanding(t *testing.T) {
 	t.Run("moving the tee set", func(t *testing.T) {
 		t.Parallel()
 		client, fix := authedClient(t)
-		gold := secondTeeSet(t, fix)
+		gold := secondTeeSet(t, client, fix)
 		err := refusedAfterTheScoreCommits(t, fix, func() error {
 			_, err := client.UpdateMatch(ctx, fix.MatchID, sdk.UpdateMatchRequest{TeeColorID: &gold})
 			return err
