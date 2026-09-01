@@ -44,10 +44,12 @@ test-keys:
 		echo "Test keys already exist, skipping generation"; \
 	fi
 
-# Start test infrastructure (postgres + scorecard); scorecard auto-migrates on boot
+# Start test infrastructure (postgres, migrations, then scorecard)
 test-setup: test-keys
 	@echo "Building scorecard image..."
 	@docker compose -f test/docker-compose.yml build
+	@echo "Running migrations..."
+	@docker compose -f test/docker-compose.yml run --rm scorecard migrate up
 	@echo "Starting postgres and scorecard..."
 	@docker compose -f test/docker-compose.yml up -d --wait scorecard || \
 		(echo "Scorecard failed to start. Logs:" && \

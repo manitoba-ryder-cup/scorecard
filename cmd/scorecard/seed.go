@@ -46,7 +46,7 @@ var seedTournamentCmd = &cli.Command{
 
 		db, err := postgres.NewDB(c.Context, config.DatabaseURL)
 		if err != nil {
-			return fmt.Errorf("connecting to database: %w", err)
+			return fmt.Errorf("building the database pool: %w", err)
 		}
 		defer db.Close()
 
