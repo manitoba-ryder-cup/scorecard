@@ -32,8 +32,7 @@ services:
       # Host 5001 so the test API can run alongside the dev/UI scorecard on 5000.
       - "5001:5000"
     environment:
-      # Connects as the non-superuser app role so RLS is enforced. The server runs
-      # migrations on startup, so no separate migrate step is needed.
+      # Connects as the non-superuser app role so RLS is enforced.
       DATABASE_URL: postgres://scorecard:scorecard_password@scorecard-postgres-test:5432/scorecard?sslmode=disable
       HTTP_ADDRESS: :5000
       JWT_PUBLIC_KEY_PATH: /keys/public-key.pem

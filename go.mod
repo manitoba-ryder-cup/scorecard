@@ -5,7 +5,7 @@ go 1.26
 require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
-	github.com/travisbale/knowhere v0.2.0
+	github.com/travisbale/knowhere v0.3.0
 	github.com/urfave/cli/v2 v2.27.7
 	golang.org/x/sync v0.22.0
 )

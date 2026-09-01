@@ -10,7 +10,8 @@ import (
 // DB is the database instance for scorecard using knowhere's generic wrapper
 type DB = postgres.DB[*sqlc.Queries]
 
-// NewDB creates a new database connection using knowhere's database wrapper.
+// NewDB builds a connection pool using knowhere's database wrapper. It does not reach the
+// database; the pool dials as it is used.
 // This provides tenant context propagation via RLS and transaction management.
 func NewDB(ctx context.Context, databaseURL string) (*DB, error) {
 	// d is a pool or a transaction; both satisfy sqlc.DBTX.

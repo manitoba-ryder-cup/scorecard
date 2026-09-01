@@ -19,7 +19,7 @@ func newSeedServices(t *testing.T) (context.Context, *app.Services) {
 	t.Helper()
 	db, err := postgres.NewDB(context.Background(), util.LoadConfig().DatabaseURL)
 	if err != nil {
-		t.Fatalf("connect db: %v", err)
+		t.Fatalf("build db pool: %v", err)
 	}
 	t.Cleanup(db.Close)
 	ctx := identity.WithTenant(context.Background(), uuid.New())

@@ -47,12 +47,7 @@ type Server struct {
 func NewServer(ctx context.Context, config *Config) (*Server, error) {
 	db, err := postgres.NewDB(ctx, config.DatabaseURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
-	}
-
-	if err := postgres.MigrateUp(config.DatabaseURL); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("failed to run database migrations: %w", err)
+		return nil, fmt.Errorf("failed to build the database pool: %w", err)
 	}
 
 	jwtValidator, err := jwt.NewValidator(config.JWTPublicKeyPath)
