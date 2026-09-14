@@ -1,13 +1,13 @@
 module github.com/manitoba-ryder-cup/scorecard
 
-go 1.26
+go 1.26.0
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/jackc/pgx/v5 v5.10.0
+	github.com/jackc/pgx/v5 v5.11.0
 	github.com/travisbale/knowhere v0.3.0
 	github.com/urfave/cli/v2 v2.27.7
-	golang.org/x/sync v0.22.0
+	golang.org/x/sync v0.23.0
 )
 
 require (
